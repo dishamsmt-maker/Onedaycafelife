@@ -1,0 +1,13 @@
+import { chromium } from '@playwright/test';
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage'],env:{...process.env,HOME:'/tmp/one-day-browser'}});
+const page=await browser.newPage({viewport:{width:1512,height:982}});
+page.on('pageerror',e=>console.log('PAGEERROR',e.message));
+await page.goto('http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
+await page.getByRole('button',{name:'เริ่มเช้าวันแรก'}).click();
+await page.getByRole('button',{name:'หยุดเวลา',exact:true}).click();
+await page.evaluate(()=>{const h=window.__ONE_DAY_DEV__;h.advance(70);});
+await page.waitForTimeout(700);
+await page.screenshot({path:'/workspace/sites/one-day/screenshot-desktop.png'});
+console.log('title:',await page.title(),'canvas:',await page.locator('canvas').count());
+console.log('body:',(await page.locator('body').innerText()).slice(-900));
+await browser.close();

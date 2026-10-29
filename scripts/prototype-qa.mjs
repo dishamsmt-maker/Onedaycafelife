@@ -1,0 +1,23 @@
+import { chromium,expect } from '@playwright/test';
+process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY='1';
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
+const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,deviceScaleFactor:1});page.setDefaultTimeout(90000);
+const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('PAGEERROR',e.message)});
+await page.route(/fonts\.(googleapis|gstatic)\.com/,route=>route.abort());await page.goto('http://localhost:5173',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'เดินเข้าร้าน',exact:true}).click();
+await page.evaluate(()=>{const h=window.__ONE_DAY_DEV__,s=h.store.getState().game;h.store.getState().replace({...s,minute:420,phase:'open',paused:true,events:[],settings:{...s.settings,arrivalsPerHour:0}});});
+await page.waitForTimeout(1500);await page.screenshot({path:'prototype-entrance.png'});console.log('entrance captured');
+async function walk(x,z){await page.evaluate(([x,z])=>{const p=window.__ONE_DAY_PLAYER__;p.view.yaw=Math.atan2(-(x-p.position.x),-(z-p.position.z));p.view.pitch=0;p.move.y=1},[x,z]);await page.waitForFunction(([x,z])=>{const p=window.__ONE_DAY_PLAYER__;if(Math.hypot(p.position.x-x,p.position.z-z)<.14){p.move.y=0;return true}return false},[x,z],{timeout:90000});console.log('walked',x,z)}
+await walk(.15,-.6);await walk(.15,1.65);
+await page.evaluate(()=>{window.__ONE_DAY_PLAYER__.view.yaw=Math.PI/2;window.__ONE_DAY_PLAYER__.view.pitch=-.08});
+await page.waitForTimeout(500);await page.screenshot({path:'prototype-counter.png'});console.log('counter captured');
+await page.getByRole('button',{name:'เปิดเมนูร้าน',exact:true}).click();await page.getByRole('button',{name:'ดูเมนู ข้าวต้มไก่',exact:true}).click();await page.getByRole('button',{name:'สั่ง ข้าวต้มไก่ · ฿45',exact:true}).click();
+await page.getByRole('button',{name:'เปิดเมนูร้าน',exact:true}).click();await page.getByRole('tab',{name:/กาแฟ/}).click();await page.getByRole('button',{name:'ดูเมนู ชาไทยเย็น',exact:true}).click();await page.getByRole('button',{name:'สั่ง ชาไทยเย็น · ฿35',exact:true}).click();
+await walk(.15,5.4);await walk(.15,6.25);await page.getByRole('button',{name:'นั่งโต๊ะมะลิ',exact:true}).click();
+await page.evaluate(()=>{window.__ONE_DAY_DEV__.advance(35);window.__ONE_DAY_PLAYER__.view.pitch=-.35;});
+await page.waitForTimeout(2000);await page.screenshot({path:'prototype-seating.png'});console.log('seating captured');
+const state=await page.evaluate(()=>{const g=window.__ONE_DAY_DEV__.store.getState().game;return {orders:g.orders.map(o=>({menu:o.menuId,status:o.status})),y:window.__ONE_DAY_PLAYER__.eyeHeight,table:window.__ONE_DAY_VISITOR__.getState().tableId}});console.log('SCENE C',JSON.stringify(state));
+expect(state.orders.every(o=>o.status==='completed')).toBeTruthy();expect(state.y).toBe(1.12);
+await page.getByRole('button',{name:'ดื่มเครื่องดื่ม',exact:true}).click();await page.waitForTimeout(800);await page.screenshot({path:'prototype-drinking.png'});
+await page.getByRole('button',{name:'ชำระเงิน',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.__ONE_DAY_DEV__.store.getState().game.ledger.filter(t=>['food-sale','drink-sale'].includes(t.type)).reduce((sum,t)=>sum+t.amount,0)),{timeout:10000}).toBe(80);
+console.log('PASSED',JSON.stringify({errors,ledger:'80THB only',touch:await page.evaluate(()=>window.__ONE_DAY_PLAYER__.position)}));
+await browser.close();
