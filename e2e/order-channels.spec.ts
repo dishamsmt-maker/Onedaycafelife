@@ -10,7 +10,7 @@ test('seated customer must tap table QR and can follow the bill to payment',asyn
  await expect(page.getByRole('button',{name:'สแกน QR บนโต๊ะ'})).toBeVisible();
  const blocked=await page.evaluate(()=>(window as any).__ONE_DAY_VISITOR__.getState().order('thai-tea'));expect(blocked).toBe(false);
  await page.getByRole('button',{name:'สแกน QR บนโต๊ะ'}).click();
- await expect(page.getByRole('heading',{name:'เมนู QR · โต๊ะมะลิ'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'เมนู QR · T1'})).toBeVisible();
  await page.getByRole('tab',{name:/กาแฟ/}).click();
  await page.getByRole('button',{name:'ดูเมนู ชาไทยเย็น',exact:true}).click();
  await page.getByRole('button',{name:'สั่ง ชาไทยเย็น · ฿35',exact:true}).click();

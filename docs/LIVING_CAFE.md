@@ -1,5 +1,7 @@
 # Living café operations — work in progress
 
+Historical scope of PR #3. The later service-realism iteration supersedes its sign, watering, fridge and QR limitations; see `SERVICE_REALISM.md`.
+
 This branch builds on PR #2 (`feature/table-qr-orders`). It is not deployed at the existing Sites address.
 
 ## Implemented

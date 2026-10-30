@@ -71,9 +71,9 @@ describe('ONE DAY controlled business simulation', () => {
     const sales = s.ledger.filter(t => t.type === 'food-sale' || t.type === 'drink-sale');
     expect(sales.every(t => s.orders.find(o => o.id === t.orderId)?.status === 'completed')).toBe(true);
   });
-  it('rain moistens already wet soil and Alee does not water it', () => {
+  it('rain moistens soil while Alee still follows the requested daily plant round', () => {
     let s = game(); s.garden.moisture = 80; s = act(s, { type: 'weather', weather: 'rain' });
-    s = advance(s, 5); expect(s.garden.moisture).toBeGreaterThan(80); expect(s.employees.find(e => e.id === 'alee')!.task?.kind).not.toBe('garden');
+    s = advance(s, 5); expect(s.garden.moisture).toBeGreaterThan(80); expect(s.employees.find(e => e.id === 'alee')!.task?.maintenance).toBe('water');
     expect(s.minute).toBeCloseTo(395);
   });
   it('queues requested garden care while Alee brews and performs it after that drink', () => {
