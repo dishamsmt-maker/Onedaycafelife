@@ -58,7 +58,7 @@ function walk(position: Vec2, path: Vec2[], distance: number) {
 function seatPosition(s: GameState, c: Customer): Vec2 {
   const t = s.tables.find(t => t.id === c.tableId);
   if (!t && c.player) return [-.35,1.4];
-  if (!t) { const n = s.customers.filter(o => o.takeaway && o.id < c.id && o.status !== 'leaving').length % 8; return [-1.65 + (n % 3) * .6, .65 + Math.floor(n / 3) * .55]; }
+  if (!t) { const n = s.customers.filter(o => o.takeaway && o.id < c.id && o.status !== 'leaving').length % 8; return [-1.8 + (n % 3) * .55, -.65 + Math.floor(n / 3) * .25]; }
   const idx = Math.max(0, t.customerIds.indexOf(c.id));
   return [t.position[0] + (idx % 2 === 0 ? -.9 : .9), t.position[1] + (idx < 2 ? -.25 : .25)];
 }
@@ -226,14 +226,18 @@ function progressEmployees(s: GameState, dt: number) {
     if(t.kind==='station'){e.available=true;continue;}
     if (t.kind === 'rest') { e.available = false; continue; }
     t.remaining -= dt;
-    if (t.remaining <= 0) finishTask(s, e);
+    if(t.remaining<=0&&t.productionStep==='collect'){
+      const o=s.orders.find(o=>o.id===t.orderId),m=s.menu.find(m=>m.id===o?.menuId);
+      if(!o||!m||o.status==='cancelled'){e.task=null;continue;}
+      t.productionStep='prepare';t.target=[...(t.kind==='brew'?STATIONS.bar:STATIONS.kitchen)];t.path=findPath(e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
+    }else if (t.remaining <= 0) finishTask(s, e);
   }
 }
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
   const serving = s.employees.find(e => e.id === server)!;
   const off = s.employees.find(e => (e.id === 'ken' || e.id === 'pun') && e.id !== server)!;
-  if (!off.controlled && !off.task) setTask(off, 'rest', REST, 999999);
+  if (!off.controlled && (!off.task||off.task.kind==='station')) setTask(off, 'rest', REST, 999999);
   if (!serving.controlled && serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
   if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
     const ready = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'ready' && !o.workerId);
@@ -248,7 +252,7 @@ function scheduleStaff(s: GameState) {
   const na = s.employees.find(e => e.id === 'na')!;
   if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
-    setTask(na, 'cook', STATIONS.kitchen, m.duration * s.settings.prepMultiplier, { orderId: food.id });
+    setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
   const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
@@ -259,7 +263,7 @@ function scheduleStaff(s: GameState) {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
       return score(a) - score(b);
     });
-    if (order && candidates.length) { const e = candidates[0], m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(e, 'brew', STATIONS.bar, m.duration * s.settings.prepMultiplier, { orderId: order.id }); }
+    if (order && candidates.length) { const e = candidates[0], m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(e, 'brew', order.stockConsumed?STATIONS.bar:STATIONS.fridge, order.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: order.id, productionStep:order.stockConsumed?'prepare':'collect' }); }
   }
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
@@ -354,7 +358,6 @@ function progressCustomers(s: GameState, dt: number) {
       else if(c.restroomPhase==='using'){c.restroomRemaining=(c.restroomRemaining??0)-dt;if(c.restroomRemaining<=0){c.restroomPhase='returning';c.path=findPath(c.position,seatPosition(s,c));}}
       else {c.status='eating';c.restroomPhase=undefined;}
     } else if(c.status==='eating'){
-      if(!c.restroomUsed&&!c.takeaway&&c.eatRemaining>3&&!s.customers.some(o=>o.status==='restroom')&&random(s)<dt*.008){c.restroomUsed=true;c.status='restroom';c.restroomPhase='going';c.path=findPath(c.position,STATIONS.restroom);continue;}
       c.eatRemaining-=dt;if(c.eatRemaining<=0)leave(s,c,true);
     }
   }
@@ -463,6 +466,7 @@ function playerSeat(s:GameState,tableId:string){
 export function act(state: GameState, action: GameAction): GameState {
   const s = draft(state);
   switch (action.type) {
+    case 'plan-operation': s.operationPlans=(s.operationPlans??[]).includes(action.id)?s.operationPlans?.filter(id=>id!==action.id):[...(s.operationPlans??[]),action.id];break;
     case 'visitor-submit': {
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
       if(!action.requestId||current?.requestIds?.includes(action.requestId))break;

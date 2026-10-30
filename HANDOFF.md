@@ -64,3 +64,15 @@ Branch `feature/table-qr-orders` adds player table-QR ordering, a bill/queue she
 Publishing is currently blocked: this session has no Sites deployment tool, and GitHub Pages/deployment APIs return HTTP 403 (integration permissions). The version must not be described as available at the old game URL until deployment and an external request are verified.
 
 Validation actually run for this iteration: Vitest 40/40 passed (34 existing + 6 new channel/payment/refund tests); TypeScript + Vite build passed, with the existing large-chunk warning; Playwright 6/6 passed (4 existing + 2 new QR/counter journeys). The final browser run took 5.3 minutes. An earlier browser run was deliberately interrupted while correcting new test fixtures; it is not counted as a pass. Generated tracked screenshots were restored. No deployment or real-device testing was performed.
+
+## 30 October 2026 — Living café operations (draft)
+
+Branch `feature/living-cafe-operations` is based on PR #2 (`b905019`), which is still open; its PR should target `feature/table-qr-orders`. Remote main remains `a0cb5f4`; baseline tag object and peeled commit were rechecked unchanged. GitHub repository metadata confirms `private: true`.
+
+Implemented stock collection trips, inventory-driven storage/production models, openable pot, takeaway positions, chair/color/fence changes, and an operations dashboard. See `docs/LIVING_CAFE.md` for exact scope and unfinished requests. Sign scheduling remains blocked on contradictory time instructions. This is not the complete requested visual redesign and has not been published.
+
+Validation **run this round**: `npm test` 42/42 passed in 5 files (40 prior + 2 operations tests); `npm run build` exited 0 (TypeScript/Vite), JS 1,431.02 kB / gzip 413.25 kB, existing large-bundle warning; `npm run test:e2e` 7/7 passed in 5.1 minutes (6 prior + new dashboard purchase/plan test). New collection test checks once-only stock/COGS and save/resume; existing full-day and deterministic tests still pass. The referral fixture now seeds one satisfied guest rather than an eight-person rush because collecting ingredients adds real walking time; referral assertions remain unchanged. The first implementation run exposed that fixture issue and an idle shift-change issue; final results above are after those corrections.
+
+Tracked screenshots produced by this browser run were restored. Browser checks use Chromium software rendering, not physical iPhone/Safari. No dependency installation, vulnerability audit, deployment or tag update was performed in this round. Existing Sites integration remains unavailable in this session; opening the original game URL does not load these changes.
+
+Visual inspection also captured the open storage cabinet and garden without page errors. Bar stool seats were subsequently matched to black (color-only correction); the browser suite above preceded that final color change.
