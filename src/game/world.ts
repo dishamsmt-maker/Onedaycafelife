@@ -1,7 +1,7 @@
 import type { Vec2 } from './types';
 export const WORLD = {width:5,depth:10,front:0,back:10};
 export const STATIONS = {bar:[1.4,2.0],kitchen:[1.13,4.5],pickup:[0.6,4],dish:[0.6,5.3],garden:[-0.1,8.8],restroom:[1.4,8.6],rest:[1.65,9.35],manager:[0.4,1.1],entrance:[-0.5,-0.8],queue:[-1.45,0.65],fridge:[1.1,5.6]} satisfies Record<string,Vec2>;
-export const TABLE_LAYOUT = [{id:'t1',name:'โต๊ะมะลิ',position:[-1.25,6.35] as Vec2,capacity:4},{id:'t2',name:'โต๊ะลีลา',position:[1.15,7.15] as Vec2,capacity:4},{id:'t3',name:'โต๊ะชบา',position:[-1.25,8.35] as Vec2,capacity:4}];
+export const TABLE_LAYOUT = [{id:'t1',name:'T1',position:[-1.25,6.35] as Vec2,capacity:4},{id:'t2',name:'T2',position:[1.15,7.15] as Vec2,capacity:4},{id:'t3',name:'T3',position:[-1.25,8.35] as Vec2,capacity:4}];
 export interface Obstacle {x:number;z:number;w:number;d:number;}
 export const OBSTACLES:Obstacle[]=[{x:1.4,z:.75,w:2,d:.4},{x:.55,z:2.1,w:.45,d:2.4},{x:2.05,z:2.15,w:.7,d:2.7},{x:1.95,z:4.65,w:.72,d:2.0},{x:1.95,z:5.85,w:.8,d:.7},...TABLE_LAYOUT.map(t=>({x:t.position[0],z:t.position[1],w:1.25,d:1.2})),{x:1.85,z:9.3,w:1.1,d:1.0}];
 export function canWalk(x:number,z:number, radius=.16){return x>-2.32&&x<2.32&&z>-.95&&z<9.82&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);}

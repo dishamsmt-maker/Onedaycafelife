@@ -5,16 +5,17 @@ const food:Record<string,number>={'chicken-porridge':0,'chicken-egg':1,'shrimp-p
 const individualFood:Record<string,number>={'seafood-porridge':0,'one-day-set':1,'special-set':2,'fries':3,'nuggets':4,'grilled-sausage':5,'cheese-fries':6,'tea-toast-set':7,'tea-break-combo':8};
 const drinks:Record<string,number>={'latte':0,'americano':1,'espresso':2,'caramel-macchiato':3,'mocha':4,'signature':5,'thai-tea':6,'green-tea':7,'hot-tea':8,'lemon-tea':9,'cocoa':10,'fresh-milk':11,'pink-milk':12,'lime-soda':13,'honey-lemon':14,'peach-soda':15};
 export function menuPhoto(id:string):{src:string;position:string;size:string}{
+ const base=import.meta.env.BASE_URL;
  if(id in individualFood){
    const i=individualFood[id],crop=.303,cx=(i%3+.5)/3;
    // The source uses 3 equal-width columns; the last photographic row is taller.
    const cy=[.160,.479,.819][Math.floor(i/3)];
-   return{src:'/menu/individual-food-atlas.webp',position:`${(cx-crop/2)/(1-crop)*100}% ${(cy-crop/2)/(1-crop)*100}%`,size:`${100/crop}% ${100/crop}%`};
+   return{src:`${base}menu/individual-food-atlas.webp`,position:`${(cx-crop/2)/(1-crop)*100}% ${(cy-crop/2)/(1-crop)*100}%`,size:`${100/crop}% ${100/crop}%`};
  }
  const drink=id in drinks;const i=(drink?drinks[id]:food[id])??0;
  // Generated sheet rows have small height differences; crop inside each cell.
  const crop=drink?.225:.215, cx=(i%4+.5)/4;
  const centers=drink?[.122,.370,.617,.869]:[.115,.347,.582,.850];
  const cy=centers[Math.floor(i/4)];
- return{src:drink?'/menu/drinks-atlas.webp':'/menu/food-atlas.webp',position:`${(cx-crop/2)/(1-crop)*100}% ${(cy-crop/2)/(1-crop)*100}%`,size:`${100/crop}% ${100/crop}%`};
+ return{src:`${base}menu/${drink?'drinks-atlas.webp':'food-atlas.webp'}`,position:`${(cx-crop/2)/(1-crop)*100}% ${(cy-crop/2)/(1-crop)*100}%`,size:`${100/crop}% ${100/crop}%`};
 }

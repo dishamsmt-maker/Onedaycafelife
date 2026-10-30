@@ -26,7 +26,7 @@ export function LiveFridge({state,open,onToggle}:{state:GameState;open:boolean;o
  {rows.map((name,row)=>{const y=1.65-row*.32;const items=state.inventory.filter(i=>storageGroup(i)===name);return <group key={name}>
  <Cube p={[0,y-.04,0]} s={[.65,.025,.82]} color="#d7e0d4"/>
  {visible&&items.map((i,n)=><group key={i.id} position={[.16-Math.floor(n/5)*.18,y,-.32+(n%5)*.16]}><IngredientModel item={i} scale={.8}/><StockLabel text={`${i.name} ${Number(i.quantity.toFixed(2))} ${i.unit}`} position={[-.08,.12,0]} width={.15}/></group>)}
- {visible&&<StockLabel text={name} position={[-.37,y-.035,0]} width={.65}/>}
+ {visible&&<group position={[-.31,y-.03,0]}><Cube p={[0,0,0]} s={[.03,.06,.18]} color={row===0?'#7ecbd0':row===1?'#f0ddae':row===2?'#64a34e':row===3?'#d78877':'#c79d55'}/></group>}
  </group>})}
  <group position={[-.36,.95,-.44]} rotation={[0,visible?-Math.PI*.65:0,0]}><Cube p={[0,0,.44]} s={[.055,1.9,.88]} color="#b7c4b9"/><Cube p={[-.045,0,.74]} s={[.04,.45,.03]} color="#344a3d"/></group>
  </group>;
