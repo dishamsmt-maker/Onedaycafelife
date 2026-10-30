@@ -130,7 +130,7 @@ export default function CameraRig({mode,onSelect,onInteract}:CameraRigProps) {
       [{kind:'bar',label:'ดูเมนูและสั่งอาหาร',point:[-.2,1.65]}]:[
       {kind:'fridge',label:'เปิดตู้เย็น',point:STATIONS.fridge},{kind:'bar',label:'สำรวจบาร์กาแฟ',point:STATIONS.bar},
       {kind:'kitchen',label:'สำรวจครัว',point:STATIONS.kitchen},{kind:'garden',label:'สำรวจสวน',point:STATIONS.garden}];
-    if(visitor.role==='customer'&&!visitor.tableId)for(const t of useGame.getState().game.tables)choices.push({kind:'table',label:`นั่ง${t.name}`,point:t.position,id:t.id});
+    if(visitor.role==='customer'&&!visitor.tableId)for(const t of useGame.getState().game.tables)choices.push({kind:'table',label:`นั่งโต๊ะ ${t.name}`,point:t.position,id:t.id});
     const near=choices.map(({point,...item})=>({...item,distance:Math.hypot(-camera.position.x-point[0],camera.position.z-point[1])})).sort((a,b)=>a.distance-b.distance)[0];
     touchControls.nearby=visitor.tableId?{kind:'table',label:'ลุกจากโต๊ะ',distance:0,id:visitor.tableId}:near?.distance<1.65?near:null;
     if(touchControls.interact){

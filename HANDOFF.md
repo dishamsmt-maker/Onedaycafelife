@@ -1,5 +1,13 @@
 # ส่งต่องาน ONE DAY Café Life
 
+## Latest: 30 October 2026 — service realism
+
+Branch `feature/service-realism` starts from merged PR #4 (`9719cc5`). The user has explicitly authorized merge/publish and changed repository visibility to public; those instructions supersede the earlier private-only/no-publish constraints. Baseline tag is unchanged. See `docs/SERVICE_REALISM.md` for implementation and physical-animation limits.
+
+This round actually ran: Vitest **46/46**, including four new service tests; production build with `GITHUB_ACTIONS=true` passed and emitted `/Onedaycafelife/` asset paths (existing large-bundle warning). Seven existing browser journeys passed in the full run. Its new eighth scenario was interrupted after decoding images and taking a scene screenshot because its original test fixture tried to open the menu through an already-open hub; this is not counted as a pass. After correcting the fixture and polishing phone/tray/ladder/stone visuals, the QR, counter and new image/scene tests were rerun: **3/3 passed in 1.6 minutes**. This covers eight distinct browser scenarios across the two runs, not a single final 8/8 suite run. All three WebP atlases decoded in Chromium and the actual menu/scene screenshots were inspected. The old rain-skip test now expects the requested daily plant round even in rain. Initial failing tests caught early-closing watering and the ten-minute floating-point boundary; both were fixed, not bypassed.
+
+Tracked screenshots from this round were restored. No physical iPhone/Safari or FPS test was run. The final UI label-only change was exercised in the targeted browser run; the remote publishing build will type-check the final source. Publishing now verifies the public game HTML and all three menu atlas URLs after deployment. Local outbound requests to the Pages hostname remain restricted; the GitHub runner performs that external verification.
+
 วันที่ 29 ตุลาคม 2026 (Asia/Bangkok) — งานรอบนี้เป็นเอกสารเท่านั้น
 
 ## Baseline และสถานะ

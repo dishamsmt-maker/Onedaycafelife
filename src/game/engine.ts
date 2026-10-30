@@ -1,4 +1,5 @@
 import type { Customer, Employee, GameAction, GameState, Guest, MenuItem, Order, StaffId, Task, Transaction, Vec2, Weather } from './types';
+import {WATER_STOPS,signWanted} from './service';
 import { DEFAULT_SETTINGS, INITIAL_EMPLOYEES, INITIAL_INVENTORY, INITIAL_MENU, menuAvailable, servicePeriod } from './data';
 import { canWalk, findPath, STATIONS, TABLE_LAYOUT } from './world';
 
@@ -167,12 +168,16 @@ function consume(s: GameState, o: Order, m: MenuItem) {
 function customerTarget(s: GameState, c: Customer): Vec2 { const table=s.tables.find(t=>t.id===c.tableId);return table?[table.position[0],table.position[1]-.9]:seatPosition(s,c); }
 function finishTask(s: GameState, e: Employee) {
   const t = e.task!;
+  if(t.maintenance==='sign'){s.signMounted=signWanted(s);notice(s,s.signMounted?'Alee ติดป้าย ONE DAY แล้ว':'Alee ถอดป้าย ONE DAY แล้ว');}
+  if(t.maintenance==='water'){s.wateredCount=(t.stopIndex??0)+1;s.garden.moisture=Math.min(100,s.garden.moisture+3);}
+  if(t.maintenance==='question'){const c=s.customers.find(c=>c.id===t.customerId);if(c){c.answeredAt=s.minute;notice(s,`${c.name} · พนักงานตรวจคิวและแจ้งความคืบหน้าแล้ว`);}}
   if (t.kind === 'cook' || t.kind === 'brew') {
     const o = s.orders.find(o => o.id === t.orderId);
     if (o && o.status !== 'cancelled') { o.status = 'ready'; o.readyAt = s.minute; o.workerId = undefined; }
   } else if (t.kind === 'serve') {
     const c = s.customers.find(c => c.id === t.customerId);
-    if (t.stage === 'take-order' && c) placeOrders(s, c);
+    if(t.maintenance==='question'){}
+    else if (t.stage === 'take-order' && c) placeOrders(s, c);
     else {
       const o = s.orders.find(o => o.id === t.orderId);
       if (o && o.status !== 'cancelled' && c?.status !== 'leaving') {
@@ -241,9 +246,11 @@ function scheduleStaff(s: GameState) {
   if (!serving.controlled && serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
   if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
     const ready = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'ready' && !o.workerId);
-    const waiting = s.customers.find(c => !c.player && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
+    const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
+    const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
     const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
     if (ready) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
+    else if(question)setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
     else if (waiting) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
     else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
     else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
@@ -271,7 +278,10 @@ function scheduleStaff(s: GameState) {
     if (!stockAvailable(s, m)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
   }
   const alee = s.employees.find(e => e.id === 'alee')!;
-  if (!alee.controlled && (!alee.task || (alee.task.kind==='station'&&s.garden.careRequested))) {
+  if (!alee.controlled && (!alee.task || alee.task.kind==='station')) {
+    if(Boolean(s.signMounted)!==signWanted(s))setTask(alee,'inspect',[-2.1,-.6],.8,{maintenance:'sign'});
+    else if(s.phase!=='closing'&&s.minute<630&&(s.wateredCount??0)<WATER_STOPS.length)setTask(alee,'garden',WATER_STOPS[s.wateredCount??0],.35,{maintenance:'water',stopIndex:s.wateredCount??0});
+    else
     if (s.garden.careRequested || s.garden.lastInspection < 0 || s.minute - s.garden.lastInspection > 180 || (s.phase === 'closing' && s.minute - s.garden.lastInspection > 10)) setTask(alee, 'inspect', INSPECT, 2);
     else if (s.garden.moisture < 45 && !s.weather.includes('rain')) setTask(alee, 'garden', STATIONS.garden, 3);
     else if (s.cleanliness < 90) setTask(alee, 'garden', [-.8, 1.2], 2);
@@ -328,6 +338,8 @@ function leave(s: GameState, c: Customer, pay: boolean) {
 }
 function progressCustomers(s: GameState, dt: number) {
   for (const c of s.customers) {
+    const delayed=s.orders.some(o=>(c.orderChannel!=='counter'||o.paid)&&o.customerId===c.id&&!['completed','cancelled'].includes(o.status)&&s.minute-o.createdAt>10.000001);
+    if(delayed&&c.askedAt===undefined&&c.status!=='leaving'){c.askedAt=s.minute;notice(s,`${c.name} เรียกพนักงาน: อาหารเสร็จหรือยัง? รอเกิน 10 นาทีแล้ว`);}
     if(c.player && c.status!=='leaving'){
       const orders=s.orders.filter(o=>c.orderIds.includes(o.id));
       const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
@@ -339,6 +351,7 @@ function progressCustomers(s: GameState, dt: number) {
     walk(c.position, c.path, dt * 3.5);
     if (c.status === 'queuing') { if (!c.path.length) seatCustomer(s, c); }
     else if (c.status === 'arriving' && !c.path.length) { c.status = 'seated'; c.seatedAt = s.minute; }
+    if(c.status==='seated'&&!c.takeaway&&!c.orderIds.length&&s.minute-c.seatedAt>.5){c.orderChannel='table-qr';placeOrders(s,c);}
     if ((c.status === 'queuing' || c.status === 'seated') && s.minute - c.arrivedAt > c.patience) { leave(s, c, false); continue; }
     if (c.status === 'waiting') {
       const orders = s.orders.filter(o => c.orderIds.includes(o.id));
@@ -408,7 +421,7 @@ function step(s: GameState, dt: number) {
   if (s.phase === 'closing' && !s.customers.length) {
     const dirty = s.tables.some(t => t.dirty);
     const inspected = s.garden.lastInspection >= CLOSE || s.minute - s.garden.lastInspection < 10;
-    if ((!dirty && inspected) || s.minute > CLOSE + 120) closeReport(s);
+    if ((!dirty && inspected && !s.signMounted) || s.minute > CLOSE + 120) closeReport(s);
   }
 }
 export function tick(state: GameState, dtMinutes: number): GameState {
@@ -430,6 +443,7 @@ function restock(s: GameState, id: string, quantity: number) {
 }
 function nextDay(s: GameState) {
   if (s.phase !== 'closed') return;
+  s.signMounted=false;s.wateredCount=0;
   s.day++; s.minute = 385; s.phase = 'preparing'; s.paused = true; s.openingCash = s.cash;
   s.customers = []; s.orders = []; s.todayArrivals = 0; s.todayWaits = []; s.todaySatisfaction = []; s.shortages = [];
   s.tables.forEach(t => { t.customerIds = []; t.dirty = false; });

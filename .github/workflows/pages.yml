@@ -41,3 +41,12 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify published page and menu images
+        env:
+          GAME_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          curl --fail --retry 5 --retry-delay 3 --retry-all-errors "$GAME_URL" -o /tmp/game.html
+          for atlas in food-atlas drinks-atlas individual-food-atlas; do
+            curl --fail --retry 5 --retry-delay 3 --retry-all-errors "${GAME_URL}menu/${atlas}.webp" -o "/tmp/${atlas}.webp"
+            test "$(wc -c < "/tmp/${atlas}.webp")" -gt 1000
+          done

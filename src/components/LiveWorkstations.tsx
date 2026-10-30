@@ -12,9 +12,11 @@ function Cube({p,s,color}:{p:V3;s:V3;color:string}){return <mesh position={p}><b
 export function IngredientModel({item,scale=1}:{item:Ingredient;scale?:number}){
  const group=storageGroup(item),fill=Math.min(1,item.quantity/Math.max(item.reorder*4,.01));
  if(item.quantity<=0)return null;
- const color=group==='ผัก'?'#54883b':group==='เนื้อและอาหารแช่แข็ง'?'#c98f82':group==='เครื่องดื่ม'?'#e5e5cd':'#d3b57c';
+ const color=({chicken:'#edb9a4',shrimp:'#f18b65',seabass:'#ccd9d7',squid:'#f1dfcf',sausage:'#b9663f',nuggets:'#cc9a45',vegetables:'#3c9748',egg:'#f3e3bd',bread:'#cd974f',beans:'#583724',tea:'#b76a24',rice:'#f0e7d2',cheese:'#f5cb50',butter:'#eed589'} as Record<string,string>)[item.id]??'#bda273';
+ if(item.id==='shrimp')return <group scale={scale}>{Array.from({length:Math.max(1,Math.ceil(fill*4))},(_,i)=><mesh key={i} position={[(i%2)*.06,.03,Math.floor(i/2)*.07]} rotation={[-Math.PI/2,0,i]}><torusGeometry args={[.025,.012,6,10,Math.PI*1.6]}/><meshStandardMaterial color={color}/></mesh>)}</group>;
+ if(item.id==='seabass')return <group scale={scale}><mesh position={[0,.04,0]} scale={[.045,.025,.12*fill+.02]}><sphereGeometry args={[1,10,6]}/><meshStandardMaterial color={color}/></mesh><mesh position={[0,.04,.11*fill]} rotation={[Math.PI/2,0,0]}><coneGeometry args={[.045,.05,3]}/><meshStandardMaterial color="#6e999a"/></mesh></group>;
  return <group scale={[scale,scale*(.4+.6*fill),scale]}>
- {group==='เครื่องดื่ม'?<><mesh position={[0,.08*fill,0]}><cylinderGeometry args={[.035,.04,.16*fill,10]}/><meshStandardMaterial color={item.id==='milk'?'#f5eedc':'#97c6cb'}/></mesh><Cube p={[0,.17*fill,0]} s={[.035,.02,.035]} color="#426859"/></>:<><Cube p={[0,.012,0]} s={[.13,.025,.12]} color="#d8d6c5"/>{Array.from({length:Math.max(1,Math.ceil(fill*5))},(_,n)=><mesh key={n} position={[(n%2-.5)*.055,.035+Math.floor(n/2)*.02,(n%3-1)*.025]} scale={group==='ผัก'?[.045,.015,.03]:[.035,.02,.025]}><sphereGeometry args={[1,8,6]}/><meshStandardMaterial color={item.id==='egg'?'#eee1c4':color}/></mesh>)}</>}
+ {group==='เครื่องดื่ม'?<><mesh position={[0,.08*fill,0]}><cylinderGeometry args={[.035,.04,.16*fill,10]}/><meshStandardMaterial color={item.id==='milk'?'#f5eedc':item.id==='lime'?'#a4c94c':'#97c6cb'}/></mesh><Cube p={[0,.17*fill,0]} s={[.035,.02,.035]} color="#426859"/></>:<><Cube p={[0,.012,0]} s={[.13,.025,.12]} color="#d8d6c5"/>{Array.from({length:Math.max(1,Math.ceil(fill*5))},(_,n)=><mesh key={n} position={[(n%2-.5)*.055,.035+Math.floor(n/2)*.02,(n%3-1)*.025]} rotation={[0,n*.7,0]} scale={group==='ผัก'?[.045,.012,.06]:item.id==='egg'?[.022,.032,.022]:item.id==='sausage'?[.014,.014,.06]:item.id==='bread'?[.04,.012,.045]:[.035,.02,.025]}><sphereGeometry args={[1,8,6]}/><meshStandardMaterial color={color}/></mesh>)}</>}
  </group>;
 }
 export function LiveFridge({state,open,onToggle}:{state:GameState;open:boolean;onToggle:()=>void}){
@@ -25,7 +27,7 @@ export function LiveFridge({state,open,onToggle}:{state:GameState;open:boolean;o
  <Cube p={[.32,.95,0]} s={[.06,1.9,.85]} color="#c1cbc2"/>{[-.43,.43].map(z=><Cube key={z} p={[0,.95,z]} s={[.7,1.9,.035]} color="#c1cbc2"/>)}
  {rows.map((name,row)=>{const y=1.65-row*.32;const items=state.inventory.filter(i=>storageGroup(i)===name);return <group key={name}>
  <Cube p={[0,y-.04,0]} s={[.65,.025,.82]} color="#d7e0d4"/>
- {visible&&items.map((i,n)=><group key={i.id} position={[.16-Math.floor(n/5)*.18,y,-.32+(n%5)*.16]}><IngredientModel item={i} scale={.8}/><StockLabel text={`${i.name} ${Number(i.quantity.toFixed(2))} ${i.unit}`} position={[-.08,.12,0]} width={.15}/></group>)}
+ {visible&&items.map((i,n)=><group key={i.id} position={[.16-Math.floor(n/5)*.18,y,-.32+(n%5)*.16]}><IngredientModel item={i} scale={.8}/></group>)}
  {visible&&<group position={[-.31,y-.03,0]}><Cube p={[0,0,0]} s={[.03,.06,.18]} color={row===0?'#7ecbd0':row===1?'#f0ddae':row===2?'#64a34e':row===3?'#d78877':'#c79d55'}/></group>}
  </group>})}
  <group position={[-.36,.95,-.44]} rotation={[0,visible?-Math.PI*.65:0,0]}><Cube p={[0,0,.44]} s={[.055,1.9,.88]} color="#b7c4b9"/><Cube p={[-.045,0,.74]} s={[.04,.45,.03]} color="#344a3d"/></group>
@@ -40,7 +42,7 @@ export function LiveProduction({state}:{state:GameState}){
  <group position={[1.95,1.1,4.3]} onClick={e=>{e.stopPropagation();setLidOpen(v=>!v)}}>
  <mesh><cylinderGeometry args={[.2,.17,.2,24,1,true]}/><meshStandardMaterial color="#aab4ad" metalness={.7} roughness={.3} side={THREE.DoubleSide}/></mesh>
  <mesh position={[0,-.09,0]}><cylinderGeometry args={[.17,.17,.02,24]}/><meshStandardMaterial color="#505b54"/></mesh>
- {kitchen&&<><mesh position={[0,.03,0]}><cylinderGeometry args={[.18,.18,.07,24]}/><meshStandardMaterial color={kitchen.menu.visual==='porridge'?'#d4ba82':'#d0a158'}/></mesh>{Object.keys(kitchen.menu.recipe).slice(0,6).map((id,n)=>{const i=state.inventory.find(i=>i.id===id);return i&&<group key={id} position={[Math.sin(n*2)*.1,.07,Math.cos(n*2)*.1]}><IngredientModel item={{...i,quantity:Math.max(i.reorder,.1)}} scale={.5}/></group>})}</>}
+ {kitchen&&(kitchen.menu.visual==='porridge'||kitchen.menu.id==='boiled-egg')&&<><mesh position={[0,.03,0]}><cylinderGeometry args={[.18,.18,.07,24]}/><meshStandardMaterial color="#d4ba82"/></mesh>{Object.keys(kitchen.menu.recipe).slice(0,6).map((id,n)=>{const i=state.inventory.find(i=>i.id===id);return i&&<group key={id} position={[Math.sin(n*2)*.1,.07,Math.cos(n*2)*.1]}><IngredientModel item={{...i,quantity:Math.max(i.reorder,.1)}} scale={.5}/></group>})}</>}
  {kitchen&&lidOpen&&<group rotation={[0,state.minute*4,0]}><Cube p={[.09,.16,0]} s={[.025,.32,.025]} color="#89663f"/></group>}
  <group position={[0,lidOpen?.4:.12,lidOpen?.2:0]} rotation={[lidOpen?1:0,0,0]}><mesh><cylinderGeometry args={[.21,.21,.025,24]}/><meshStandardMaterial color="#c5cec6" metalness={.7}/></mesh><Cube p={[0,.04,0]} s={[.06,.05,.06]} color="#29382f"/></group>
  <StockLabel text={lidOpen?'แตะปิดหม้อ':'แตะเปิดหม้อ'} position={[-.23,.1,0]} width={.35}/>
