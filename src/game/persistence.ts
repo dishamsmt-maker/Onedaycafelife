@@ -19,7 +19,7 @@ export function validateSave(value:unknown):GameState {
  for(const employee of migrated.employees){
   employee.controlled=false;
   if(!canWalk(...employee.position)){const target=employee.id==='ham'?STATIONS.bar:employee.id==='na'?STATIONS.kitchen:employee.id==='alee'?STATIONS.garden:[1,9.3] as [number,number];employee.position=[...target];}
-  if(employee.task){if(employee.task.kind==='inspect')employee.task.target=[-.1,9.35];else if(employee.task.kind==='brew')employee.task.target=[...STATIONS.bar];else if(employee.task.kind==='cook')employee.task.target=[...STATIONS.kitchen];
+  if(employee.task){if(employee.task.kind==='inspect')employee.task.target=[-.1,9.35];else if(employee.task.productionStep==='collect')employee.task.target=[...STATIONS.fridge];else if(employee.task.kind==='brew')employee.task.target=[...STATIONS.bar];else if(employee.task.kind==='cook')employee.task.target=[...STATIONS.kitchen];
    if(employee.task.phase==='walking')employee.task.path=findPath(employee.position,employee.task.target);}
  }
  migrated.catalogVersion=2;migrated.paused=true;return migrated;

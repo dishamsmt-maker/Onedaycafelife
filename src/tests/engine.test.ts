@@ -152,7 +152,7 @@ describe('ONE DAY controlled business simulation', () => {
   it('referrals name a real satisfied visitor and increase that person’s referral count', () => {
     let s = game(); s.settings.patience = 120;
     s.menu = s.menu.map(m => ({ ...m, enabled: m.id === 'americano' }));
-    s = act(s, { type: 'rush', size: 8 }); s = advance(s, 100);
+    s = act(s, { type: 'rush', size: 1 }); s = advance(s, 100);
     s = act(s, { type: 'rush', size: 25 });
     const referred = s.customers.filter(c => c.referrer);
     expect(referred.length).toBeGreaterThan(0);

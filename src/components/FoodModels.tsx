@@ -41,15 +41,15 @@ export function Dish({name,p=[0,0,0]}:{name:string;p?:V3}){
  <group position={[.17,.025,0]} rotation={[0,-.25,0]}><Piece p={[0,0,.025]} s={[.012,.006,.15]} color="#a6aa9e"/><Sphere p={[0,0,-.065]} s={[.023,.005,.034]} color="#c3c6b9"/></group>
  </group>
 }
-export function Drink({name='',p=[0,0,0]}:{name?:string;p?:V3}){
+export function Drink({name='',p=[0,0,0],fill=1}:{name?:string;p?:V3;fill?:number}){
  const tea=/ชาไทย|thai-tea|tea-set/.test(name),green=/เขียว|green/.test(name),pink=/ชมพู|pink/.test(name),dark=/อเมริกา|americano|ชาร้อน|hot-tea/.test(name),cocoa=/โกโก้|cocoa|mocha|มอค/.test(name),soda=/โซดา|soda|มะนาว|lime|พีช|peach/.test(name),coffee=/ลาเต้|ลาเต|latte|กาแฟ|coffee|espresso|signature|caramel/.test(name);
  const color=green?'#7d9e61':pink?'#db9fa9':tea?'#c77935':dark?'#67472c':cocoa?'#8c6343':soda?'#d5ba6c':coffee?'#b68a5d':'#e5d8bd';
  return <group position={p}><Tube p={[0,.014,0]} r={.074} h={.012} color="#ae956b"/>
  <mesh position={[0,.108,0]}><cylinderGeometry args={[.065,.051,.19,24,1,true]}/><meshStandardMaterial color="#e6eeee" transparent opacity={.22} side={THREE.DoubleSide} roughness={.12} depthWrite={false}/></mesh>
- <Tube p={[0,.099,0]} r={.048} top={.06} h={.16} color={color}/>{(tea||coffee)&&<Tube p={[0,.032,0]} r={.049} top={.052} h={.036} color="#e7d4af"/>}
+ <group scale={[1,Math.max(.02,Math.min(1,fill)),1]}><Tube p={[0,.099,0]} r={.048} top={.06} h={.16} color={color}/>{(tea||coffee)&&<Tube p={[0,.032,0]} r={.049} top={.052} h={.036} color="#e7d4af"/>}
  <Tube p={[0,.181,0]} r={.061} h={.006} color={dark?'#69452b':tea?'#d99756':cocoa?'#94704d':'#e1cfac'}/>
- {[0,1,2,3,4].map(i=><mesh key={i} position={[Math.cos(i*2.4)*.034,.187,Math.sin(i*2.4)*.034]} rotation={[.1,i,.2]}><boxGeometry args={[.025,.022,.025]}/><meshStandardMaterial color="#e4e8df" transparent opacity={.6} roughness={.1}/></mesh>)}
- <mesh position={[.026,.22,.01]} rotation={[0,0,-.08]}><cylinderGeometry args={[.003,.003,.18,6]}/><meshStandardMaterial color="#655643"/></mesh>
+ {fill>.8&&[0,1,2,3,4].map(i=><mesh key={i} position={[Math.cos(i*2.4)*.034,.187,Math.sin(i*2.4)*.034]} rotation={[.1,i,.2]}><boxGeometry args={[.025,.022,.025]}/><meshStandardMaterial color="#e4e8df" transparent opacity={.6} roughness={.1}/></mesh>)}
+ </group><mesh position={[.026,.22,.01]} rotation={[0,0,-.08]}><cylinderGeometry args={[.003,.003,.18,6]}/><meshStandardMaterial color="#655643"/></mesh>
  <mesh position={[0,.2,0]} rotation={[Math.PI/2,0,0]}><torusGeometry args={[.064,.003,5,24]}/><meshStandardMaterial color="#eef0e7" roughness={.15}/></mesh>
  {soda&&<mesh position={[.035,.203,-.02]} rotation={[.2,0,.3]}><cylinderGeometry args={[.027,.027,.006,18]}/><meshStandardMaterial color="#bad179"/></mesh>}
  </group>
