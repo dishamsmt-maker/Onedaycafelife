@@ -54,3 +54,13 @@ Browser ต้องรองรับ WebGL 2 และ IndexedDB ใช้ Nod
 - สถานะ visibility จากรอบก่อน: ผู้ใช้แจ้งเปลี่ยนเป็น Private, public page ตอบ 404 และ authenticated Git อ่านได้ เป็นหลักฐานประกอบ ไม่ใช่ API metadata ยืนยันสถานะ Private รอบนี้
 - ขั้นตอนถัดไป: ให้ network policy อนุญาต GitHub API แล้วตรวจ metadata/สิทธิ์และสร้าง PR ของ branch เอกสารเข้า `main` หากยังถูกบล็อกต้องรายงานตามจริง ห้ามอ้าง compare link ว่า PR ที่สร้างแล้ว
 - งานพัฒนาหลัง review เอกสารเรียงใน `TASKS.md`; ยังไม่แก้ปัญหา backlog ใน PR นี้
+
+## 30 October 2026 — QR / takeaway iteration
+
+PR #1 has since merged into main (`a0cb5f4`). GitHub API access was restored and repository privacy verified. The earlier network-blocker paragraphs above describe the documentation round, not current API connectivity.
+
+Branch `feature/table-qr-orders` adds player table-QR ordering, a bill/queue sheet and prepaid counter pickup. See `docs/QR_TAKEAWAY.md` for the playable steps, accounting choices and limits. The baseline tag is preserved. NPC/cashier scheduling enhancements remain separate future work.
+
+Publishing is currently blocked: this session has no Sites deployment tool, and GitHub Pages/deployment APIs return HTTP 403 (integration permissions). The version must not be described as available at the old game URL until deployment and an external request are verified.
+
+Validation actually run for this iteration: Vitest 40/40 passed (34 existing + 6 new channel/payment/refund tests); TypeScript + Vite build passed, with the existing large-chunk warning; Playwright 6/6 passed (4 existing + 2 new QR/counter journeys). The final browser run took 5.3 minutes. An earlier browser run was deliberately interrupted while correcting new test fixtures; it is not counted as a pass. Generated tracked screenshots were restored. No deployment or real-device testing was performed.

@@ -7,6 +7,9 @@ import type { StaffId,Vec2 } from './types';
 interface VisitorState {
  role:'customer'|StaffId;
  tableId:string|null;
+ scannedTableId:string|null;
+ scanTable:()=>boolean;
+ prepay:()=>boolean;
  action:'idle'|'eating'|'drinking';
  message:string;
  returnPosition:Vec2|null;
@@ -25,8 +28,10 @@ const moveCamera=(x:number,z:number,y=1.62,yaw?:number)=>{
 };
 export const playerCustomer=()=>useGame.getState().game.customers.find(c=>c.player&&c.status!=='leaving');
 export const useVisitor=create<VisitorState>((set,get)=>({
- role:'customer',tableId:null,action:'idle',message:'',returnPosition:null,
+ role:'customer',tableId:null,scannedTableId:null,action:'idle',message:'',returnPosition:null,
  clearMessage:()=>set({message:''}),
+ scanTable:()=>{const id=get().tableId,c=playerCustomer();if(!id||c?.tableId!==id){set({message:'นั่งที่โต๊ะก่อนแตะ QR'});return false;}set({scannedTableId:id,message:'เปิดเมนูจาก QR โต๊ะแล้ว · เลือกรายการเพื่อยืนยัน'});return true;},
+ prepay:()=>{const c=playerCustomer();if(c?.orderChannel!=='counter')return false;useGame.getState().dispatch({type:'visitor-prepay'});set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;},
  setRole:role=>{
   get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
   if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
@@ -35,6 +40,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  },
  sit:tableId=>{
   if(get().role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนเลือกที่นั่ง'});return false;}
+  if(playerCustomer()?.orderChannel==='counter'){set({message:'รับรายการซื้อกลับให้ครบก่อนเริ่มบิลนั่งร้าน'});return false;}
   const game=useGame.getState().game,t=game.tables.find(t=>t.id===tableId),existing=playerCustomer();
   if(!t||t.dirty||(t.customerIds.length>=t.capacity&&!t.customerIds.includes(existing?.id??''))){set({message:'โต๊ะนี้ยังไม่พร้อมรับลูกค้า'});return false;}
   if(Math.hypot(-touchControls.position.x-t.position[0],touchControls.position.z-t.position[1])>1.7){set({message:'เดินเข้าใกล้โต๊ะก่อนนั่ง'});return false;}
@@ -44,22 +50,23 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   const x=-c.position[0],z=c.position[1],targetX=-t.position[0];
   moveCamera(x,z,1.12,Math.atan2(-(targetX-x),-(t.position[1]-z)));
   touchControls.view.pitch=-.18;
-  set({tableId,returnPosition:back,message:`นั่งที่${t.name}`,action:'idle'});return true;
+  set({tableId,scannedTableId:null,returnPosition:back,message:`นั่งที่${t.name}`,action:'idle'});return true;
  },
  stand:()=>{
   const state=get();if(!state.tableId)return;
   const p=state.returnPosition??[.5,6.0];
-  moveCamera(p[0],p[1]);set({tableId:null,returnPosition:null,action:'idle',message:'ลุกจากโต๊ะแล้ว'});
+  moveCamera(p[0],p[1]);set({tableId:null,scannedTableId:null,returnPosition:null,action:'idle',message:'ลุกจากโต๊ะแล้ว'});
  },
  order:menuId=>{
   const state=get(),game=useGame.getState().game,m=game.menu.find(m=>m.id===menuId);
   if(state.role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนสั่งอาหาร'});return false;}
   const atCounter=Math.hypot(-touchControls.position.x+.2,touchControls.position.z-1.65)<1.15;
+  if(state.tableId&&state.scannedTableId!==state.tableId){set({message:'แตะ QR บนโต๊ะก่อนสั่งอาหาร'});return false;}
   if(!state.tableId&&!atCounter){set({message:'สั่งที่เคาน์เตอร์ หรือเลือกนั่งโต๊ะก่อน'});return false;}
   if(!m||!menuAvailable(m,game.minute)||game.phase!=='open'){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}
   if(Object.entries(menuRecipe(game,m)).some(([id,q])=>(game.inventory.find(i=>i.id===id)?.quantity??0)<q)){set({message:'วัตถุดิบเมนูนี้หมดแล้ว'});return false;}
-  const previous=game.orders.length;useGame.getState().dispatch({type:'visitor-order',menuId});
-  if(useGame.getState().game.orders.length===previous){set({message:'สั่งได้สูงสุด 8 รายการต่อการเข้าร้าน'});return false;}
+  const previous=game.orders.length;useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId:crypto.randomUUID()});
+  if(useGame.getState().game.orders.length===previous){set({message:'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});return false;}
   const c=playerCustomer(),t=useGame.getState().game.tables.find(t=>t.id===c?.tableId);
   set({message:`รับออร์เดอร์${m.name}แล้ว${t?` · เสิร์ฟที่${t.name}`:' · รับที่เคาน์เตอร์'}`});return true;
  },

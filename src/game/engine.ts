@@ -244,13 +244,13 @@ function scheduleStaff(s: GameState) {
     else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
     else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
   }
-  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
+  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
   if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', STATIONS.kitchen, m.duration * s.settings.prepMultiplier, { orderId: food.id });
   }
-  const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
+  const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
     const order = drinks.find(o => stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
@@ -301,6 +301,7 @@ function review(s: GameState, c: Customer, wait: number, cancelled: boolean) {
 }
 function leave(s: GameState, c: Customer, pay: boolean) {
   const orders = s.orders.filter(o => c.orderIds.includes(o.id));
+  if(c.orderChannel==='counter')for(const o of orders){if(o.paid&&!o.parentOrderId&&o.status!=='completed'){const m=s.menu.find(m=>m.id===o.menuId)!;transaction(s,m.kind==='food'?'refund-food':'refund-drink',o.price,-o.price,`คืนเงินรายการที่ไม่ได้รับ · ${m.name}`,o.id);}}
   const wait = orders.length ? Math.max(...orders.map(o => (o.completedAt ?? s.minute) - o.createdAt)) : s.minute - c.arrivedAt;
   const failed = orders.some(o => o.status !== 'completed');
   if (pay) {
@@ -450,6 +451,7 @@ function ensurePlayer(s:GameState):Customer {
 function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled){e.controlled=false;e.available=true;}}
 function playerSeat(s:GameState,tableId:string){
  const table=s.tables.find(t=>t.id===tableId);const current=s.customers.find(c=>c.player&&c.status!=='leaving');
+ if(current?.orderChannel==='counter')return;
  if(!table||table.dirty||(table.customerIds.length>=table.capacity&&!table.customerIds.includes(current?.id??'')))return;
  const c=ensurePlayer(s);for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
  table.customerIds.push(c.id);c.tableId=table.id;c.position=seatPosition(s,c);c.path=[];
@@ -461,6 +463,27 @@ function playerSeat(s:GameState,tableId:string){
 export function act(state: GameState, action: GameAction): GameState {
   const s = draft(state);
   switch (action.type) {
+    case 'visitor-submit': {
+      const current=s.customers.find(c=>c.player&&c.status!=='leaving');
+      if(!action.requestId||current?.requestIds?.includes(action.requestId))break;
+      if(action.channel==='table-qr'&&!current?.tableId)break;
+      if(current?.orderChannel&&current.orderChannel!==action.channel)break;
+      if(action.channel==='counter'&&current?.tableId)break;
+      const m=s.menu.find(m=>m.id===action.menuId);
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
+      const c=ensurePlayer(s);c.orderChannel=action.channel;c.takeaway=action.channel==='counter';
+      c.requestIds=[...(c.requestIds??[]),action.requestId];
+      placeCustomerOrder(s,c,m.id);c.status='waiting';break;
+    }
+    case 'visitor-prepay': {
+      const c=s.customers.find(c=>c.player&&c.status!=='leaving'&&c.orderChannel==='counter');if(!c)break;
+      for(const o of s.orders.filter(o=>o.customerId===c.id&&!o.paid&&o.status!=='cancelled')){
+        if(!o.parentOrderId){const m=s.menu.find(m=>m.id===o.menuId)!;transaction(s,m.kind==='food'?'food-sale':'drink-sale',o.price,o.price,`รับชำระซื้อกลับ · ${m.name}`,o.id);}
+        o.paid=true;
+      }break;
+    }
+
     case 'visitor-seat': playerSeat(s,action.tableId);break;
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
@@ -519,7 +542,7 @@ export function act(state: GameState, action: GameAction): GameState {
 export function getMetrics(s: GameState) {
   const ledger = s.ledger.filter(t => t.day === s.day);
   const sum = (...types: Transaction['type'][]) => round(ledger.filter(t => types.includes(t.type)).reduce((a, t) => a + t.amount, 0));
-  const foodRevenue = sum('food-sale'), drinkRevenue = sum('drink-sale'), revenue = round(foodRevenue + drinkRevenue), cogs = sum('cogs'), spoilage = sum('spoilage'), wages = sum('wage'), operating = sum('rent', 'utility');
+  const foodRevenue = round(sum('food-sale')-sum('refund-food')), drinkRevenue = round(sum('drink-sale')-sum('refund-drink')), revenue = round(foodRevenue + drinkRevenue), cogs = sum('cogs'), spoilage = sum('spoilage'), wages = sum('wage'), operating = sum('rent', 'utility');
   const pending = (kind: 'food' | 'drink') => s.orders.filter(o => !o.componentOrderIds?.length&&!['completed', 'cancelled'].includes(o.status) && s.menu.find(m => m.id === o.menuId)?.kind === kind).length;
   const barista = s.employees.find(e=>e.task?.kind==='brew')??s.employees.find(e=>e.id===(s.baristaMode==='auto'?'ham':s.baristaMode)&&e.task?.kind==='station');
   const mean = (xs: number[], fallback: number) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : fallback;
