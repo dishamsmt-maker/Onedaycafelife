@@ -127,3 +127,13 @@ The reference photo's cream building, dark canopy, wood counters, cream umbrella
 Next priorities: test on the user's iPhone; review A/B/C captures; refine chair/aisle clearances; replace key close-up character and plant assets with optimized authored models; bake lighting/AO and validate frame time/memory before increasing scene complexity.
 
 The visitor test also checks that, after delivery, employees remain clear of the seated customer: servers approach the table edge and return to the service point. Menu atlas downloads use WebP (about 985 KB total); original PNG sources remain available for asset editing. Browser QA blocks external font requests to avoid the test runner waiting on Google Fonts; the Thai/system fallback remains usable.
+
+
+## 2026-11-01 — Touch focus safety (proposed, not deployed)
+
+- **Before:** Touch movement/look state could remain held if the browser lost focus or the tab was hidden without a normal pointer-up event.
+- **After:** `src/game/touchControls.ts` clears movement, look and interaction on window `blur` and on `visibilitychange` when the document is hidden. The existing `reset()` method handles both cases and notifies subscribers.
+- **Scope:** Browser camera controls only; no changes to customer orders, ledger, staff, inventory, save data or 3D scene.
+- **Regression coverage:** `src/tests/touchControls.test.ts` adds two Vitest cases for focus loss and backgrounding.
+- **Verify locally:** Run `npm ci && npm test && npm run build`; then on mobile hold the virtual joystick, switch apps/tabs, return and confirm the character does not continue moving.
+- **Limitations:** Automated tests have not been executed in this GitHub-editing session. Real-device Safari/Chrome behavior and the live Sites deployment are not yet verified. This change is on a feature branch and requires PR approval before merging/deploying.
