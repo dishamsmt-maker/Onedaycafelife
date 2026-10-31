@@ -25,3 +25,12 @@ export const touchControls = {
   emit() { listeners.forEach(listener => listener()); },
 };
 if (import.meta.env.DEV) (globalThis as any).__ONE_DAY_PLAYER__ = touchControls;
+
+// Losing browser focus must not leave a virtual joystick or look gesture held.
+// These listeners affect camera input only; restaurant simulation state is untouched.
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  window.addEventListener('blur', () => touchControls.reset());
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) touchControls.reset();
+  });
+}
