@@ -30,6 +30,9 @@ if (import.meta.env.DEV) (globalThis as any).__ONE_DAY_PLAYER__ = touchControls;
 // These listeners affect camera input only; restaurant simulation state is untouched.
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   window.addEventListener('blur', () => touchControls.reset());
+  // Mobile Safari can enter page cache / navigate away via pagehide without blur.
+  // Reset also clears active pointer IDs through TouchControls subscribers.
+  window.addEventListener('pagehide', () => touchControls.reset());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) touchControls.reset();
   });
