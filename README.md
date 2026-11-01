@@ -165,7 +165,7 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - The estimator computes **ingredient cost only**, using exact `bigint` rational arithmetic and half-up rounding once at the **total**. All results carry `status: 'UNVERIFIED_SAMPLE_ONLY'`; invalid input, missing ingredient, mismatched units and unsafe result overflow are rejected. No stock mutation, profit, selling price, tax, labour or overhead calculations.
 - `src/tests/cafeSampleRecipeCost.test.ts`: fictional chicken/rice example and precision/validation regression tests. All numeric test prices are **invented fixtures** and must not be used for purchasing or setting menu prices.
 - **Implementation commit:** `01b278b68b9cd9b6a637072a894dce6b13ca0295`; **test commit:** `96b7bd6101b1c1176443c102b3350481c2c46d67`.
-- **Verify:** `npm ci && npm test && npm run build`. Consult the actual GitHub Actions PR run for pass/fail. No browser E2E or physical inventory testing is claimed.
+- **Verified GitHub Actions (2026-11-01, commit `eab99006`):** [`Validate pull requests` run #41278961561](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41278961561) completed successfully: `npm ci` passed; **65/65 Vitest tests passed (9 files)**; TypeScript/Vite production build passed. The existing >500 kB JS chunk warning remains. Recheck CI after any subsequent commit. No browser E2E or physical inventory testing is claimed.
 - **Dependency:** TASK-017 is a stacked PR based on TASK-016 PR #8; PR #8 itself depends on QR PR #7. Review in order and rerun checks after any rebase. Do not merge or deploy without explicit owner approval.
 - **Game:** no game code, controls or public site changed in this round; the game remains isolated from real café accounting.
 
