@@ -127,3 +127,15 @@ The reference photo's cream building, dark canopy, wood counters, cream umbrella
 Next priorities: test on the user's iPhone; review A/B/C captures; refine chair/aisle clearances; replace key close-up character and plant assets with optimized authored models; bake lighting/AO and validate frame time/memory before increasing scene complexity.
 
 The visitor test also checks that, after delivery, employees remain clear of the seated customer: servers approach the table edge and return to the service point. Menu atlas downloads use WebP (about 985 KB total); original PNG sources remain available for asset editing. Browser QA blocks external font requests to avoid the test runner waiting on Google Fonts; the Thai/system fallback remains usable.
+
+
+## 2026-11-01 — Café OS MVP: three-table QR contract (proposal)
+
+**Scope:** This is a standalone, pure TypeScript input-validation module for the **real café MVP**, not a game feature and **not** a deployed ordering system. It never reads or writes the game state, browser saves, customer records, payments or stock.
+
+- `src/cafe-os/tableQr.ts`: strict table IDs `T01`, `T02`, `T03`; `/order?table=T01` style relative QR paths; rejects duplicate/unknown query keys and invalid tables.
+- `src/tests/cafeTableQr.test.ts`: valid QR round trips and invalid/ambiguous input cases.
+- **Implementation commit:** `354f20daa3169104e1ee49eeb5a7557b29725dd9`; **test commit:** `0706473288bff516d92b712dadb4a817cb0a528c`.
+- **Verification command:** `npm ci && npm test && npm run build`. GitHub PR checks, if available, are the evidence for actual pass/fail; this README section does not claim a test was run locally.
+- **Limits:** QR codes are not secrets and do not prove a customer is physically seated. Real POS/KDS, menu pricing, employee permissions, server-side table validation, order deduplication, and payment reconciliation are **not implemented** by this change. Do not accept or charge real orders with this module alone.
+- **Game:** no gameplay/UI changes, no merge, and no public deployment in this proposal.
