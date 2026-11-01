@@ -155,3 +155,18 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - **Dependency:** TASK-016 branches from PR #7 (TASK-015), so its PR must be reviewed **against the TASK-015 branch** first. Do not merge or deploy either without owner approval. If PR #7 is merged or its branch removed, retarget/rebase TASK-016 and rerun CI.
 
 **Critical production gaps:** This inbox is volatile and loses all requests on process restart; it does not provide cross-process concurrency protection, authenticated sessions, rate limits, authoritative menu/price verification, stock reservation, server-generated durable IDs, database transactions or delivery to KDS. Before accepting any real customer order, implement database uniqueness on `(shop_id, request_id)`, atomically persist order and outbox event, verify table/menu/price server-side, and enforce staff authorization. **QR table IDs are public locators, not authentication.**
+
+
+## 2026-11-01 — Café OS TASK-017: fictional ingredient unit costing (PR proposal)
+
+**Role:** Finance & Inventory Analyst. **Scope:** pure, testable ingredient-cost estimator for *fictional sample data only*. This is NOT a live inventory system, purchase record, production recipe, price recommendation, or game feature. The ONE DAY V2 real menu prices, portion sizes, recipes, supplier invoices, waste, tax and payment fees are **unconfirmed**.
+
+- `src/cafe-os/sampleRecipeCost.ts`: strict sample-only estimator accepting a pack's integer cost in **satang**, positive integer pack quantity and recipe usage in matching base units `g`, `ml`, `piece`. For 1 kg enter 1000 g; for 1 L enter 1000 ml. No implicit cross-unit conversions.
+- The estimator computes **ingredient cost only**, using exact `bigint` rational arithmetic and half-up rounding once at the **total**. All results carry `status: 'UNVERIFIED_SAMPLE_ONLY'`; invalid input, missing ingredient, mismatched units and unsafe result overflow are rejected. No stock mutation, profit, selling price, tax, labour or overhead calculations.
+- `src/tests/cafeSampleRecipeCost.test.ts`: fictional chicken/rice example and precision/validation regression tests. All numeric test prices are **invented fixtures** and must not be used for purchasing or setting menu prices.
+- **Implementation commit:** `01b278b68b9cd9b6a637072a894dce6b13ca0295`; **test commit:** `96b7bd6101b1c1176443c102b3350481c2c46d67`.
+- **Verified GitHub Actions (2026-11-01, commit `eab99006`):** [`Validate pull requests` run #41278961561](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41278961561) completed successfully: `npm ci` passed; **65/65 Vitest tests passed (9 files)**; TypeScript/Vite production build passed. The existing >500 kB JS chunk warning remains. Recheck CI after any subsequent commit. No browser E2E or physical inventory testing is claimed.
+- **Dependency:** TASK-017 is a stacked PR based on TASK-016 PR #8; PR #8 itself depends on QR PR #7. Review in order and rerun checks after any rebase. Do not merge or deploy without explicit owner approval.
+- **Game:** no game code, controls or public site changed in this round; the game remains isolated from real café accounting.
+
+**Next production prerequisites:** approved supplier purchase unit and invoice cost, measured recipe yield/portions and waste, permissions, verified menu prices, a persistent stock ledger with auditable adjustments, and server-side authoritative calculation. Never treat an unverified sample estimate as the café's real cost.
