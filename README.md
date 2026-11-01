@@ -182,7 +182,7 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - `listStructurallyApprovedMenuItems` returns an empty array for the supplied catalog and is **NOT** authorization to publish, take orders or charge customers.
 - `src/tests/cafeMenuDraft.test.ts`: 8 test cases covering the 37-item draft, zero approved, launch plan, duplicate/invalid input, fail-closed review states and synthetic structural approval.
 - **Implementation commit:** `df126aaf88208d103af348cbac7eb01acb96ed76`; **validation hardening:** `eff33bea8d460dc87fa313162f9286c206defa07`; **test commit:** `97d67b1bb503f666095d48117b0d62b49aa7084c`.
-- **Verification command:** `npm ci && npm test && npm run build`. Check current PR GitHub Actions results for actual status. No Playwright E2E, real phone or physical café testing is claimed.
+- **Verified CI at commit `c5cb7055` (2026-11-02, Asia/Bangkok):** [`GitHub Actions #41349502572`](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41349502572) completed successfully: `npm ci` passed, **73/73 Vitest tests (10 files)** passed, and `npm run build` (TypeScript/Vite) succeeded. Existing JavaScript chunk >500 kB warning remains. Recheck the latest commit after this documentation update. No Playwright E2E, real phone or physical café testing is claimed.
 - **Dependency:** stacked on TASK-017 PR #9 → TASK-016 PR #8 → TASK-015 PR #7. Review in that order; do not merge/deploy without explicit owner approval.
 - **Game lane:** no game code, visual controls, or public deployment changed. Do not import `src/game/data.ts` into Café OS.
 
