@@ -127,3 +127,17 @@ The reference photo's cream building, dark canopy, wood counters, cream umbrella
 Next priorities: test on the user's iPhone; review A/B/C captures; refine chair/aisle clearances; replace key close-up character and plant assets with optimized authored models; bake lighting/AO and validate frame time/memory before increasing scene complexity.
 
 The visitor test also checks that, after delivery, employees remain clear of the seated customer: servers approach the table edge and return to the service point. Menu atlas downloads use WebP (about 985 KB total); original PNG sources remain available for asset editing. Browser QA blocks external font requests to avoid the test runner waiting on Google Fonts; the Thai/system fallback remains usable.
+
+
+## 2026-11-01 — TASK-019 QA / PM: read-only PR stack audit (proposed)
+
+**Before:** Five open, unmerged feature PRs (#6–#10) had separate green CI reports, but no reusable check of their exact parent branches, latest commit SHAs, and cross-lane file overlap. **After:** a separate QA command checks those release gates without changing any gameplay, café records, PRs, or production deployments.
+
+- `scripts/pr-stack-audit.mjs`: read-only GitHub REST audit for #6 → #10 and #7 → #8 → #9; compares expected base branches, current head SHAs, newest matching pull-request CI, mergeability, and overlapping changed filenames between game and café lanes. Emits JSON and exits nonzero on blockers. A green report **never** authorizes automatic merge or deployment.
+- `scripts/pr-stack-audit.test.mjs`: seven Node built-in tests for valid topology, wrong base, stale/missing CI, failed newer CI, closed/conflicting PRs, overlapping files and missing data.
+- `.github/workflows/qa-pr-stack-check.yml`: isolated **read-only** pull-request workflow. Runs QA fixtures, existing Vitest tests, and TypeScript/Vite build. It does not run the live audit or deploy.
+- **Code commit:** `899c927b1471a57ba8e16aa497059a0922d3af76`; **tests:** `dfa7173d2e02a939b7825cfe0d515a0617d8f4ba`; **workflow:** `9c3cab9b71eb3e1a59aca91942587caa4895191f`.
+- **Verified CI (implementation head `8b51380`):** [GitHub Actions run #41324635756](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41324635756) passed: **7/7 QA Node tests**, **46/46 existing Vitest tests (6 files)**, and **TypeScript/Vite build**. The existing >500 kB JS bundle warning remains. Verify CI again after later commits. Local command: `node --test scripts/pr-stack-audit.test.mjs && npm test && npm run build`.
+- **Optional live, read-only snapshot:** `node scripts/pr-stack-audit.mjs`. This uses public GitHub API requests, optionally `GITHUB_TOKEN` from the environment; **never commit a token**. The public API can be rate-limited. The script checks only the most recent 100 workflow runs and the first 100 PR files, so missing evidence fails closed rather than being reported as success.
+- **Limits:** No real iPhone/Safari or E2E test, no review approval automation, no branch retarget/rebase, no customer data, no POS/KDS or payment validation. The Pages deployment is only triggered by push to `main` or an explicit workflow dispatch; this QA workflow does not publish.
+- **Owner review order:** Café OS #7 → #8 → #9; game #6 → #10. The root PRs #6 and #7 both edit README and the PR CI workflow; inspect and rebase carefully before merging. The owner must explicitly approve any merge/deploy. This task is a QA tool, **not a playable game update**.
