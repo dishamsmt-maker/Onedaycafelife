@@ -170,3 +170,20 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - **Game:** no game code, controls or public site changed in this round; the game remains isolated from real café accounting.
 
 **Next production prerequisites:** approved supplier purchase unit and invoice cost, measured recipe yield/portions and waste, permissions, verified menu prices, a persistent stock ledger with auditable adjustments, and server-side authoritative calculation. Never treat an unverified sample estimate as the café's real cost.
+
+
+## 2026-11-02 — Café OS TASK-020: V2 menu candidate review contract (PR proposal)
+
+**Role:** Product / Operations Analyst. **Source-of-truth caution:** 37 public menu candidates were manually transcribed from the game V2 reference in `src/game/data.ts`, but game prices, quantities, recipes and simulated availability **are not café business facts**. The real ONE DAY menu and prices still require the owner's explicit confirmation. This file does not import or synchronize any game state.
+
+- `src/cafe-os/menuDraft.ts`: a standalone, immutable 37-item candidate list; all names/IDs have `source: GAME_V2_REFERENCE_ONLY` and `reviewStatus: PENDING`. Every candidate has `priceSatang: null`, `recipeVersion: null`, and `approvalReference: null`. **Zero candidates are approved or sellable.** Hidden game-only production components are excluded.
+- User-specified launch constraints are separately labeled `USER_SPECIFIED_PLAN_NOT_OPERATIONALLY_VERIFIED`: tables T01–T03 and hours 06:30–20:30. These are plans, not proof of operating hours or an active POS.
+- `validateCafeMenuCatalog(input)` validates exact field names, unique IDs, bounded Thai/English names, category, source, review state and safe integer satang values. Draft entries carrying prices or recipes fail closed. The synthetic `OWNER_CONFIRMED` + `APPROVED` contract requires a recipe version and review reference, but this is **structural validation only**: no backend or real human approval is proven by a string.
+- `listStructurallyApprovedMenuItems` returns an empty array for the supplied catalog and is **NOT** authorization to publish, take orders or charge customers.
+- `src/tests/cafeMenuDraft.test.ts`: 8 test cases covering the 37-item draft, zero approved, launch plan, duplicate/invalid input, fail-closed review states and synthetic structural approval.
+- **Implementation commit:** `df126aaf88208d103af348cbac7eb01acb96ed76`; **validation hardening:** `eff33bea8d460dc87fa313162f9286c206defa07`; **test commit:** `97d67b1bb503f666095d48117b0d62b49aa7084c`.
+- **Verified CI at commit `c5cb7055` (2026-11-02, Asia/Bangkok):** [`GitHub Actions #41349502572`](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41349502572) completed successfully: `npm ci` passed, **73/73 Vitest tests (10 files)** passed, and `npm run build` (TypeScript/Vite) succeeded. Existing JavaScript chunk >500 kB warning remains. Recheck the latest commit after this documentation update. No Playwright E2E, real phone or physical café testing is claimed.
+- **Dependency:** stacked on TASK-017 PR #9 → TASK-016 PR #8 → TASK-015 PR #7. Review in that order; do not merge/deploy without explicit owner approval.
+- **Game lane:** no game code, visual controls, or public deployment changed. Do not import `src/game/data.ts` into Café OS.
+
+**Before real QR/POS use:** owner must confirm each item name, inclusion, selling price, portion and recipe, availability periods, allergens, and halal suitability; staff must verify the data in an authenticated server-side menu/version workflow. Confirmed menu revisions must be immutable for already accepted orders. Public GitHub contains no customer data, real supplier invoices or secrets.
