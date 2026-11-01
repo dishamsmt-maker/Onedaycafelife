@@ -130,7 +130,7 @@ export function validateCafeMenuCatalog(input: unknown): CafeMenuValidation {
     if (typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(id) ||
         typeof nameTh !== 'string' || nameTh.length < 1 || nameTh.length > 100 ||
         nameTh.trim() !== nameTh || /[\u0000-\u001f\u007f]/.test(nameTh) ||
-        !CATEGORIES.includes(String(category)) ||
+        (typeof category !== 'string' || !CATEGORIES.includes(category)) ||
         (source !== 'GAME_V2_REFERENCE_ONLY' && source !== 'OWNER_CONFIRMED') ||
         (reviewStatus !== 'PENDING' && reviewStatus !== 'APPROVED')) {
       return { ok: false, reason: 'invalid_item' };
