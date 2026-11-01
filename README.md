@@ -139,3 +139,19 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - **Verification command:** `npm ci && npm test && npm run build`. GitHub PR checks, if available, are the evidence for actual pass/fail; this README section does not claim a test was run locally.
 - **Limits:** QR codes are not secrets and do not prove a customer is physically seated. Real POS/KDS, menu pricing, employee permissions, server-side table validation, order deduplication, and payment reconciliation are **not implemented** by this change. Do not accept or charge real orders with this module alone.
 - **Game:** no gameplay/UI changes, no merge, and no public deployment in this proposal.
+
+
+## 2026-11-01 — Café OS TASK-016: idempotent draft-order inbox (proposed PR)
+
+**Purpose:** Separate, server-oriented order acceptance contract for the **real café**. This is a **pure in-memory prototype**, not a live POS, server endpoint, KDS, database, inventory, payment processor, or game update. It imports only `src/cafe-os/tableQr.ts` from TASK-015; it NEVER reads `src/game/` or the game's IndexedDB saves.
+
+- `src/cafe-os/orderIntake.ts`: `createCafeDraftInbox()` accepts one exact-shaped request with a client-generated `requestId` (16–128 ASCII letters/digits/`_`/`-`), table `T01`–`T03` and 1–20 `{menuId,quantity}` lines. Menu identifiers are *syntactically* checked only; prices and recipes remain unconfirmed. Quantities must be integers 1–20; duplicate menu IDs and unknown fields (including client prices, roles and payment flags) fail validation.
+- Retrying an identical `requestId` + normalized order returns the **same draft order** with `duplicate: true` and adds no second record. Reusing that key for a different table, menu or quantity fails with `idempotency_conflict`. Item order in the request does not change its meaning.
+- Accepted lines are copied and frozen to prevent caller mutations from changing the in-memory record. Generated IDs use the explicitly temporary `LOCAL-000001` format.
+- `src/tests/cafeOrderIntake.test.ts`: success, retry, reordering, collision, invalid input, isolation and restart limitation tests.
+- `.github/workflows/pr-checks.yml`: check PRs targeting **any base branch**, so a dependent PR can be tested without merging; workflow runs tests and TypeScript/Vite build, **never deploys**.
+- **Implementation commit:** `aad065a80cf69e9d2157afc8b9fad31fe7356c7a`; **test commit:** `e5a260efa425a890fd8b484543fdecde2ea32348`.
+- **Verification (GitHub Actions, commit `0ee7c716`):** [`Validate pull requests` run #41259741455](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41259741455) reported `npm ci` success, **57/57 Vitest tests passed (8 files)** and **`npm run build` succeeded**. The production build warns that the JS bundle exceeds 500 kB; Node/action deprecation warnings also remain. Recheck CI after any later commit. Real phone and browser E2E tests have NOT been performed by this change.
+- **Dependency:** TASK-016 branches from PR #7 (TASK-015), so its PR must be reviewed **against the TASK-015 branch** first. Do not merge or deploy either without owner approval. If PR #7 is merged or its branch removed, retarget/rebase TASK-016 and rerun CI.
+
+**Critical production gaps:** This inbox is volatile and loses all requests on process restart; it does not provide cross-process concurrency protection, authenticated sessions, rate limits, authoritative menu/price verification, stock reservation, server-generated durable IDs, database transactions or delivery to KDS. Before accepting any real customer order, implement database uniqueness on `(shop_id, request_id)`, atomically persist order and outbox event, verify table/menu/price server-side, and enforce staff authorization. **QR table IDs are public locators, not authentication.**

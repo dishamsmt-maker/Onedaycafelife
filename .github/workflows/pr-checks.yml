@@ -2,7 +2,6 @@ name: Validate pull requests (no deployment)
 
 on:
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
