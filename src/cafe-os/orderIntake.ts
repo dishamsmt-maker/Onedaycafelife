@@ -47,7 +47,8 @@ function keysMatch(value: Record<string, unknown>, expected: readonly string[]):
  * Reject unexpected fields: caller-provided totals, role, price, or payment
  * status must never enter the intake record.
  */
-function parseRequest(value: unknown): ValidOrderRequest | null {
+/** Validate an untrusted draft request without creating an order. */
+export function parseCafeDraftOrderRequest(value: unknown): ValidOrderRequest | null {
   if (!isPlainRecord(value) || !keysMatch(value, ['requestId', 'tableId', 'items'])) return null;
   const { requestId, tableId, items } = value;
 
@@ -84,7 +85,7 @@ export function createCafeDraftInbox() {
 
   return {
     submit(value: unknown): CafeIntakeResult {
-      const request = parseRequest(value);
+      const request = parseCafeDraftOrderRequest(value);
       if (!request) return { accepted: false, reason: 'invalid_request' };
 
       const fingerprint = JSON.stringify([request.tableId, request.items]);

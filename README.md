@@ -187,3 +187,17 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - **Game lane:** no game code, visual controls, or public deployment changed. Do not import `src/game/data.ts` into Café OS.
 
 **Before real QR/POS use:** owner must confirm each item name, inclusion, selling price, portion and recipe, availability periods, allergens, and halal suitability; staff must verify the data in an authenticated server-side menu/version workflow. Confirmed menu revisions must be immutable for already accepted orders. Public GitHub contains no customer data, real supplier invoices or secrets.
+
+
+## 2026-11-02 — Café OS TASK-021: fail-closed menu review gate (proposed)
+
+**Role:** Software Architect / QR-POS. **Scope:** one small, dependency-free, in-memory *structural* gate before the TASK-016 draft-order inbox. This is NOT a customer-facing order endpoint, authenticated owner approval, payment authorization, durable POS, KDS, or inventory deduction. Game state and real customer/transaction data are never accessed.
+
+- `src/cafe-os/orderIntake.ts`: exposes the existing pure request parser as `parseCafeDraftOrderRequest` so the menu gate can reuse strict payload validation; existing inbox behavior is unchanged. **Refactor commit:** `d1e7dabff28261d80683e7c58b215c8855923b2e`.
+- `src/cafe-os/menuReviewGate.ts`: `createCafeMenuReviewGate(catalog)` validates the entire menu structure, snapshots structurally approved IDs, rejects unknown and `PENDING` menu IDs before any order enters the in-memory inbox, and preserves the existing request-ID deduplication behavior. **Implementation commit:** `e70cfc3ec74f872663f5b1b59b307a762f55e2ed`.
+- `src/tests/cafeMenuReviewGate.test.ts`: 9 cases for 37 pending V2 items, invalid catalogs, synthetic structural approval, mixed catalogs, unknown/mixed line items, malformed requests, retry, conflicts, and post-construction catalog mutation. **Test commit:** `02462120da17299addb7a7866c6dbf68150e6a71`.
+- **Verified CI (2026-11-02, commit `fed5702f`):** [`GitHub Actions run #41375076404`](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41375076404) completed successfully: `npm ci` succeeded, **82/82 Vitest tests (11 files) passed**, and `npm run build` (TypeScript/Vite) succeeded. The existing JS chunk >500 kB and Node/action deprecation warnings remain. Recheck CI for this documentation-only commit; no E2E, real-device or production POS testing is claimed. **Verification commands:** `npm ci && npm test && npm run build`.
+- **Game lane:** no change to game code, existing controls, UI, intro, or public deployment; separate PR #6 and #10 remain pending review.
+- **Dependency:** TASK-021 is stacked on TASK-020 PR #12 → #9 → #8 → #7. Review the small diff against PR #12 first. Do not merge or deploy without explicit owner approval.
+
+**Safety boundaries:** All 37 real-café V2 candidates remain `PENDING`; zero have verified prices or recipes. Synthetic `APPROVED` fixtures in tests only demonstrate structure and **do not prove actual owner approval**. A malicious client can forge approval fields in this prototype; the catalog MUST be loaded from an authenticated server-side source of truth. The in-memory inbox loses orders on restart and cannot protect across processes; before accepting real orders implement durable database idempotency, immutable menu versions and authoritative price/stock validation, staff authorization, audit logs, and atomic order/outbox transactions. Never connect this test gate directly to a public QR order endpoint.
