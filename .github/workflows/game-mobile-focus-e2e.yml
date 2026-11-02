@@ -1,0 +1,33 @@
+name: Game mobile focus E2E (no deployment)
+
+on:
+  pull_request:
+    paths:
+      - 'e2e/mobile-focus.spec.ts'
+      - '.github/workflows/game-mobile-focus-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-focus:
+    name: Chromium mobile focus regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Select browser executable
+        run: |
+          mkdir -p /tmp/one-day-e2e-browser
+          echo "CHROMIUM_PATH=$(node -p "require('playwright').chromium.executablePath()")" >> "$GITHUB_ENV"
+      - name: Run mobile focus browser regression
+        run: npx playwright test e2e/mobile-focus.spec.ts --reporter=line
