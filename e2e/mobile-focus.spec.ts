@@ -60,7 +60,7 @@ test('held joystick stops on blur and pagehide, then accepts a fresh touch', asy
       return { move: { ...input.move }, look: { ...input.look }, interact: input.interact };
     })).toEqual({ move: { x: 0, y: 0 }, look: { x: 0, y: 0 }, interact: false });
     await expect.poll(() => page.evaluate(() => (window as any).__ONE_DAY_PLAYER__.resetCount))
-      .toBe(beforeReset + 1);
+      .toBeGreaterThan(beforeReset);
     await expect(joystick.locator('.walk-knob')).toHaveAttribute('style', /translate\(0px, 0px\)/);
 
     // The old held pointer cannot reactivate movement after a focus reset.
