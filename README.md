@@ -149,3 +149,15 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - **Implementation commit:** `6207a0ea8c7caf8e12c9d7f841de40fc77152cf7`; **test commit:** `cb8bc0184178a75c99448ffe1b1cb3023d0d7278`.
 - **Verification:** [`GitHub Actions run #41300335040`](https://github.com/dishamsmt-maker/Onedaycafelife/actions/runs/41300335040) at commit `8d612d407db19a9e54f85e160a598206358595f0` passed `npm ci`, **50/50 Vitest tests (7 files)** and `npm run build` (TypeScript/Vite). Existing >500 kB JS chunk warning remains. Recheck after later commits. Commands: `npm ci && npm test && npm run build`. Manual device test: on iPhone Safari, hold the joystick, switch page/app or navigate away and back, then confirm the character is stationary and the joystick accepts a new touch.
 - **Limits:** no iPhone/Safari physical-device validation, browser E2E or branch preview verified. This does not fix other game behavior, change UI, or deploy. PR #6 must be reviewed first; TASK-018's PR is stacked against its branch and requires explicit owner approval before merge/deploy.
+
+
+## 2026-11-02 — TASK-023: mobile browser focus-loss E2E (proposed, NOT deployed)
+
+**Scope:** a targeted Playwright/Chromium browser regression for the existing game controls from PR #6 and PR #10. This PR is stacked on PR #10, and its base is the `feature/game-pagehide-touch-reset-task018-20261101` branch. It does **not** modify the game UI, gameplay, touch handler, Café OS, real café data or public site.
+
+- **Before:** Vitest covered `blur`, `visibilitychange`, and `pagehide`, but no browser E2E exercised a held joystick through focus-loss listeners.
+- **After:** `e2e/mobile-focus.spec.ts` uses a 390×844 Chromium touch viewport and CDP touch input to hold the joystick, dispatch `blur` and `pagehide`, assert the movement resets, ensure the old pointer cannot resume movement, then verify a fresh touch works. It also checks that cash, game clock, inventory, orders and ledger do not change while the clock is paused.
+- **CI:** `.github/workflows/game-mobile-focus-e2e.yml` installs locked dependencies and Playwright Chromium, runs only this E2E on pull requests that change the E2E/workflow files, and has read-only repository permissions. No merge or deployment step.
+- **Code commits:** `a3b57453918867eb7711a330a6064fe2df55ffe8` (test), `cd1f8e2d3634f5c8d738cb81af103fc7067d09f3` (CI). Check the PR's latest commit and Actions status before approving.
+- **Verify:** `npm ci && npm test && npm run build && CHROMIUM_PATH=/usr/bin/chromium npx playwright test e2e/mobile-focus.spec.ts` on a machine with Chromium, or use the PR's GitHub Actions E2E run. Test results must be reported from the actual run, not inferred from this document.
+- **Limits:** `blur` and `pagehide` are synthetically dispatched in Chromium; this does **not** prove a real iPhone Safari background/BFCache transition, native multitouch, battery, performance, or production-site behavior. No preview or public deployment was performed. The underlying PR #6 and #10 still require owner review.
