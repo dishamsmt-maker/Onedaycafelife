@@ -52,6 +52,7 @@ function setTask(e: Employee, kind: Task['kind'], target: Vec2, remaining: numbe
 function walk(position: Vec2, path: Vec2[], distance: number) {
   while (path.length && distance > 0) {
     const p = path[0], dx = p[0] - position[0], dz = p[1] - position[1], d = Math.hypot(dx, dz);
+    if (d < 1e-8) { path.shift(); continue; }
     if (d <= distance + 1e-8) { position[0] = p[0]; position[1] = p[1]; path.shift(); distance -= d; }
     else { position[0] += dx / d * distance; position[1] += dz / d * distance; distance = 0; }
   }
