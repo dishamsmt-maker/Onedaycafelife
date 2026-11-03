@@ -1,7 +1,7 @@
 import type { Customer, Employee, GameAction, GameState, Guest, MenuItem, Order, StaffId, Task, Transaction, Vec2, Weather } from './types';
 import {WATER_STOPS,signWanted} from './service';
 import { DEFAULT_SETTINGS, INITIAL_EMPLOYEES, INITIAL_INVENTORY, INITIAL_MENU, menuAvailable, servicePeriod } from './data';
-import { canWalk, findPath, STATIONS, TABLE_LAYOUT } from './world';
+import { canWalk, findPath, segmentWalkable, STATIONS, TABLE_LAYOUT } from './world';
 
 export { menuAvailable, servicePeriod } from './data';
 export const OPEN = 390, CLOSE = 1230;
@@ -535,7 +535,7 @@ export function act(state: GameState, action: GameAction): GameState {
       if(o&&!['completed','cancelled'].includes(o.status)){o.status=e.task?.kind==='serve'?'ready':'waiting';o.workerId=undefined;}
       e.task=null;e.controlled=true;e.available=false;break;
     }
-    case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18))e.position=[...action.position];break;}
+    case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18))e.position=[...action.position];break;}
 
     case 'pause': s.paused = !s.paused; break;
     case 'speed': if ([1, 2, 5].includes(action.value)) s.speed = action.value; break;
