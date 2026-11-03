@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "test": "vitest run && node --test scripts/validate-cafe-menu-approval.test.mjs",
+    "test": "vitest run && node --test scripts/validate-cafe-menu-approval.test.mjs && node --test scripts/validate-cafe-recipe-evidence.test.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test:e2e": "playwright test"
   },
