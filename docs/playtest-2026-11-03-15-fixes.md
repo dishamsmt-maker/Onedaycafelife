@@ -33,3 +33,12 @@ Implement on this feature branch only. Do not change original V2 site, main bran
 ## Added acceptance tests
 - Run Alee watering routes and customer/staff routes near the moved right-side bar, walls, tables and pickup point: zero clipping through solids or persistent walking into walls.
 - Observe customer variety including shorts on different genders and at least one parent-child visit during a sufficiently long simulated playtest; child and guardian arrive and leave together.
+
+## User-approved game director priorities (2026-11-03)
+The user explicitly approves implementing **all 18 items above plus the following**, on this branch, before review:
+19. **End-to-end transactional service loop:** customer arrives, orders, payment/accounting is recorded correctly once, kitchen/bar prepares real items, Ken/Pun deliver or takeaway pickup occurs, customer consumes or leaves, table cleared. All 3D animations/props must be driven by actual engine order states, not unrelated loops. Check refunds/cancellations and stock depletion.
+20. **Believable daily lifecycle:** morning opening/prep and Alee watering, dynamic rush/quiet periods based on location, vehicle inspection customers and office commuters, afternoon lull, evening lighting, closing/cleanup. Staff break/idle tasks and cleanup (including wiping tables) only when appropriate; no permanently full house.
+21. **Operational fidelity and one-day QA:** simulate full day; reconcile arrivals, orders, revenue, stock, task assignment, staff utilization, and end-of-day report; validate no phantom sales or duplicate service. Include before/after matched screenshots, reproducible tests and mobile performance check.
+
+### Implementation order and release gate
+P0: navigation/collision (16), order-to-service/accounting loop (19), full-day state transitions (20). P1: all other requested visual/behavior fixes (1–15,17–18). P2: one-day QA and evidence (21). This is an implementation brief, **not proof of completed code**. Work only on feature branch; open draft PR, deploy preview separately, do not merge or change V2 until user approves.
