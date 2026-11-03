@@ -32,6 +32,5 @@ export default function ServiceDetails({state}:{state:GameState}){
  {alee.task?.maintenance==='sign'&&<group position={[-2.1,0,-.6]} rotation={[0,0,.5]}>{[-.22,.22].map(x=><Box key={x} p={[x,1.25,0]} s={[.045,2.5,.045]} c="#baaa86"/>)}{Array.from({length:7},(_,i)=><Box key={i} p={[0,.2+i*.32,0]} s={[.45,.035,.05]} c="#c2b496"/>)}</group>}
  {alee.task?.maintenance==='water'&&<group position={[alee.position[0]-.2,.8,alee.position[1]+.2]}><Box p={[0,0,0]} s={[.18,.2,.14]} c="#3a8d76"/><Box p={[-.15,.07,0]} s={[.2,.035,.04]} c="#3a8d76"/>{watering&&<mesh position={[-.25,-.3,0]}><cylinderGeometry args={[.015,.06,.65,8]}/><meshStandardMaterial color="#9ed9f2" transparent opacity={.6}/></mesh>}</group>}
  {GARDEN_PLANTS.map(({x,z},i)=><group key={i} position={[x,0,z]}><Box p={[0,.06,0]} s={[.24,.1,.24]} c={(state.wateredCount??0)>i?'#74664f':'#a39373'}/></group>)}
- {state.customers.filter(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving').map(c=><StockLabel key={c.id} text="ขอโทษครับ อาหารเสร็จหรือยัง?" position={[c.position[0],1.9,c.position[1]]} rotation={[0,Math.PI,0]} width={.8}/>)}
  </>;
 }
