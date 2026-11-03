@@ -21,7 +21,21 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
  const step=.25;
  const key=(x:number,z:number)=>`${x},${z}`;
  const snap=(p:Vec2):Vec2=>[Math.round(p[0]/step),Math.round(p[1]/step)];
- const origin=snap(from), queue:Vec2[]=[origin], seen=new Set([key(...origin)]);
+ // Start from a walkable grid cell when the actor spawns inside furniture.
+ // This avoids routing through an obstacle on the very first step.
+ const requestedOrigin=snap(from);
+ let origin=requestedOrigin;
+ if(!canWalk(origin[0]*step,origin[1]*step)){
+  let closest=Infinity;
+  for(let dx=-8;dx<=8;dx++)for(let dz=-8;dz<=8;dz++){
+   const candidate:Vec2=[requestedOrigin[0]+dx,requestedOrigin[1]+dz];
+   const x=candidate[0]*step,z=candidate[1]*step;
+   const d=Math.hypot(x-from[0],z-from[1]);
+   if(canWalk(x,z)&&d<closest){closest=d;origin=candidate;}
+  }
+  if(!canWalk(origin[0]*step,origin[1]*step))return [];
+ }
+ const queue:Vec2[]=[origin], seen=new Set([key(...origin)]);
  const prev=new Map<string,Vec2>();
  let best:Vec2|undefined, bestDistance=Infinity;
  for(let i=0;i<queue.length&&i<3500;i++){
@@ -37,7 +51,8 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
   }
  }
  if(!best)return [];
- const path:Vec2[]=[];let p=best;
+ const path:Vec2[]=key(...origin)===key(...requestedOrigin)?[]:[[origin[0]*step,origin[1]*step]];
+ let p=best;
  while(key(...p)!==key(...origin)){
   path.unshift([p[0]*step,p[1]*step]);
   const parent=prev.get(key(...p));if(!parent)break;p=parent;
