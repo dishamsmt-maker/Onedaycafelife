@@ -40,6 +40,7 @@ export function validateCafeRecipeEvidence(document, candidateIds) {
   if (document.items.length !== 37) issues.push(`expected_37_items_got_${document.items.length}`);
   let pending = 0, evidenceComplete = 0;
   for (const [index, row] of document.items.entries()) {
+    const before = issues.length;
     if (!row || typeof row !== 'object' || Array.isArray(row)) { fail(index, 'invalid_item'); continue; }
     if (!expected.has(row.menuId)) fail(index, 'unknown_menu_id');
     if (seen.has(row.menuId)) fail(index, 'duplicate_menu_id');
@@ -48,7 +49,6 @@ export function validateCafeRecipeEvidence(document, candidateIds) {
     if (row.reviewStatus === 'PENDING') { pending++; fail(index, 'pending_evidence'); continue; }
     if (row.reviewStatus === 'EXCLUDED') continue;
     if (row.reviewStatus !== 'EVIDENCE_COMPLETE') { fail(index, 'invalid_review_status'); continue; }
-    const before = issues.length;
     for (const key of ['recipeVersion', 'portionSize', 'allergensReviewed', 'handlingNotes', 'reviewerRef', 'reviewedOn']) {
       if (!nonempty(row[key])) fail(index, `missing_${key}`);
     }
