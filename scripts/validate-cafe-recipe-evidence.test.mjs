@@ -62,8 +62,12 @@ test('invalid unit, negative quantity and fractional pieces are blocked', () => 
 
 test('unknown and duplicate menu IDs are rejected', () => {
   const doc = pending();
+  doc.items.slice(1).forEach(row => { row.reviewStatus = 'EXCLUDED'; });
+  completeFirst(doc);
   doc.items[0].menuId = 'unknown';
-  assert(validateCafeRecipeEvidence(doc, ids).issues.some(x => x.includes('unknown_menu_id')));
+  const unknown = validateCafeRecipeEvidence(doc, ids);
+  assert(unknown.issues.some(x => x.includes('unknown_menu_id')));
+  assert.equal(unknown.evidenceComplete, 0);
   doc.items[0].menuId = doc.items[1].menuId;
   assert(validateCafeRecipeEvidence(doc, ids).issues.some(x => x.includes('duplicate_menu_id')));
 });
