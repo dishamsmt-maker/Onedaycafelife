@@ -1,4 +1,4 @@
-# ONE DAY playtest — 15 requested fixes (2026-11-03)
+# ONE DAY playtest — 18 requested fixes (2026-11-03)
 
 Implement on this feature branch only. Do not change original V2 site, main branch, or production deployment before review. Preserve three modes, T01–T03, mobile joystick, staff routines, halal menu and existing service flows. **No fried-sausage menu addition** (user withdrew it).
 
@@ -24,3 +24,12 @@ Implement on this feature branch only. Do not change original V2 site, main bran
 - Video or reproducible test of full takeaway order and delivery, Ken/Pun shift balance, Alee watering twice per day.
 - Confirm mobile performance, walkable collision, three game modes, and no regressions.
 - Preview deploy only after code changes and tests; user approves PR before merge to main or replacing production. Keep original V2 URL untouched.
+
+## Additional playtest requests (2026-11-03)
+16. **Collision and navigation for every person:** Fix Alee walking into the right wall and all staff/customer NPCs walking through walls, furniture, counters, trees or other solid objects. Rebuild/update collision shapes and navigation routes after bar relocation; avoid NPC overlap and deadlocks; verify routes in all three modes. Do not fake this by only changing animations.
+17. **More casual outfit variations:** Both women and men customers may sometimes wear shorts, with suitable shirts/shoes; mix with office attire, uniforms, dresses/skirts, long trousers, and modest clothing. Do not force every customer into the same silhouette.
+18. **Family visits with children:** Occasionally spawn age-appropriate child customer NPCs accompanied by a parent/guardian (e.g. child arriving with mother). Children remain near their adult, walk at child-appropriate pace, wait/sit safely, and leave together. No unaccompanied child wandering into kitchen/bar, roads, or vehicle inspection zone. Scale models and animation/collisions appropriately. Keep visits occasional and plausible, not constant.
+
+## Added acceptance tests
+- Run Alee watering routes and customer/staff routes near the moved right-side bar, walls, tables and pickup point: zero clipping through solids or persistent walking into walls.
+- Observe customer variety including shorts on different genders and at least one parent-child visit during a sufficiently long simulated playtest; child and guardian arrive and leave together.
