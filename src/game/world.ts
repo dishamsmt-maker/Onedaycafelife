@@ -5,6 +5,16 @@ export const TABLE_LAYOUT = [{id:'t1',name:'T1',position:[-1.25,6.35] as Vec2,ca
 export interface Obstacle {x:number;z:number;w:number;d:number;}
 export const OBSTACLES:Obstacle[]=[{x:1.4,z:.75,w:2,d:.4},{x:.55,z:2.1,w:.45,d:2.4},{x:2.05,z:2.15,w:.8,d:2.7},{x:1.95,z:4.65,w:.72,d:2.0},{x:1.95,z:5.85,w:.8,d:.7},...TABLE_LAYOUT.map(t=>({x:t.position[0],z:t.position[1],w:1.25,d:1.2})),{x:1.85,z:9.3,w:1.1,d:1.0}];
 export function canWalk(x:number,z:number, radius=.16){return x>-2.32&&x<2.32&&z>-.95&&z<9.82&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);}
+/** Sample a complete movement segment so NPCs cannot clip through counter corners. */
+export function segmentWalkable(from:Vec2,to:Vec2,radius=.16):boolean{
+ const distance=Math.hypot(to[0]-from[0],to[1]-from[1]);
+ const samples=Math.max(1,Math.ceil(distance/.05));
+ for(let i=0;i<=samples;i++){
+  const t=i/samples;
+  if(!canWalk(from[0]+(to[0]-from[0])*t,from[1]+(to[1]-from[1])*t,radius))return false;
+ }
+ return true;
+}
 /** Grid routing selects the nearest reachable walkable endpoint, even when a station
  * or table centre is blocked by its own collision box. */
 export function findPath(from:Vec2,to:Vec2):Vec2[]{
@@ -23,7 +33,7 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
   }
   for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
    const n:Vec2=[p[0]+dx,p[1]+dz], k=key(...n);
-   if(!seen.has(k)&&canWalk(n[0]*step,n[1]*step)){seen.add(k);prev.set(k,p);queue.push(n);}
+   if(!seen.has(k)&&canWalk(n[0]*step,n[1]*step)&&segmentWalkable([p[0]*step,p[1]*step],[n[0]*step,n[1]*step])){seen.add(k);prev.set(k,p);queue.push(n);}
   }
  }
  if(!best)return [];
@@ -35,10 +45,7 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
  // Do not append a destination unless its direct segment is collision-free.
  const last=path.length?path[path.length-1]:from;
  const distance=Math.hypot(to[0]-last[0],to[1]-last[1]);
- if(canWalk(...to)&&Array.from({length:Math.ceil(distance/.08)},(_,i)=>{
-  const t=(i+1)/Math.ceil(distance/.08);
-  return canWalk(last[0]+(to[0]-last[0])*t,last[1]+(to[1]-last[1])*t);
- }).every(Boolean))path.push([...to]);
+ if(canWalk(...to)&&segmentWalkable(last,to))path.push([...to]);
  return path;
 }
 
