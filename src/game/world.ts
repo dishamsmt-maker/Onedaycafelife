@@ -51,12 +51,14 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
   }
  }
  if(!best)return [];
- const path:Vec2[]=key(...origin)===key(...requestedOrigin)?[]:[[origin[0]*step,origin[1]*step]];
+ const path:Vec2[]=[];
  let p=best;
  while(key(...p)!==key(...origin)){
   path.unshift([p[0]*step,p[1]*step]);
   const parent=prev.get(key(...p));if(!parent)break;p=parent;
  }
+ // Recovery must be the FIRST waypoint, not the last one.
+ if(key(...origin)!==key(...requestedOrigin))path.unshift([origin[0]*step,origin[1]*step]);
  // Do not append a destination unless its direct segment is collision-free.
  const last=path.length?path[path.length-1]:from;
  const distance=Math.hypot(to[0]-last[0],to[1]-last[1]);
