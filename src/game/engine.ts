@@ -64,9 +64,22 @@ function seatPosition(s: GameState, c: Customer): Vec2 {
   return [t.position[0] + (idx % 2 === 0 ? -.9 : .9), t.position[1] + (idx < 2 ? -.25 : .25)];
 }
 function seatCustomer(s: GameState, c: Customer): boolean {
-  const table = s.tables.find(t => !t.dirty && t.customerIds.length < t.capacity);
-  if (!table) return false;
-  table.customerIds.push(c.id); c.tableId = table.id; c.status = 'arriving'; c.path = findPath(c.position, seatPosition(s, c)); return true;
+  // Reserve only a table with a reachable chair-side approach. A failed route
+  // must not instantly turn a customer into a seated, orderable guest.
+  for (const table of s.tables) {
+    if (table.dirty || table.customerIds.length >= table.capacity) continue;
+    const index = table.customerIds.length;
+    const target: Vec2 = [table.position[0] + (index % 2 === 0 ? -.9 : .9), table.position[1] + (index < 2 ? -.25 : .25)];
+    const path = findPath(c.position, target);
+    const last = path[path.length - 1];
+    if (!last || Math.hypot(last[0] - target[0], last[1] - target[1]) > .35) continue;
+    table.customerIds.push(c.id);
+    c.tableId = table.id;
+    c.status = 'arriving';
+    c.path = path;
+    return true;
+  }
+  return false;
 }
 const NAMES = ['เมย์', 'ต้น', 'อิง', 'บีม', 'ฟ้า', 'นนท์', 'อ้อม', 'ปาล์ม', 'นิด', 'โอม', 'Alex', 'Siti', 'มิน', 'อาร์ต', 'หลิน', 'พีท'];
 /** Persistent people remember visits; age/nationality never constrain their needs. */
