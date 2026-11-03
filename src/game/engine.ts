@@ -238,7 +238,15 @@ function progressEmployees(s: GameState, dt: number) {
       if (t.kind === 'serve' && t.stage === 'pickup') {
         const c = s.customers.find(c => c.id === t.customerId);
         if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
-        o.status = 'serving'; t.stage = 'deliver'; t.target = customerTarget(s, c); t.path = findPath(e.position, t.target); continue;
+        const destination = customerTarget(s, c);
+        const route = findPath(e.position, destination);
+        const endpoint = route[route.length - 1];
+        // Do not mark a delivery complete when the waiter cannot reach the guest.
+        if (!endpoint || Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
+          o.status = 'ready'; o.workerId = undefined; e.task = null; e.available = true;
+          continue;
+        }
+        o.status = 'serving'; t.stage = 'deliver'; t.target = destination; t.path = route; continue;
       }
       t.phase = 'working';
     }
