@@ -8,7 +8,7 @@ export function canWalk(x:number,z:number, radius=.16){return x>-2.32&&x<2.32&&z
 export function findPath(from:Vec2,to:Vec2):Vec2[]{
  const step=.25, key=(x:number,z:number)=>`${x},${z}`, snap=(p:Vec2):Vec2=>[Math.round(p[0]/step),Math.round(p[1]/step)];
  const start=snap(from), goal=snap(to);const queue:Vec2[]=[start],seen=new Set([key(...start)]),prev=new Map<string,Vec2>();let found:Vec2|undefined;
- for(let i=0;i<queue.length&&i<3500;i++){const p=queue[i];if(Math.hypot(p[0]-goal[0],p[1]-goal[1])<=1){found=p;break;}for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const n:Vec2=[p[0]+dx,p[1]+dz],k=key(...n);if(!seen.has(k)&&canWalk(n[0]*step,n[1]*step)){seen.add(k);prev.set(k,p);queue.push(n);}}}
+ for(let i=0;i<queue.length&&i<3500;i++){const p=queue[i];if(Math.hypot(p[0]-goal[0],p[1]-goal[1])<=1&&canWalk(p[0]*step,p[1]*step)){found=p;break;}for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const n:Vec2=[p[0]+dx,p[1]+dz],k=key(...n);if(!seen.has(k)&&canWalk(n[0]*step,n[1]*step)){seen.add(k);prev.set(k,p);queue.push(n);}}}
  if(!found)return [];const path:Vec2[]=[];let p=found;while(key(...p)!==key(...start)){path.unshift([p[0]*step,p[1]*step]);const parent=prev.get(key(...p));if(!parent)break;p=parent;}if(canWalk(...to))path.push(to);return path;
 }
 
