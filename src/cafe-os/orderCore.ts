@@ -58,21 +58,22 @@ export function submitCafeOrder(
   const existing = store.orders.find(o => o.requestId === request.requestId);
   if (existing) {
     const same = existing.tableId === request.tableId && existing.itemId === request.itemId && existing.quantity === request.quantity;
-    return { store, order: existing, accepted: same, reason: same ? 'duplicate-retry' : 'request-id-conflict' };
+    return { store, order: { ...existing, recipeSnapshot: existing.recipeSnapshot ? { ...existing.recipeSnapshot } : undefined }, accepted: same, reason: same ? 'duplicate-retry' : 'request-id-conflict' };
   }
   const item = catalog.find(i => i.id === request.itemId);
   if (!validId(request.requestId) || !validId(request.tableId) || !item?.enabled ||
     !Number.isSafeInteger(request.quantity) || request.quantity <= 0 ||
     !Number.isSafeInteger(item.priceSatang) || item.priceSatang < 0 ||
     !Number.isSafeInteger(item.priceSatang * request.quantity) ||
-    Object.entries(item.recipe).some(([id, amount]) => !validId(id) || !Number.isFinite(amount) || amount < 0)) {
+    Object.entries(item.recipe).some(([id, amount]) => !validId(id) || !Number.isFinite(amount) || amount < 0 || !Number.isFinite(amount * request.quantity))) {
     return { store, order: undefined as never, accepted: false, reason: 'invalid-order' };
   }
   const next = copy(store);
   const order: CafeOrder = { id: 'cafe-' + request.requestId, ...request,
     unitPriceSatang: item.priceSatang, recipeSnapshot: { ...item.recipe }, status: 'queued', paidSatang: 0, paymentRecorded: false, stockConsumed: false };
   next.orders.push(order);
-  return { store: next, order, accepted: true };
+  // The response is a detached view: callers cannot mutate the stored recipe.
+  return { store: next, order: { ...order, recipeSnapshot: { ...order.recipeSnapshot } }, accepted: true };
 }
 export function advanceCafeOrder(
   store: CafeStore, catalog: readonly CafeCatalogItem[], orderId: string,
