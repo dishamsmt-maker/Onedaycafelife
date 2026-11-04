@@ -197,8 +197,15 @@ function finishTask(s: GameState, e: Employee) {
       // A delivery can only complete for a live customer and an order actively
       // assigned for serving. Never resurrect cancelled or abandoned orders.
       if (o && o.status === 'serving' && c && c.status !== 'leaving' && c.orderIds.includes(o.id)) {
-        o.status = 'completed'; o.completedAt = s.minute; o.workerId = undefined;
-        s.todayWaits.push(s.minute - o.createdAt);
+        const destination = customerTarget(s, c);
+        const closeEnough = Math.hypot(e.position[0] - destination[0], e.position[1] - destination[1]) <= .45;
+        if (closeEnough) {
+          o.status = 'completed'; o.completedAt = s.minute; o.workerId = undefined;
+          s.todayWaits.push(s.minute - o.createdAt);
+        } else {
+          // The customer moved after the route was planned: never mark a remote delivery complete.
+          o.status = 'ready'; o.workerId = undefined;
+        }
       }
     }
   } else if (t.kind === 'clean') {
