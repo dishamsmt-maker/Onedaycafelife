@@ -172,3 +172,32 @@ export function recordCafeOrderCost(
   next.orders.find(o => o.id === orderId)!.consumedCostSatang = cost;
   return next;
 }
+
+/**
+ * Read-only end-of-day report. Unknown ingredient costs are surfaced rather
+ * than silently treated as zero. This is a prototype accounting snapshot,
+ * not a tax invoice or a substitute for verified payment settlement.
+ */
+export function closeCafeDay(store: CafeStore) {
+  const reconciliation = reconcileCafeCash(store);
+  const paymentsSatang = store.cashEvents.filter(e => e.type === 'payment').reduce((n, e) => n + e.amountSatang, 0);
+  const refundsSatang = store.cashEvents.filter(e => e.type === 'refund').reduce((n, e) => n + e.amountSatang, 0);
+  const produced = store.orders.filter(o => o.stockConsumed);
+  const missingCostOrders = produced.filter(o => o.consumedCostSatang === undefined).map(o => o.id);
+  const ingredientCostSatang = produced.reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
+  const wasteCostSatang = produced.filter(o => o.status === 'cancelled')
+    .reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
+  const netSalesSatang = paymentsSatang - refundsSatang;
+  const validNumbers = [paymentsSatang, refundsSatang, ingredientCostSatang, wasteCostSatang, netSalesSatang]
+    .every(Number.isSafeInteger);
+  return {
+    orderCount: store.orders.length,
+    cancelledCount: store.orders.filter(o => o.status === 'cancelled').length,
+    paymentsSatang, refundsSatang, netSalesSatang, ingredientCostSatang,
+    wasteCostSatang, grossMarginSatang: missingCostOrders.length ? null : netSalesSatang - ingredientCostSatang,
+    missingCostOrders,
+    cashBalanced: reconciliation.balanced,
+    readyToClose: reconciliation.balanced && validNumbers && missingCostOrders.length === 0 &&
+      wasteCostSatang === store.wasteCostSatang,
+  };
+}
