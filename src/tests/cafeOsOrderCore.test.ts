@@ -212,4 +212,20 @@ describe('Café OS isolated order pipeline', () => {
     expect(initial.stock.rice).toBe(Number.MAX_VALUE);
   });
 
+  it('refuses day close on corrupted inventory despite a balanced payment journal', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
+    const costed = recordCafeOrderCost(preparing, catalog, accepted.order.id, { rice: 350 });
+    const served = advanceCafeOrder(advanceCafeOrder(costed, catalog, accepted.order.id, 'ready'), catalog, accepted.order.id, 'served');
+    const paid = payCafeOrder(served, accepted.order.id);
+    expect(closeCafeDay(paid).readyToClose).toBe(true);
+    for (const corrupt of [Number.NaN, Number.POSITIVE_INFINITY, -1]) {
+      const report = closeCafeDay({ ...paid, stock: { rice: corrupt } });
+      expect(report.cashBalanced).toBe(true);
+      expect(report.invalidStockIds).toEqual(['rice']);
+      expect(report.readyToClose).toBe(false);
+    }
+    expect(closeCafeDay({ ...paid, stock: { rice: 0.5 } }).readyToClose).toBe(true);
+  });
+
 });
