@@ -182,4 +182,11 @@ describe('Café OS isolated order pipeline', () => {
       { requestId: 'huge-1', tableId: 't1', itemId: 'huge', quantity: 2 });
     expect(accepted.accepted).toBe(false);
   });
+  it('refuses to prepare when persisted stock is non-finite', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const corrupted = { ...accepted.store, stock: { rice: Number.NaN } };
+    expect(advanceCafeOrder(corrupted, catalog, accepted.order.id, 'preparing')).toBe(corrupted);
+    expect(corrupted.orders[0].status).toBe('queued');
+  });
+
 });
