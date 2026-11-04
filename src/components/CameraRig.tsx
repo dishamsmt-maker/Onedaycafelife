@@ -39,11 +39,11 @@ export default function CameraRig({mode,onSelect,onInteract}:CameraRigProps) {
       const p=portrait?[-8,11.5,-11]:[-8,9,-9];
       camera.position.set(p[0],p[1],p[2]);
       camera.rotation.order = 'YXZ';
-      camera.lookAt(0,.7,4.3);
+      camera.lookAt(0,.7,20);
       touchControls.nearby = null;
     } else {
       if (!firstStarted.current) {
-        touchControls.position.x = .4;
+        touchControls.position.x = 1.4;
         touchControls.position.z = -6.1;
         touchControls.view.yaw = 3.09;
         touchControls.view.pitch = .03;
@@ -127,7 +127,7 @@ export default function CameraRig({mode,onSelect,onInteract}:CameraRigProps) {
     camera.rotation.set(touchControls.view.pitch,yaw,0,'YXZ');
     touchControls.position.x=camera.position.x;touchControls.position.z=camera.position.z;
     const choices:{kind:InteractionKind;label:string;point:readonly[number,number];id?:string}[]=visitor.role==='customer'?
-      [{kind:'bar',label:'ดูเมนูและสั่งอาหาร',point:[-.2,1.65]}]:[
+      [{kind:'bar',label:'ดูเมนูและสั่งอาหาร',point:STATIONS.pickup}]:[
       {kind:'fridge',label:'เปิดตู้เย็น',point:STATIONS.fridge},{kind:'bar',label:'สำรวจบาร์กาแฟ',point:STATIONS.bar},
       {kind:'kitchen',label:'สำรวจครัว',point:STATIONS.kitchen},{kind:'garden',label:'สำรวจสวน',point:STATIONS.garden}];
     if(visitor.role==='customer'&&!visitor.tableId)for(const t of useGame.getState().game.tables)choices.push({kind:'table',label:`นั่งโต๊ะ ${t.name}`,point:t.position,id:t.id});
@@ -142,5 +142,5 @@ export default function CameraRig({mode,onSelect,onInteract}:CameraRigProps) {
     notifyTime.current+=dt;
     if(notifyTime.current>.2){notifyTime.current=0;touchControls.emit();if(visitor.role!=='customer'&&(Math.abs(dx)+Math.abs(dz)>.0001))useGame.getState().dispatch({type:'control-move',id:visitor.role,position:[-camera.position.x,camera.position.z]});}
   });
-  return mode==='iso'?<OrbitControls makeDefault target={[0,.7,4.3]} minDistance={5} maxDistance={32} minPolarAngle={.22} maxPolarAngle={Math.PI*.47} enableDamping dampingFactor={.09}/>:null;
+  return mode==='iso'?<OrbitControls makeDefault target={[0,.7,20]} minDistance={5} maxDistance={75} minPolarAngle={.22} maxPolarAngle={Math.PI*.47} enableDamping dampingFactor={.09}/>:null;
 }

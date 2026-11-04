@@ -94,8 +94,65 @@ function Grounds({state,raining,quality,night,onSelect}:{state:GameState;raining
  {/* The inspection sign stays blue; the temporary café sign appears only during drink service. */}{/* TASK-028: neutral matte gray boundary for the relative\u0027s house (right of the cafe). */}<Box p={[3.45,1.25,5.2]} s={[.18,2.5,11]} color="#858b89" map={stone}/><Box p={[3.45,2.53,5.2]} s={[.24,.1,11.1]} color="#757c7a"/><Box p={[-4.4,-.02,4.5]} s={[2.2,.07,10]} color="#9da693" map={stone} shadow={false}/><Box p={[-5.7,.75,5.5]} s={[.12,1.5,12]} color="#8d9c87"/><Cyl p={[-3.45,1.65,-.1]} r={.055} h={3.3} color="#3a4a3e"/><Box p={[-3.45,3,-.15]} s={[.94,.92,.05]} color="#2879b9"/><Sign text="ตรอ." sub="ตรวจสภาพรถ" width={.9} height={.88} p={[-3.45,3,-.18]} blue/><Box p={[-3.45,3.55,-.14]} s={[.55,.05,.22]} color="#1c2c3b"/><Box p={[-3.45,3.46,-.26]} s={[.42,.05,.12]} color="#303333"/>{night&&<SolarSignLight/>}<Box p={[-4.3,2.9,6.5]} s={[2.2,.1,4]} color="#59685c"/><Box p={[-5.4,1.4,6.5]} s={[.1,2.8,4]} color="#9aab99"/>{drinksOnly&&<group position={[-3.45,2.05,-.15]} rotation={[0,.1,0]}><Sign text="ONE DAY CAFE" sub="COFFEE · TEA · TO GO" width={.8} height={.22} dark/></group>}
  {[-2.1,2.35].flatMap((x,j)=>(j===0?[.7,4.8,7.4,9.8]:[.2,6.6,9.8]).map(z=><Lantern key={`${x},${z}`} p={[x,0,z]} night={night}/>))}<group onClick={e=>{e.stopPropagation();onSelect('garden')}}><Box p={[.15,.03,9.9]} s={[1.3,.05,.6]} color="#aaa78e" map={stone}/><Sign text="THE GARDEN" sub="TAKE A LITTLE BREAK" width={.9} height={.27} p={[-1.4,1.2,9.9]} dark glow={night?.1:0}/></group>
  </>}
-function World(props:SceneProps){const {state,cameraMode,quality,shadows,fridgeOpen,onSelect,onInteract,lightingMode='auto'}=props;const minute=lightingMode==='morning'?405:lightingMode==='day'?750:lightingMode==='evening'?1150:state.minute,night=minute>=1100||minute<345,dawn=minute>=345&&minute<465,lamps=minute<460||minute>=1020,raining=state.weather==='rain'||state.weather==='light-rain',cloudy=state.weather==='cloudy'||raining;const sky=night?'#334b58':dawn?'#b8d1df':cloudy?'#bcc8c5':'#c9dedf';const sunlight=night?.25:cloudy?1.3:dawn?2.7:3.0;const sunY=night?4:Math.max(2.6,Math.sin((minute-360)/900*Math.PI)*13);return <><color attach="background" args={[sky]}/><Sky night={night} dawn={dawn} cloudy={cloudy}/><fog attach="fog" args={[sky,24,65]}/><ambientLight intensity={night?.55:.65} color={night?'#9eafc0':'#eee4cc'}/><hemisphereLight args={[night?'#9eafc5':'#cee5e9',night?'#56644b':'#9a956e',night?1.05:1.35]}/><directionalLight position={[Math.cos((minute-390)/900*Math.PI)*-12,sunY,-6]} castShadow={shadows} intensity={sunlight} color={dawn?'#ffe0b4':night?'#a8c5de':'#fff0cf'} shadow-mapSize-width={quality==='high'?1536:768} shadow-mapSize-height={quality==='high'?1536:768} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={12} shadow-camera-bottom={-8} shadow-bias={-.00035}/>{night&&<><Stars/><mesh position={[-13,18,23]}><sphereGeometry args={[.55,14,10]}/><meshBasicMaterial color="#e8e6cf"/></mesh></>}<CameraRig mode={cameraMode} onSelect={onSelect} onInteract={onInteract}/>
- <group scale={[-1,1,1]}><Grounds state={state} raining={raining} quality={quality} night={lamps} onSelect={onSelect}/><ServiceDetails state={state}/><Shop state={state} first={cameraMode==='first'} night={lamps} fridgeOpen={fridgeOpen} onSelect={onSelect}/>{state.tables.map(t=><TableModel key={t.id} table={t} state={state} first={cameraMode==='first'} onSelect={()=>onSelect('table',t.id)}/>)}
+function FullSiteMaintenance({state}:{state:GameState}){const a=state.employees.find(e=>e.id==='alee')!,task=a.task;return <>
+ {task?.maintenance==='water'&&<group position={[a.position[0],.8,a.position[1]]}><Cyl p={[.15,0,0]} r={.1} h={.18} color="#476c59"/><Box p={[.28,.03,0]} s={[.24,.04,.04]} color="#476c59"/>{task.phase==='working'&&<mesh position={[.4,-.25,0]} rotation={[0,0,.25]}><cylinderGeometry args={[.008,.035,.5,6]}/><meshStandardMaterial color="#b4dce4" transparent opacity={.55}/></mesh>}</group>}
+ {task?.maintenance==='sign'&&<group position={[-2.1,0,1.1]} rotation={[0,0,.35]}>{[-.18,.18].map(x=><Box key={x} p={[x,1.2,0]} s={[.035,2.4,.035]} color="#b4b9ae"/>)}{[.3,.6,.9,1.2,1.5,1.8,2.1].map(y=><Box key={y} p={[0,y,0]} s={[.36,.025,.03]} color="#b4b9ae"/>)}</group>}
+ {state.signMounted&&<Sign text="ONE DAY" p={[-3.1,2.7,1.14]} width={.8} height={.25} dark/>}
+ </>}
+function FullSiteGrounds({state,raining,quality,night,onSelect}:{state:GameState;raining:boolean;quality:'low'|'high';night:boolean;onSelect:SceneProps['onSelect']}){
+ const stone=useSurface('stone'),gravel=useSurface('gravel'),wood=useSurface('wood');
+ return <>
+ <Box p={[0,-.22,22]} s={[28,.25,72]} color="#6f785a" shadow={false}/>
+ <Box p={[0,-.07,25]} s={[5,.12,50]} color={raining?'#a39e96':'#eee5d6'} map={gravel}/>
+ <Box p={[0,-.015,2.5]} s={[5,.12,5]} color="#d2cec3" map={stone}/>
+ <Box p={[-1.45,.015,25]} s={[1.5,.08,50]} color="#dcd6c9" map={stone}/>
+ {Array.from({length:50},(_,i)=><Box key={i} p={[-1.45,.06,.5+i]} s={[1.46,.015,.018]} color="#b2ac9e" shadow={false}/>)}
+ <Box p={[0,-.05,-3]} s={[24,.12,6]} color="#535b5c" shadow={false}/>
+ <Box p={[0,.025,.12]} s={[5,.03,.13]} color="#444f4d"/>{Array.from({length:80},(_,i)=><Box key={i} p={[-2.47+i*.062,.045,.12]} s={[.018,.012,.12]} color="#939d93" shadow={false}/>)}
+ <Box p={[-5,-.015,15]} s={[5,.1,30]} color="#b7bab3" map={stone} shadow={false}/>
+ <Box p={[2.55,1.3,25]} s={[.15,2.6,50]} color="#858b89"/><Box p={[2.55,2.63,25]} s={[.25,.06,50]} color="#6e7774"/>
+ {Array.from({length:26},(_,i)=><group key={i}><Box p={[-2.5,.7,i*2]} s={[.05,1.4,.05]} color="#eee9de"/>{[.3,.7,1.1].map(y=><Box key={y} p={[-2.5,y,i*2+1]} s={[.025,.025,2]} color="#eee9de" shadow={false}/>)}</group>)}
+ <Foliage quality={quality}/>
+ {[2,6,14,18,22,27,32,37,42,47].map(z=><Lantern key={z} p={[-2.25,0,z]} night={night}/>)}
+ {night&&[5,17,29,41].map(z=><pointLight key={z} position={[-1.95,.7,z]} intensity={5} color="#ffc27c" distance={6} decay={2}/>)}
+ <Box p={[-3.1,2.1,1.2]} s={[.1,4.2,.1]} color="#2a4c63"/><Sign text="ตรอ." sub="ตรวจสภาพรถ" p={[-3.1,3.5,1.15]} width={.9} height={.9} blue glow={night?.35:0}/>
+ <Box p={[2.9,3.3,.4]} s={[.28,6.6,.28]} color="#91978f"/>
+ <Sign text="ONE DAY" sub="COFFEE · GARDEN" p={[1.95,1.1,1.3]} width={.65} height={.8} dark/>
+ <Box p={[2.025,1.02,28.6]} s={[.55,.1,3.2]} color="#a47a4d" map={wood}/>
+ {[27.6,28.6,29.6].map(z=><group key={z} position={[1.15,0,z]}><Cyl p={[0,.65,0]} r={.18} h={.06} color="#272c28"/>{[-.12,.12].map(x=><Box key={x} p={[x,.32,0]} s={[.035,.64,.25]} color="#272c28"/>)}</group>)}
+ <Box p={[1.2,1.35,46]} s={[2,2.7,5]} color="#d3cdbf"/><Box p={[1.2,2.78,46]} s={[2.2,.15,5.2]} color="#343e39"/>
+ <Sign text="SERVICE" sub="REAR AREA" p={[.15,1.6,46]} rotation={[0,-Math.PI/2,0]} width={1} height={.35} dark/>
+ <group onClick={e=>{e.stopPropagation();onSelect('garden')}}><Sign text="THE GARDEN" sub="TAKE YOUR TIME" p={[.9,1.3,36]} width={1.3} height={.4} dark/></group>
+ </>;
+}
+function FullSiteShop({state,first,night,fridgeOpen,onSelect}:{state:GameState;first:boolean;night:boolean;fridgeOpen:boolean;onSelect:SceneProps['onSelect']}){
+ const wood=useSurface('wood'),stone=useSurface('stone');const brew=state.employees.some(e=>e.task?.kind==='brew'&&e.task.phase==='working');
+ return <>
+ <Box p={[.8,.025,10]} s={[3,.08,6]} color="#dfd8c8" map={stone}/>
+ <Box p={[2.3,1.35,10]} s={[.4,2.7,6]} color="#e7ddca"/>
+ <Box p={[-.65,1.35,9.175]} s={[.1,2.7,4.35]} color="#e7ddca"/>
+ <Box p={[-.65,1.35,12.625]} s={[.1,2.7,.75]} color="#e7ddca"/>
+ <Box p={[.8,1.35,12.95]} s={[3,2.7,.1]} color="#e7ddca"/>
+ <Box p={[-.65,2.55,11.8]} s={[.1,.3,.9]} color="#b7ae98"/>
+ {first&&<><Box p={[.8,2.85,10]} s={[3.35,.15,6.5]} color="#303831"/><Box p={[.8,2.75,10]} s={[3.15,.05,6.3]} color="#c39d70" map={wood}/></>}
+ <Box p={[.8,2.8,7]} s={[3.3,.2,.6]} color="#29322e"/>
+ <Box p={[.8,2.42,7]} s={[3.1,.55,.15]} color="#e8ddc6"/><Sign text="ONE DAY" sub="COFFEE & MORE" p={[.8,2.43,6.91]} width={2.5} height={.48} glow={night?.45:.05}/>
+ <Box p={[.8,.5,7.425]} s={[2.8,1,.65]} color="#b38c5f" map={wood}/><Box p={[.8,1.045,7.425]} s={[2.86,.07,.72]} color="#a07145" map={wood}/>
+ {Array.from({length:24},(_,i)=><Box key={i} p={[-.57+i*.12,.5,7.09]} s={[.018,.95,.025]} color="#795b39" shadow={false}/>)}
+ <Sign text="PICK UP" p={[-.1,.78,7.075]} width={.65} height={.16} dark/><Sign text="ORDER / PAY" p={[1.65,.78,7.075]} width={.8} height={.16} dark/>
+ {[[-.375,9.65,.65,3.4],[1.875,10.1,.65,4.3],[.8,12.575,2.8,.65]].map(([x,z,w,d],i)=><group key={i}><Box p={[x,.44,z]} s={[w,.88,d]} color="#d7c9ac"/><Box p={[x,.92,z]} s={[w+.025,.055,d+.025]} color="#b5c0b8" metalness={.55} roughness={.3}/></group>)}
+ <group position={[-2.4,-.1,6.7]}><Espresso busy={brew} paused={state.paused}/></group>
+ <Box p={[-.4,1.85,8.7]} s={[.55,.06,1.8]} color="#997246" map={wood}/>{[8.2,8.5,8.8,9.1].map(z=><Cyl key={z} p={[-.4,1.95,z]} r={.045} h={.14} color="#f2ead8"/>)}
+ <Box p={[1.875,1.94,10.4]} s={[.8,.3,1.4]} color="#82918a" metalness={.65}/><Box p={[1.875,2.43,10.4]} s={[.4,.7,.5]} color="#8f9b95" metalness={.65}/>
+ <Box p={[1.6,1.25,7.45]} s={[.32,.24,.04]} color="#283731"/><Box p={[1.6,1.25,7.48]} s={[.27,.18,.01]} color="#6d9d91"/>
+ <Box p={[.15,.94,12.575]} s={[.6,.025,.42]} color="#64766b" metalness={.6}/><Box p={[.95,.94,12.575]} s={[.4,.025,.35]} color="#64766b" metalness={.6}/>
+ {[0,.8,1.6].map(x=><Pendant key={x} p={[x,2.72,7.7]} night={night}/>)}
+ {night&&<pointLight position={[.8,2.3,9]} intensity={18} color="#ffc67f" distance={8} decay={2}/>}
+ <LiveFridge state={state} open={fridgeOpen} onToggle={()=>onSelect('fridge')}/><LiveProduction state={state}/>
+ </>;
+}
+function World(props:SceneProps){const {state,cameraMode,quality,shadows,fridgeOpen,onSelect,onInteract,lightingMode='auto'}=props;const minute=lightingMode==='morning'?405:lightingMode==='day'?750:lightingMode==='evening'?1150:state.minute,night=minute>=1100||minute<345,dawn=minute>=345&&minute<465,lamps=minute<460||minute>=1020,raining=state.weather==='rain'||state.weather==='light-rain',cloudy=state.weather==='cloudy'||raining;const sky=night?'#334b58':dawn?'#b8d1df':cloudy?'#bcc8c5':'#c9dedf';const sunlight=night?.25:cloudy?1.3:dawn?2.7:3.0;const sunY=night?4:Math.max(2.6,Math.sin((minute-360)/900*Math.PI)*13);return <><color attach="background" args={[sky]}/><Sky night={night} dawn={dawn} cloudy={cloudy}/><fog attach="fog" args={[sky,38,100]}/><ambientLight intensity={night?.55:.65} color={night?'#9eafc0':'#eee4cc'}/><hemisphereLight args={[night?'#9eafc5':'#cee5e9',night?'#56644b':'#9a956e',night?1.05:1.35]}/><directionalLight position={[Math.cos((minute-390)/900*Math.PI)*-12,sunY,-6]} castShadow={shadows} intensity={sunlight} color={dawn?'#ffe0b4':night?'#a8c5de':'#fff0cf'} shadow-mapSize-width={quality==='high'?1536:768} shadow-mapSize-height={quality==='high'?1536:768} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={12} shadow-camera-bottom={-8} shadow-bias={-.00035}/>{night&&<><Stars/><mesh position={[-13,18,23]}><sphereGeometry args={[.55,14,10]}/><meshBasicMaterial color="#e8e6cf"/></mesh></>}<CameraRig mode={cameraMode} onSelect={onSelect} onInteract={onInteract}/>
+ <group scale={[-1,1,1]}><FullSiteMaintenance state={state}/><FullSiteGrounds state={state} raining={raining} quality={quality} night={lamps} onSelect={onSelect}/><FullSiteShop state={state} first={cameraMode==='first'} night={lamps} fridgeOpen={fridgeOpen} onSelect={onSelect}/>{state.tables.map(t=><TableModel key={t.id} table={t} state={state} first={cameraMode==='first'} onSelect={()=>onSelect('table',t.id)}/>)}
  {/* Warm garden lighting. */}
  {Array.from({length:13},(_,i)=><mesh key={i} position={[-2.2+i*.37,2.6-Math.sin(i/12*Math.PI)*.27,6.0]}><sphereGeometry args={[.035,6,4]}/><meshStandardMaterial color="#e9d5a0" emissive="#ffc46c" emissiveIntensity={lamps?3:.15}/></mesh>)}<lineSegments><bufferGeometry><bufferAttribute attach="attributes-position" args={[new Float32Array([-2.3,2.6,6,0,2.33,6,0,2.33,6,2.3,2.6,6]),3]}/></bufferGeometry><lineBasicMaterial color="#424b36"/></lineSegments>{lamps&&<><pointLight position={[-.3,2.3,7.5]} intensity={11} distance={6.8} decay={2} color="#ffd08b"/><pointLight position={[1.35,2.35,.2]} intensity={6} distance={4.5} decay={2} color="#ffbd61"/></>}
  {state.employees.filter(e=>cameraMode!=='first'||!e.controlled).map(e=><Human key={e.id} person={e} state={state} staff onClick={()=>onSelect('staff',e.id)}/>)}{state.customers.filter(c=>cameraMode!=='first'||!c.player).map(c=><Human key={c.id} person={c} state={state} staff={false} onClick={()=>onSelect('customer',c.id)}/>)}{raining&&<Rain quality={quality}/>}</group>{cameraMode==='first'&&<FirstPersonHands state={state}/>}</>}

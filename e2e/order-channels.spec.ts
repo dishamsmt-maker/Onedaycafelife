@@ -6,7 +6,7 @@ test.beforeEach(async({page})=>{
  await page.evaluate(()=>{const w=window as any,s=w.__ONE_DAY_DEV__.store.getState().game;w.__ONE_DAY_DEV__.store.getState().replace({...s,minute:420,phase:'open',paused:true,events:[],settings:{...s.settings,arrivalsPerHour:0}})});
 });
 test('seated customer must tap table QR and can follow the bill to payment',async({page})=>{
- await page.evaluate(()=>{const w=window as any;w.__ONE_DAY_PLAYER__.position={x:1.25,z:6.35};w.__ONE_DAY_VISITOR__.getState().sit('t1')});
+ await page.evaluate(()=>{const w=window as any;w.__ONE_DAY_PLAYER__.position={x:-.8,z:14.2};w.__ONE_DAY_VISITOR__.getState().sit('t1')});
  await expect(page.getByRole('button',{name:'สแกน QR บนโต๊ะ'})).toBeVisible();
  const blocked=await page.evaluate(()=>(window as any).__ONE_DAY_VISITOR__.getState().order('thai-tea'));expect(blocked).toBe(false);
  await page.getByRole('button',{name:'สแกน QR บนโต๊ะ'}).click();
@@ -21,7 +21,7 @@ test('seated customer must tap table QR and can follow the bill to payment',asyn
  await expect(page.getByRole('dialog',{name:'บิลและคิว'})).toHaveCount(0);
 });
 test('counter customer pays before production then collects without a second charge',async({page})=>{
- await page.evaluate(()=>{const w=window as any;w.__ONE_DAY_PLAYER__.position={x:.2,z:1.65};w.__ONE_DAY_VISITOR__.getState().order('thai-tea')});
+ await page.evaluate(()=>{const w=window as any;w.__ONE_DAY_PLAYER__.position={x:.1,z:6.6};w.__ONE_DAY_VISITOR__.getState().order('thai-tea')});
  await page.getByRole('button',{name:/บิลและคิว · 1/}).click();
  await expect(page.getByRole('dialog',{name:'บิลและคิว'})).toContainText('รอชำระก่อนผลิต');
  await page.getByRole('button',{name:'ยืนยันชำระ ฿35 และเข้าคิว'}).click();
@@ -31,23 +31,23 @@ test('counter customer pays before production then collects without a second cha
  expect(await page.evaluate(()=>(window as any).__ONE_DAY_DEV__.store.getState().game.cash)).toBe(cash);
 });
 
-test('table 3 QR appears in kitchen queue and closes with reconciled payment', async ({page}, info) => {
+for(const n of [3,5])test(`table ${n} QR appears in kitchen queue and closes with reconciled payment`, async ({page}, info) => {
  const errors:string[]=[]; page.on('pageerror', e=>errors.push(e.message));
- const before=await page.evaluate(()=>{
-  const w=window as any; w.__ONE_DAY_PLAYER__.position={x:1.25,z:8.35};
-  if(!w.__ONE_DAY_VISITOR__.getState().sit('t3'))throw new Error('Table 3 seating failed');
+ const before=await page.evaluate((n)=>{
+  const w=window as any; w.__ONE_DAY_PLAYER__.position={x:-.8,z:14.2+(n-1)*2.4};
+  if(!w.__ONE_DAY_VISITOR__.getState().sit(`t${n}`))throw new Error('Table 3 seating failed');
   const s=w.__ONE_DAY_DEV__.store.getState().game;
   return {cash:s.cash,chicken:s.inventory.find((i:any)=>i.id==='chicken').quantity};
- });
+ },n);
  await page.getByRole('button',{name:'สแกน QR บนโต๊ะ'}).click();
- await expect(page.getByRole('heading',{name:'เมนู QR · T3'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:`เมนู QR · T${n}`})).toBeVisible();
  await page.getByRole('button',{name:'ดูเมนู ข้าวต้มไก่',exact:true}).click();
  await page.getByRole('button',{name:'สั่ง ข้าวต้มไก่ · ฿45',exact:true}).click();
  await page.getByRole('button',{name:'เปิดเมนูเกม',exact:true}).click();
  await page.getByRole('button',{name:'เปิดออร์เดอร์',exact:true}).click();
  await page.getByLabel('เลือกหน้าจัดการ').selectOption('kitchen');
  await expect(page.locator('.management-panel')).toContainText('ข้าวต้มไก่');
- await expect(page.locator('.management-panel')).toContainText('T3');
+ await expect(page.locator('.management-panel')).toContainText(`T${n}`);
  const service=await page.evaluate(()=>{
   const w=window as any;let na=false,ken=false;
   for(let i=0;i<600;i++){
@@ -77,5 +77,5 @@ test('table 3 QR appears in kitchen queue and closes with reconciled payment', a
  expect(result.phase).toBe('closed');expect(result.reports).toHaveLength(1);
  expect(result.reports[0].revenue).toBe(45);expect(result.sales).toBe(1);
  expect(result.cash).toBeCloseTo(before.cash+result.delta,8);expect(errors).toEqual([]);
- await page.screenshot({path:info.outputPath('table-3-closing.png'),style:'canvas { visibility: hidden !important; }'});
+ await page.screenshot({path:info.outputPath(`table-${n}-closing.png`),style:'canvas { visibility: hidden !important; }'});
 });

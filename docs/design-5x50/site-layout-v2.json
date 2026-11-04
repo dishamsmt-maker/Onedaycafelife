@@ -1,0 +1,280 @@
+{
+  "status": "concept proposal, not survey or construction drawings",
+  "units": "metres",
+  "plot": {
+    "width": 5,
+    "depth": 50,
+    "area": 250,
+    "source": "dimensions supplied by owner"
+  },
+  "origin": {
+    "x": 0,
+    "z": 0,
+    "description": "proposed front-left site boundary; positive x toward right wall, positive z toward rear; road position relative to boundary unverified"
+  },
+  "frontageAssumption": "entry forecourt is included within 50m; do not assume ownership of land between boundary and road",
+  "zones": [
+    {
+      "id": "A",
+      "zStart": 0,
+      "zEnd": 5,
+      "width": 5,
+      "length": 5,
+      "area": 25,
+      "use": "ENTRY FORECOURT"
+    },
+    {
+      "id": "B",
+      "zStart": 5,
+      "zEnd": 13,
+      "width": 5,
+      "length": 8,
+      "area": 40,
+      "use": "CAFE + PICKUP"
+    },
+    {
+      "id": "C",
+      "zStart": 13,
+      "zEnd": 25,
+      "width": 5,
+      "length": 12,
+      "area": 60,
+      "use": "5 TABLES / 20 SEATS"
+    },
+    {
+      "id": "D",
+      "zStart": 25,
+      "zEnd": 40,
+      "width": 5,
+      "length": 15,
+      "area": 75,
+      "use": "GARDEN WALK"
+    },
+    {
+      "id": "E",
+      "zStart": 40,
+      "zEnd": 50,
+      "width": 5,
+      "length": 10,
+      "area": 50,
+      "use": "REAR / SERVICE - SURVEY PENDING"
+    }
+  ],
+  "path": {
+    "xMin": 0.3,
+    "xMax": 1.8,
+    "zMin": 0,
+    "zMax": 50,
+    "clearWidth": 1.5,
+    "note": "smooth continuous route; rear portion provisional pending survey"
+  },
+  "kiosk": {
+    "xMin": 1.8,
+    "xMax": 4.8,
+    "zMin": 7,
+    "zMax": 13,
+    "width": 3,
+    "depth": 6,
+    "area": 18,
+    "status": "proposed envelope, not dimensions measured from photo"
+  },
+  "pickup": {
+    "xMin": 1.8,
+    "xMax": 4.8,
+    "zMin": 5,
+    "zMax": 7,
+    "area": 6
+  },
+  "tables": [
+    {
+      "id": "T1",
+      "x": 3.3,
+      "z": 14.2,
+      "size": [
+        0.8,
+        0.8
+      ],
+      "seats": 4,
+      "umbrellaDiameter": 2.1,
+      "chairCentres": [
+        {
+          "x": 2.58,
+          "z": 13.95
+        },
+        {
+          "x": 2.58,
+          "z": 14.45
+        },
+        {
+          "x": 4.02,
+          "z": 13.95
+        },
+        {
+          "x": 4.02,
+          "z": 14.45
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "x": 3.3,
+      "z": 16.6,
+      "size": [
+        0.8,
+        0.8
+      ],
+      "seats": 4,
+      "umbrellaDiameter": 2.1,
+      "chairCentres": [
+        {
+          "x": 2.58,
+          "z": 16.35
+        },
+        {
+          "x": 2.58,
+          "z": 16.85
+        },
+        {
+          "x": 4.02,
+          "z": 16.35
+        },
+        {
+          "x": 4.02,
+          "z": 16.85
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "x": 3.3,
+      "z": 19.0,
+      "size": [
+        0.8,
+        0.8
+      ],
+      "seats": 4,
+      "umbrellaDiameter": 2.1,
+      "chairCentres": [
+        {
+          "x": 2.58,
+          "z": 18.75
+        },
+        {
+          "x": 2.58,
+          "z": 19.25
+        },
+        {
+          "x": 4.02,
+          "z": 18.75
+        },
+        {
+          "x": 4.02,
+          "z": 19.25
+        }
+      ]
+    },
+    {
+      "id": "T4",
+      "x": 3.3,
+      "z": 21.4,
+      "size": [
+        0.8,
+        0.8
+      ],
+      "seats": 4,
+      "umbrellaDiameter": 2.1,
+      "chairCentres": [
+        {
+          "x": 2.58,
+          "z": 21.15
+        },
+        {
+          "x": 2.58,
+          "z": 21.65
+        },
+        {
+          "x": 4.02,
+          "z": 21.15
+        },
+        {
+          "x": 4.02,
+          "z": 21.65
+        }
+      ]
+    },
+    {
+      "id": "T5",
+      "x": 3.3,
+      "z": 23.8,
+      "size": [
+        0.8,
+        0.8
+      ],
+      "seats": 4,
+      "umbrellaDiameter": 2.1,
+      "chairCentres": [
+        {
+          "x": 2.58,
+          "z": 23.55
+        },
+        {
+          "x": 2.58,
+          "z": 24.05
+        },
+        {
+          "x": 4.02,
+          "z": 23.55
+        },
+        {
+          "x": 4.02,
+          "z": 24.05
+        }
+      ]
+    }
+  ],
+  "gameImplementation": {
+    "logicalUnits": "1 game unit = 1 metre",
+    "zones": "all 50m traversable; stream visual detail by distance without pausing simulation",
+    "navigation": "derive from the same world layout as meshes; include furniture and chair-use envelopes, staff station reservations and dynamic actors",
+    "stateMigration": "preserve table IDs T1-T3/internal t1-t3, add t4-t5; preserve balances, inventory, orders and history; migrate positions and paths explicitly",
+    "worldCoordinates": "existing render mirrors simulation X; use one shared transform for new plan, rendering, collision and input"
+  },
+  "verifyOnSite": [
+    "front and rear boundary locations and actual clear width at several stations",
+    "distance from road edge to property boundary, right-of-way and existing drainage",
+    "existing kiosk footprint and position",
+    "existing rear buildings and bathroom positions",
+    "spot levels at road, frontage, kiosk and rear; drainage outlet",
+    "utility pole footing, service access and vegetation clearances",
+    "neighbour inspection driveway access; do not occupy"
+  ],
+  "revision": "v2 approved site direction + detailed bar",
+  "gardenStoolBar": {
+    "siteBounds": [
+      4.25,
+      27,
+      4.8,
+      30.2
+    ],
+    "height": 1.05,
+    "stools": [
+      {
+        "x": 3.65,
+        "z": 27.6
+      },
+      {
+        "x": 3.65,
+        "z": 28.6
+      },
+      {
+        "x": 3.65,
+        "z": 29.6
+      }
+    ],
+    "purpose": "3 optional garden bar seats, separate from 20 table seats and never counted as QR tables"
+  },
+  "referenceImages": [
+    "site-concept.png",
+    "bar-concept.png"
+  ]
+}

@@ -98,3 +98,7 @@ Visual inspection also captured the open storage cabinet and garden without page
 ## 4 November 2026 — reference garden release
 
 Current owner authorized continuing outstanding game work and deployment after verification. Recovered original 21-item brief and separate issue #22 QA tracker. Continue from PR #32 integration ancestor on `feature/reference-garden-finish`, without merging main or moving the baseline tag. See `docs/reference-release-2026-11-04.md` for implementation, test evidence and explicit open acceptance items. Do not claim all 21/24 complete or photorealistic/iPhone-certified.
+
+## Full-site implementation — 4 November 2026
+
+Branch `feature/full-site-5x50` continues from `9719106`. Current owner approved full5×50 design, bar interior, merge and deploy. Initial expanded-world validation: Vitest77/77, build passed. New tests cover full50m corridor/table routes, legacy migration idempotence/financial preservation, table5 production/payment, and actual morning plant round before opening. Browser suite currently running; do not count incomplete runs as passed. See docs/FULL_SITE_IMPLEMENTATION.md for remaining visual/navigation limitations.

@@ -1,10 +1,21 @@
 import type { Vec2 } from './types';
-export const WORLD = {width:5,depth:10,front:0,back:10};
-export const STATIONS = {bar:[1.4,2.0],kitchen:[1.13,4.5],pickup:[0.6,4],dish:[0.6,5.3],garden:[-0.1,8.8],restroom:[1.4,8.6],rest:[1.65,9.35],manager:[0.4,1.1],entrance:[-0.5,-0.8],queue:[-1.45,0.65],fridge:[1.1,5.6]} satisfies Record<string,Vec2>;
-export const TABLE_LAYOUT = [{id:'t1',name:'T1',position:[-1.25,6.35] as Vec2,capacity:4},{id:'t2',name:'T2',position:[1.15,7.15] as Vec2,capacity:4},{id:'t3',name:'T3',position:[-1.25,8.35] as Vec2,capacity:4}];
+export const LAYOUT_VERSION=2;
+export const WORLD = {width:5,depth:50,front:0,back:50};
+export const siteToWorld=(x:number,z:number):Vec2=>[x-2.5,z];
+export const toRender=([x,z]:Vec2):Vec2=>[-x,z];
+export const STATIONS = {bar:[.4,8.65],kitchen:[1.2,10.4],pickup:[-.1,6.6],dish:[.3,11.9],garden:[-1.4,32],restroom:[-.1,46],rest:[1.1,42],manager:[-.9,5.5],entrance:[-1.4,.4],queue:[.6,5.7],fridge:[1.2,11.65]} satisfies Record<string,Vec2>;
+export const TABLE_LAYOUT = [14.2,16.6,19,21.4,23.8].map((z,i)=>({id:`t${i+1}`,name:`T${i+1}`,position:[.8,z] as Vec2,capacity:4}));
 export interface Obstacle {x:number;z:number;w:number;d:number;}
-export const OBSTACLES:Obstacle[]=[{x:1.4,z:.75,w:2,d:.4},{x:.55,z:2.1,w:.45,d:2.4},{x:2.05,z:2.15,w:.8,d:2.7},{x:1.95,z:4.65,w:.72,d:2.0},{x:1.95,z:5.85,w:.8,d:.7},...TABLE_LAYOUT.map(t=>({x:t.position[0],z:t.position[1],w:1.25,d:1.2})),{x:1.85,z:9.3,w:1.1,d:1.0}];
-export function canWalk(x:number,z:number, radius=.16){return x>-2.32&&x<2.32&&z>-.95&&z<9.82&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);}
+export const OBSTACLES:Obstacle[]=[
+ {x:.8,z:7.425,w:2.8,d:.65},
+ {x:-.375,z:9.65,w:.65,d:3.4},{x:1.875,z:10.1,w:.65,d:4.3},
+ {x:.8,z:12.575,w:2.8,d:.65},
+ {x:-.65,z:9.175,w:.1,d:4.35},{x:-.65,z:12.625,w:.1,d:.75},
+ {x:2.3,z:10,w:.4,d:6},{x:.8,z:12.95,w:3,d:.1},
+ ...TABLE_LAYOUT.map(t=>({x:t.position[0],z:t.position[1],w:1.15,d:1.05})),
+ {x:2.025,z:28.6,w:.55,d:3.2},{x:1.2,z:46,w:2,d:5}
+];
+export function canWalk(x:number,z:number, radius=.16){return x>-2.5+radius&&x<2.5-radius&&z>radius&&z<50-radius&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);}
 /** Sample a complete movement segment so NPCs cannot clip through counter corners. */
 export function segmentWalkable(from:Vec2,to:Vec2,radius=.16):boolean{
  const distance=Math.hypot(to[0]-from[0],to[1]-from[1]);
@@ -17,7 +28,13 @@ export function segmentWalkable(from:Vec2,to:Vec2,radius=.16):boolean{
 }
 /** Grid routing selects the nearest reachable walkable endpoint, even when a station
  * or table centre is blocked by its own collision box. */
+const pathCache=new Map<string,Vec2[]>();
 export function findPath(from:Vec2,to:Vec2):Vec2[]{
+ const cacheKey=[...from,...to].map(n=>n.toFixed(3)).join(',');
+ const cached=pathCache.get(cacheKey);if(cached)return cached.map(p=>[...p]);
+ const result=computePath(from,to);if(pathCache.size>2048)pathCache.clear();pathCache.set(cacheKey,result);return result.map(p=>[...p]);
+}
+function computePath(from:Vec2,to:Vec2):Vec2[]{
  const step=.25;
  const key=(x:number,z:number)=>`${x},${z}`;
  const snap=(p:Vec2):Vec2=>[Math.round(p[0]/step),Math.round(p[1]/step)];
@@ -38,7 +55,7 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
  const queue:Vec2[]=[origin], seen=new Set([key(...origin)]);
  const prev=new Map<string,Vec2>();
  let best:Vec2|undefined, bestDistance=Infinity;
- for(let i=0;i<queue.length&&i<3500;i++){
+ for(let i=0;i<queue.length&&i<16000;i++){
   const p=queue[i], x=p[0]*step,z=p[1]*step;
   if(canWalk(x,z)){
    const distance=Math.hypot(x-to[0],z-to[1]);
@@ -68,9 +85,9 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
 
 /** Public circulation stays left of the counter/kitchen. Staff use canWalk instead. */
 export function canVisitorWalk(x:number,z:number,radius=.18){
- if(z<=.27)return z>-7+radius&&x>-3.6+radius&&x<3.6-radius&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);
+ if(z<.3)return z>-7+radius&&x>-2.5+radius&&x<2.5-radius;
  if(!canWalk(x,z,radius))return false;
- if(z>.45-radius&&z<6.55+radius&&x>.25-radius)return false;
- if(z>9.0-radius&&x>.55-radius)return false;
+ if(z>7-radius&&z<13+radius&&x>-.7-radius)return false;
+ if(z>40&&x>-.7-radius)return false;
  return true;
 }

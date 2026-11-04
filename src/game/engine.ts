@@ -5,8 +5,8 @@ import { canWalk, findPath, segmentWalkable, STATIONS, TABLE_LAYOUT } from './wo
 
 export { menuAvailable, servicePeriod } from './data';
 export const OPEN = 390, CLOSE = 1230;
-const REST: Vec2 = [1.0, 9.3];
-const INSPECT: Vec2 = [-.1, 9.35];
+const REST: Vec2 = STATIONS.rest;
+const INSPECT: Vec2 = STATIONS.garden;
 const round = (n: number) => Math.round(n * 10000) / 10000;
 const clamp = (n: number, a: number, b: number) => Math.min(b, Math.max(a, n));
 const uid = (s: GameState, prefix: string) => `${prefix}-${s.day}-${s.nextId++}`;
@@ -34,14 +34,14 @@ function scheduleEvents(s: GameState) {
   if (s.day % 3 === 0) s.events[0].size = 12 + Math.floor(random(s) * 14);
 }
 export function createGame(seed = DEFAULT_SETTINGS.seed): GameState {
-  const s: GameState = { version: 1, catalogVersion:2, day: 1, minute: 385, phase: 'preparing', paused: true, speed: 1, seed: seed >>> 0, nextId: 1,
+  const s: GameState = { version: 1, catalogVersion:2, layoutVersion:2, day: 1, minute: 330, phase: 'preparing', paused: true, speed: 1, seed: seed >>> 0, nextId: 1,
     cash: DEFAULT_SETTINGS.openingCash, reputation: 3.8, hearts: 0, cleanliness: 100, weather: 'sunny', weatherRemaining: 240,
-    employees: structuredClone(INITIAL_EMPLOYEES), customers: [], orders: [], tables: TABLE_LAYOUT.map(t => ({ ...t, position: [...t.position], customerIds: [], dirty: false })),
+    employees: structuredClone(INITIAL_EMPLOYEES).map(e=>({...e,position:[...(e.id==='ham'?STATIONS.bar:e.id==='na'?STATIONS.kitchen:e.id==='alee'?STATIONS.manager:e.id==='ken'?STATIONS.pickup:STATIONS.rest)]})), customers: [], orders: [], tables: TABLE_LAYOUT.map(t => ({ ...t, position: [...t.position], customerIds: [], dirty: false })),
     inventory: structuredClone(INITIAL_INVENTORY), menu: structuredClone(INITIAL_MENU), ledger: [], reviews: [], reports: [], events: [], guests: [],
     garden: { moisture: 65, cleanliness: 95, lastInspection: -1, inspections: 0 }, baristaMode: 'auto', serverOverride: 'auto', notices: [],
     todayArrivals: 0, todayWaits: [], todaySatisfaction: [], openingCash: DEFAULT_SETTINGS.openingCash, settings: { ...DEFAULT_SETTINGS, seed }, shortages: [] };
   scheduleEvents(s);
-  notice(s, 'ยินดีต้อนรับสู่ ONE DAY · กดเริ่มเพื่อเตรียมเปิดร้าน 06:30');
+  notice(s, 'ยินดีต้อนรับสู่ ONE DAY · เริ่มเตรียมร้าน 05:30 · เปิดขาย 06:30');
   return s;
 }
 
@@ -59,8 +59,8 @@ function walk(position: Vec2, path: Vec2[], distance: number) {
 }
 function seatPosition(s: GameState, c: Customer): Vec2 {
   const t = s.tables.find(t => t.id === c.tableId);
-  if (!t && c.player) return [-.35,1.4];
-  if (!t) { const n = s.customers.filter(o => o.takeaway && o.id < c.id && o.status !== 'leaving').length % 8; return [-1.8 + (n % 3) * .55, -.65 + Math.floor(n / 3) * .25]; }
+  if (!t && c.player) return [...STATIONS.queue];
+  if (!t) { const n = s.customers.filter(o => o.takeaway && o.id < c.id && o.status !== 'leaving').length % 8; return [.1+(n%3)*.65,5.5+Math.floor(n/3)*.35]; }
   const idx = Math.max(0, t.customerIds.indexOf(c.id));
   return [t.position[0] + (idx % 2 === 0 ? -.9 : .9), t.position[1] + (idx < 2 ? -.25 : .25)];
 }
@@ -120,7 +120,7 @@ function arrive(s: GameState, count: number, eventId?: string) {
     const visitReason = isReturn ? `เคยมา ${guest.visits} ครั้งแล้วประทับใจ วันนี้กลับมาอีก · ${reason}` : referrer ? `${referrer.name} แนะนำร้านนี้มา วันนี้เลยแวะลอง · ${reason}` : reason;
     const c: Customer = { id: uid(s, 'customer'), name: guest.name, guestId: guest.id, referrer: referrer?.id, reason: visitReason,
       preference: random(s) < .75 ? guest.preferred : pick(s, ['coffee', 'tea', 'breakfast', 'snack']), budget: 65 + Math.floor(random(s) * 100), patience: s.settings.patience * (.7 + random(s) * .7),
-      groupId: group, takeaway, position: [-.5 + (i % 3) * .18, -.75], path: [], status: 'arriving', tableId: null, orderIds: [], arrivedAt: s.minute, seatedAt: 0,
+      groupId: group, takeaway, position: [-1.4 + (i % 3) * .18, .4], path: [], status: 'arriving', tableId: null, orderIds: [], arrivedAt: s.minute, seatedAt: 0,
       eatRemaining: 8 + random(s) * (s.minute >= 1020 ? 25 : 15), satisfaction: 100, isReturn, sweetness:pick(s,[0,25,50,75,100]),tourId: eventId };
     // Occasional accompanied visits share one table and departure lifecycle.
     const guardian=i>0&&s.todayArrivals%5===1?s.customers.find(g=>g.groupId===group&&!g.takeaway&&g.tableId&&!g.guardianId):undefined;
@@ -131,7 +131,7 @@ function arrive(s: GameState, count: number, eventId?: string) {
       familyTable.customerIds.push(c.id);c.path=findPath(c.position,seatPosition(s,c));
     }
     else if (takeaway) c.path = findPath(c.position, seatPosition(s, c));
-    else if (!seatCustomer(s, c)) { c.status = 'queuing'; c.path = findPath(c.position, [-1.7 + (i % 3) * .6, .2 + (Math.floor(i / 3) % 3) * .4]); }
+    else if (!seatCustomer(s, c)) { c.status = 'queuing'; c.path = findPath(c.position, [-1.9+(i%3)*.6,1.2+(Math.floor(i/3)%3)*.5]); }
     s.customers.push(c); s.todayArrivals++;
   }
 }
@@ -253,7 +253,7 @@ function progressEmployees(s: GameState, dt: number) {
     if (onDuty && s.phase !== 'closed') e.hours += dt / 60;
     const t = e.task; if (!t) { e.available = !!onDuty; continue; }
     if (t.phase === 'walking') {
-      walk(e.position, t.path, dt * 4.5);
+      walk(e.position, t.path, dt * 9);
       if (t.path.length) continue;
       const o = s.orders.find(o => o.id === t.orderId);
       // A missing/empty route must never complete a delivery from across the map.
@@ -324,7 +324,7 @@ function scheduleStaff(s: GameState) {
     else if(question)setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
     else if (waiting) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
     else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
-    else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
+    else if(!serving.task)setTask(serving,'station',[-1.05,6],999999);
   }
   }
   const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
@@ -351,7 +351,7 @@ function scheduleStaff(s: GameState) {
   }
   const alee = s.employees.find(e => e.id === 'alee')!;
   if (!alee.controlled && (!alee.task || alee.task.kind==='station')) {
-    if(Boolean(s.signMounted)!==signWanted(s))setTask(alee,'inspect',[-2.1,-.6],.8,{maintenance:'sign'});
+    if(Boolean(s.signMounted)!==signWanted(s))setTask(alee,'inspect',[-1.9,1.1],.8,{maintenance:'sign'});
     else if(((s.phase!=='closing'&&s.minute<630)||(s.phase==='closing'))&&(s.wateredCount??0)<WATER_STOPS.length*(s.phase==='closing'?2:1))setTask(alee,'garden',WATER_STOPS[(s.wateredCount??0)%WATER_STOPS.length],.35,{maintenance:'water',stopIndex:s.wateredCount??0});
     else
     if (s.garden.careRequested || s.garden.lastInspection < 0 || s.minute - s.garden.lastInspection > 180 || (s.phase === 'closing' && s.minute - s.garden.lastInspection > 10)) setTask(alee, 'inspect', INSPECT, 2);
@@ -397,7 +397,7 @@ function leave(s: GameState, c: Customer, pay: boolean) {
       const m = s.menu.find(m => m.id === o.menuId)!;
       transaction(s, m.kind === 'food' ? 'food-sale' : 'drink-sale', o.price, o.price, `${c.name} · ${m.name}`, o.id); o.paid = true;
     }
-    const waitPenalty = Math.max(0, wait - 6) * 1.7;
+    const waitPenalty = Math.max(0, wait - 10) * 1.7;
     c.satisfaction = clamp(100 - waitPenalty - (100 - s.cleanliness) * .2 - (failed ? 30 : 0), 10, 100);
   } else c.satisfaction = clamp(35 - Math.max(0, wait - c.patience), 5, 35);
   for (const o of orders) if (o.status !== 'completed') { o.status = 'cancelled'; o.workerId = undefined; }
@@ -420,7 +420,7 @@ function progressCustomers(s: GameState, dt: number) {
       if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,true);
       continue;
     }
-    if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
+    if (c.status === 'leaving') { walk(c.position, c.path, dt * 6); continue; }
     walk(c.position, c.path, dt * 3.5);
     if (c.status === 'queuing') { if (!c.path.length) seatCustomer(s, c); }
     else if (c.status === 'arriving' && !c.path.length) { c.status = 'seated'; c.seatedAt = s.minute; }
@@ -521,7 +521,7 @@ function restock(s: GameState, id: string, quantity: number) {
 function nextDay(s: GameState) {
   if (s.phase !== 'closed') return;
   s.signMounted=false;s.wateredCount=0;
-  s.day++; s.minute = 385; s.phase = 'preparing'; s.paused = true; s.openingCash = s.cash;
+  s.day++; s.minute = 330; s.phase = 'preparing'; s.paused = true; s.openingCash = s.cash;
   s.customers = []; s.orders = []; s.todayArrivals = 0; s.todayWaits = []; s.todaySatisfaction = []; s.shortages = [];
   s.tables.forEach(t => { t.customerIds = []; t.dirty = false; });
   s.employees.forEach(e => { e.task = null; e.hours = 0; e.tasksDone = 0; e.available = e.id !== 'pun'; });
@@ -539,7 +539,7 @@ export const PLAYER_ID='visitor-player';
 function ensurePlayer(s:GameState):Customer {
  let c=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(c)return c;
- c={id:uid(s,PLAYER_ID),player:true,name:'คุณ',reason:'มานั่งพักที่ ONE DAY',preference:'breakfast',budget:10000,patience:10000,groupId:'visitor',takeaway:false,position:[-.35,1.4],path:[],status:'waiting',tableId:null,orderIds:[],arrivedAt:s.minute,seatedAt:s.minute,eatRemaining:99999,satisfaction:100,isReturn:false,sweetness:100};
+ c={id:uid(s,PLAYER_ID),player:true,name:'คุณ',reason:'มานั่งพักที่ ONE DAY',preference:'breakfast',budget:10000,patience:10000,groupId:'visitor',takeaway:false,position:[...STATIONS.queue],path:[],status:'waiting',tableId:null,orderIds:[],arrivedAt:s.minute,seatedAt:s.minute,eatRemaining:99999,satisfaction:100,isReturn:false,sweetness:100};
  s.customers.push(c);s.todayArrivals++;return c;
 }
 function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled){e.controlled=false;e.available=true;}}

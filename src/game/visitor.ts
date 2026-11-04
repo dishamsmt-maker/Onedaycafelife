@@ -1,3 +1,4 @@
+import {STATIONS} from './world';
 import { create } from 'zustand';
 import { useGame } from './store';
 import { menuAvailable, menuRecipe } from './engine';
@@ -60,7 +61,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  order:menuId=>{
   const state=get(),game=useGame.getState().game,m=game.menu.find(m=>m.id===menuId);
   if(state.role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนสั่งอาหาร'});return false;}
-  const atCounter=Math.hypot(-touchControls.position.x+.2,touchControls.position.z-1.65)<1.15;
+  const atCounter=Math.hypot(-touchControls.position.x-STATIONS.pickup[0],touchControls.position.z-STATIONS.pickup[1])<1.15;
   if(state.tableId&&state.scannedTableId!==state.tableId){set({message:'แตะ QR บนโต๊ะก่อนสั่งอาหาร'});return false;}
   if(!state.tableId&&!atCounter){set({message:'สั่งที่เคาน์เตอร์ หรือเลือกนั่งโต๊ะก่อน'});return false;}
   if(!m||!menuAvailable(m,game.minute)||game.phase!=='open'){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}

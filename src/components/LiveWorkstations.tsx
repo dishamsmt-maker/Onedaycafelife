@@ -23,7 +23,7 @@ export function LiveFridge({state,open,onToggle}:{state:GameState;open:boolean;o
  const rows=['เครื่องดื่ม','ไข่และของสด','ผัก','เนื้อและอาหารแช่แข็ง','ของแห้ง'];
  const collecting=state.employees.some(e=>e.task?.productionStep==='collect'&&e.task.phase==='working');
  const visible=open||collecting;
- return <group position={[1.95,0,5.85]} onClick={e=>{e.stopPropagation();onToggle()}}>
+ return <group position={[1.875,-.2,11.65]} onClick={e=>{e.stopPropagation();onToggle()}}>
  <Cube p={[.32,.95,0]} s={[.06,1.9,.85]} color="#c1cbc2"/>{[-.43,.43].map(z=><Cube key={z} p={[0,.95,z]} s={[.7,1.9,.035]} color="#c1cbc2"/>)}
  {rows.map((name,row)=>{const y=1.65-row*.32;const items=state.inventory.filter(i=>storageGroup(i)===name);return <group key={name}>
  <Cube p={[0,y-.04,0]} s={[.65,.025,.82]} color="#d7e0d4"/>
@@ -39,7 +39,7 @@ export function LiveProduction({state}:{state:GameState}){
  const kitchen=jobs.find(j=>j.menu.kind==='food'&&j.employee.task?.productionStep!=='collect'&&j.employee.task?.phase==='working');
  const bar=jobs.find(j=>j.menu.kind==='drink'&&j.employee.task?.productionStep!=='collect'&&j.employee.task?.phase==='working');
  return <>
- <group position={[1.95,1.1,4.3]} onClick={e=>{e.stopPropagation();setLidOpen(v=>!v)}}>
+ <group position={[1.875,.97,10.4]} onClick={e=>{e.stopPropagation();setLidOpen(v=>!v)}}>
  <mesh><cylinderGeometry args={[.2,.17,.2,24,1,true]}/><meshStandardMaterial color="#aab4ad" metalness={.7} roughness={.3} side={THREE.DoubleSide}/></mesh>
  <mesh position={[0,-.09,0]}><cylinderGeometry args={[.17,.17,.02,24]}/><meshStandardMaterial color="#505b54"/></mesh>
  {kitchen&&(kitchen.menu.visual==='porridge'||kitchen.menu.id==='boiled-egg')&&<><mesh position={[0,.03,0]}><cylinderGeometry args={[.18,.18,.07,24]}/><meshStandardMaterial color="#d4ba82"/></mesh>{Object.keys(kitchen.menu.recipe).slice(0,6).map((id,n)=>{const i=state.inventory.find(i=>i.id===id);return i&&<group key={id} position={[Math.sin(n*2)*.1,.07,Math.cos(n*2)*.1]}><IngredientModel item={{...i,quantity:Math.max(i.reorder,.1)}} scale={.5}/></group>})}</>}
@@ -47,8 +47,8 @@ export function LiveProduction({state}:{state:GameState}){
  <group position={[0,lidOpen?.4:.12,lidOpen?.2:0]} rotation={[lidOpen?1:0,0,0]}><mesh><cylinderGeometry args={[.21,.21,.025,24]}/><meshStandardMaterial color="#c5cec6" metalness={.7}/></mesh><Cube p={[0,.04,0]} s={[.06,.05,.06]} color="#29382f"/></group>
 
  </group>
- {kitchen&&<>{kitchen.progress>.65&&<Dish name={kitchen.menu.id} p={[1.95,1.08,3.93]}/>}</>}
- {bar&&<><Drink name={bar.menu.id} p={[1.75,1.11,1.35]} fill={bar.progress}/></>}
+ {kitchen&&<>{kitchen.progress>.65&&<Dish name={kitchen.menu.id} p={[1.875,.97,9.4]}/>}</>}
+ {bar&&<><Drink name={bar.menu.id} p={[-.375,.97,9.5]} fill={bar.progress}/></>}
  {jobs.filter(j=>j.order.stockConsumed&&j.employee.task?.phase==='walking').map(j=><group key={j.employee.id} position={[j.employee.position[0],1.0,j.employee.position[1]+.2]}><Cube p={[0,0,0]} s={[.3,.025,.22]} color="#9c8055"/>{Object.keys(j.menu.recipe).slice(0,3).map((id,n)=>{const i=state.inventory.find(i=>i.id===id);return i&&<group key={id} position={[(n-1)*.08,.025,0]}><IngredientModel item={{...i,quantity:Math.max(i.reorder,.1)}} scale={.65}/></group>})}</group>)}
  </>;
 }
