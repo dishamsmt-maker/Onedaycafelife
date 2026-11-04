@@ -22,6 +22,8 @@ export interface CafeOrder {
   refundedSatang?: number;
   stockConsumed: boolean;
   consumedCostSatang?: number;
+  /** Recipe frozen when the order is accepted, preventing catalog edits changing stock usage. */
+  recipeSnapshot?: Record<string, number>;
 }
 export interface CafeCashEvent {
   id: string;
@@ -38,7 +40,7 @@ export interface CafeStore {
 }
 export type CafeResult = { store: CafeStore; order: CafeOrder; accepted: boolean; reason?: string };
 const copy = (store: CafeStore): CafeStore => ({
-  orders: store.orders.map(order => ({ ...order })),
+  orders: store.orders.map(order => ({ ...order, recipeSnapshot: order.recipeSnapshot ? { ...order.recipeSnapshot } : undefined })),
   stock: { ...store.stock },
   cashEvents: (store.cashEvents ?? []).map(e => ({ ...e })),
   cashSatang: store.cashSatang,
@@ -68,7 +70,7 @@ export function submitCafeOrder(
   }
   const next = copy(store);
   const order: CafeOrder = { id: 'cafe-' + request.requestId, ...request,
-    unitPriceSatang: item.priceSatang, status: 'queued', paidSatang: 0, paymentRecorded: false, stockConsumed: false };
+    unitPriceSatang: item.priceSatang, recipeSnapshot: { ...item.recipe }, status: 'queued', paidSatang: 0, paymentRecorded: false, stockConsumed: false };
   next.orders.push(order);
   return { store: next, order, accepted: true };
 }
@@ -89,8 +91,8 @@ export function advanceCafeOrder(
   const order = next.orders.find(o => o.id === orderId)!;
   if (nextStatus === 'preparing' && !order.stockConsumed) {
     const item = catalog.find(i => i.id === order.itemId);
-    if (!item) return store;
-    const needs = Object.entries(item.recipe).map(([id, n]) => [id, n * order.quantity] as const);
+    if (!item && !order.recipeSnapshot) return store;
+    const needs = Object.entries(order.recipeSnapshot ?? item!.recipe).map(([id, n]) => [id, n * order.quantity] as const);
     if (needs.some(([id, n]) => !Number.isFinite(n) || n < 0 || (next.stock[id] ?? 0) < n)) return store;
     for (const [id, n] of needs) next.stock[id] -= n;
     order.stockConsumed = true;
@@ -172,9 +174,9 @@ export function recordCafeOrderCost(
   const old = store.orders.find(o => o.id === orderId);
   if (!old || !old.stockConsumed || old.status === 'cancelled' || old.consumedCostSatang !== undefined) return store;
   const item = catalog.find(i => i.id === old.itemId);
-  if (!item) return store;
+  if (!item && !old.recipeSnapshot) return store;
   let cost = 0;
-  for (const [id, quantity] of Object.entries(item.recipe)) {
+  for (const [id, quantity] of Object.entries(old.recipeSnapshot ?? item!.recipe)) {
     const unitCost = unitCostSatang[id];
     if (!Number.isSafeInteger(unitCost) || unitCost < 0) return store;
     cost += unitCost * quantity * old.quantity;
