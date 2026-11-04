@@ -209,6 +209,11 @@ export function closeCafeDay(store: CafeStore) {
     .reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
   const openOrderIds = store.orders.filter(o => o.status !== 'served' && o.status !== 'cancelled').map(o => o.id);
   const unpaidServedOrderIds = store.orders.filter(o => o.status === 'served' && !o.paymentRecorded).map(o => o.id);
+  // Closing must reject corrupted inventory, even if the cash journal balances.
+  // Fractional stock is valid for ingredients measured by weight or volume.
+  const invalidStockIds = Object.entries(store.stock)
+    .filter(([id, quantity]) => !validId(id) || !Number.isFinite(quantity) || quantity < 0)
+    .map(([id]) => id);
   const netSalesSatang = paymentsSatang - refundsSatang;
   const validNumbers = [paymentsSatang, refundsSatang, ingredientCostSatang, wasteCostSatang, netSalesSatang]
     .every(Number.isSafeInteger);
@@ -217,9 +222,9 @@ export function closeCafeDay(store: CafeStore) {
     cancelledCount: store.orders.filter(o => o.status === 'cancelled').length,
     paymentsSatang, refundsSatang, netSalesSatang, ingredientCostSatang,
     wasteCostSatang, grossMarginSatang: missingCostOrders.length ? null : netSalesSatang - ingredientCostSatang,
-    missingCostOrders, openOrderIds, unpaidServedOrderIds,
+    missingCostOrders, openOrderIds, unpaidServedOrderIds, invalidStockIds,
     cashBalanced: reconciliation.balanced,
-    readyToClose: reconciliation.balanced && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 &&
+    readyToClose: reconciliation.balanced && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 && invalidStockIds.length === 0 &&
       wasteCostSatang === store.wasteCostSatang,
   };
 }
