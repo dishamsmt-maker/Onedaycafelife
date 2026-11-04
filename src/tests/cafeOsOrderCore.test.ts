@@ -45,4 +45,19 @@ describe('Café OS isolated order pipeline', () => {
     expect(payCafeOrder(cancelled, accepted.order.id)).toBe(cancelled);
     expect(cancelled.cashSatang).toBe(0);
   });
+  it('records a zero-price payment exactly once', () => {
+    const freeCatalog = [{ id: 'water', priceSatang: 0, recipe: {}, enabled: true }];
+    const accepted = submitCafeOrder(createCafeStore({}), freeCatalog, { ...request, itemId: 'water' });
+    const paid = payCafeOrder(accepted.store, accepted.order.id);
+    expect(paid.orders[0].paymentRecorded).toBe(true);
+    expect(paid.cashSatang).toBe(0);
+    expect(payCafeOrder(paid, accepted.order.id)).toBe(paid);
+  });
+
+  it('blocks cancellation of paid orders pending an explicit refund flow', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const paid = payCafeOrder(accepted.store, accepted.order.id);
+    expect(advanceCafeOrder(paid, catalog, accepted.order.id, 'cancelled')).toBe(paid);
+    expect(paid.cashSatang).toBe(9000);
+  });
 });
