@@ -94,3 +94,7 @@ Validation **run this round**: `npm test` 42/42 passed in 5 files (40 prior + 2 
 Tracked screenshots produced by this browser run were restored. Browser checks use Chromium software rendering, not physical iPhone/Safari. No dependency installation, vulnerability audit, deployment or tag update was performed in this round. Existing Sites integration remains unavailable in this session; opening the original game URL does not load these changes.
 
 Visual inspection also captured the open storage cabinet and garden without page errors. Bar stool seats were subsequently matched to black (color-only correction); the browser suite above preceded that final color change.
+
+## 4 November 2026 — reference garden release
+
+Current owner authorized continuing outstanding game work and deployment after verification. Recovered original 21-item brief and separate issue #22 QA tracker. Continue from PR #32 integration ancestor on `feature/reference-garden-finish`, without merging main or moving the baseline tag. See `docs/reference-release-2026-11-04.md` for implementation, test evidence and explicit open acceptance items. Do not claim all 21/24 complete or photorealistic/iPhone-certified.

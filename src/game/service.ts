@@ -2,8 +2,8 @@ import type {GameState,Vec2} from './types';
 import {canWalk} from './world';
 // Every decorative planting bed has a reachable watering stop.
 export const GARDEN_PLANTS=[
- {x:-3.35,z:1.9,h:3.8,type:'tree'},{x:-3.4,z:7.7,h:4.5,type:'tree'},{x:3.05,z:10.6,h:3.6,type:'tree'},
- {x:-2.8,z:4.9,h:2.25,type:'palm'},{x:3,z:6.9,h:2.4,type:'palm'},{x:-2.8,z:10.5,h:2.2,type:'palm'},
+ {x:-3.35,z:1.9,h:1.45,type:'bush'},{x:-3.4,z:7.7,h:1.55,type:'bush'},{x:3.05,z:10.6,h:1.4,type:'bush'},
+ {x:-2.8,z:4.9,h:1.6,type:'palm'},{x:3,z:6.9,h:1.65,type:'palm'},{x:-2.8,z:10.5,h:1.5,type:'palm'},
  {x:-2.55,z:.9,h:.55,type:'bush'},{x:-2.65,z:3.7,h:.7,type:'bush'},{x:-2.7,z:6.4,h:.5,type:'bush'},
  {x:-2.65,z:9.2,h:.7,type:'bush'},{x:2.9,z:1,h:.6,type:'bush'},{x:2.9,z:4.2,h:.6,type:'bush'},
  {x:2.9,z:8.4,h:.7,type:'bush'},{x:-1.5,z:10.7,h:.6,type:'bush'},{x:.2,z:10.7,h:.65,type:'bush'},
