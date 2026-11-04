@@ -24,4 +24,22 @@ describe('QR/POS inventory rejection regression',()=>{
   expect(s.orders).toHaveLength(1);
   expect(s.cash).toBe(initialCash);
  });
+ it('does not consume a QR request ID when bundle catalog is invalid',()=>{
+  let s=createGame(20261104);
+  s.phase='open';s.minute=420;s.paused=false;s.settings.arrivalsPerHour=0;s.events=[];
+  s=act(s,{type:'visitor-seat',tableId:'t1'});
+  const item=s.menu.find(m=>m.id==='thai-tea')!;
+  item.components=[{menuId:'missing-component',quantity:1}];
+  const request={type:'visitor-submit' as const,channel:'table-qr' as const,requestId:'bundle-retry',menuId:'thai-tea'};
+  s=act(s,request);
+  expect(s.orders).toHaveLength(0);
+  expect(s.customers.find(c=>c.player)?.requestIds??[]).not.toContain('bundle-retry');
+  item.components=[];
+  s.menu.find(m=>m.id==='thai-tea')!.components=[];
+  s=act(s,request);
+  expect(s.orders).toHaveLength(1);
+  s=act(s,request);
+  expect(s.orders).toHaveLength(1);
+ });
+
 });
