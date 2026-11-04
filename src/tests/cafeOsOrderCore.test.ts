@@ -189,4 +189,27 @@ describe('Café OS isolated order pipeline', () => {
     expect(corrupted.orders[0].status).toBe('queued');
   });
 
+  it('rejects a derived order ID collision even when the request ID differs', () => {
+    const initial = createCafeStore({ rice: 10 });
+    const poisoned = { ...initial, orders: [{
+      id: 'cafe-qr-t3-001', requestId: 'legacy-id', tableId: 't1',
+      itemId: 'halal-porridge', quantity: 1, unitPriceSatang: 4500,
+      status: 'queued' as const, paidSatang: 0, stockConsumed: false,
+    }] };
+    const result = submitCafeOrder(poisoned, catalog, request);
+    expect(result.accepted).toBe(false);
+    expect(result.reason).toBe('order-id-conflict');
+    expect(result.store).toBe(poisoned);
+  });
+
+  it('rejects a stock subtraction that overflows to a non-finite result', () => {
+    const tinyCatalog = [{ id: 'extreme', priceSatang: 1,
+      recipe: { rice: Number.MAX_VALUE }, enabled: true }];
+    const initial = createCafeStore({ rice: Number.MAX_VALUE });
+    const accepted = submitCafeOrder(initial, tinyCatalog,
+      { requestId: 'extreme-1', tableId: 't1', itemId: 'extreme', quantity: 2 });
+    expect(accepted.accepted).toBe(false);
+    expect(initial.stock.rice).toBe(Number.MAX_VALUE);
+  });
+
 });
