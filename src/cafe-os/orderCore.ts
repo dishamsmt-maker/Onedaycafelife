@@ -18,6 +18,7 @@ export interface CafeOrder {
   unitPriceSatang: number;
   status: CafeOrderStatus;
   paidSatang: number;
+  paymentRecorded?: boolean;
   stockConsumed: boolean;
 }
 export interface CafeStore {
@@ -55,7 +56,7 @@ export function submitCafeOrder(
   }
   const next = copy(store);
   const order: CafeOrder = { id: 'cafe-' + request.requestId, ...request,
-    unitPriceSatang: item.priceSatang, status: 'queued', paidSatang: 0, stockConsumed: false };
+    unitPriceSatang: item.priceSatang, status: 'queued', paidSatang: 0, paymentRecorded: false, stockConsumed: false };
   next.orders.push(order);
   return { store: next, order, accepted: true };
 }
@@ -69,6 +70,8 @@ export function advanceCafeOrder(
     queued: ['preparing', 'cancelled'], preparing: ['ready', 'cancelled'],
     ready: ['served', 'cancelled'], served: [], cancelled: [],
   };
+  // A paid order needs an explicit refund transaction before cancellation.
+  if (nextStatus === 'cancelled' && (old.paymentRecorded || old.paidSatang > 0)) return store;
   if (!allowed[old.status].includes(nextStatus)) return store;
   const next = copy(store);
   const order = next.orders.find(o => o.id === orderId)!;
@@ -85,11 +88,13 @@ export function advanceCafeOrder(
 }
 export function payCafeOrder(store: CafeStore, orderId: string): CafeStore {
   const old = store.orders.find(o => o.id === orderId);
-  if (!old || old.status === 'cancelled' || old.paidSatang > 0) return store;
+  if (!old || old.status === 'cancelled' || (old.paymentRecorded || old.paidSatang > 0)) return store;
   const amount = old.quantity * old.unitPriceSatang;
   if (!Number.isSafeInteger(amount) || amount < 0) return store;
   const next = copy(store);
-  next.orders.find(o => o.id === orderId)!.paidSatang = amount;
+  const paidOrder = next.orders.find(o => o.id === orderId)!;
+  paidOrder.paidSatang = amount;
+  paidOrder.paymentRecorded = true;
   next.cashSatang += amount;
   return next;
 }
