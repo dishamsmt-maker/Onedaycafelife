@@ -28,5 +28,11 @@ describe('planning-only cafe circulation audit', () => {
   it('rejects invalid geometry', () => {
     expect(() => auditLayout({ ...layout, width: 0 })).toThrow();
     expect(() => auditLayout(layout, -1)).toThrow();
+    expect(() => auditLayout({ ...layout, width: Infinity })).toThrow('Invalid site dimensions');
+    expect(() => auditLayout({ ...layout, depth: NaN })).toThrow('Invalid site dimensions');
+    expect(() => auditLayout({ ...layout, corridor: { ...layout.corridor, xMin: 4, xMax: 2 } })).toThrow('Invalid entry corridor');
+    expect(() => auditLayout({ ...layout, corridor: { ...layout.corridor, zMax: 11 } })).toThrow('Invalid entry corridor');
+    expect(() => auditLayout({ ...layout, corridor: { ...layout.corridor, xMin: NaN } })).toThrow('Invalid entry corridor');
+    expect(() => auditLayout({ ...layout, tables: [...layout.tables, { ...layout.tables[0] }] })).toThrow('Invalid or duplicate table IDs');
   });
 });
