@@ -154,4 +154,15 @@ describe('Café OS isolated order pipeline', () => {
     const wrongAmount = { ...paid, orders: paid.orders.map(o => ({ ...o, paidSatang: 1 })) };
     expect(reconcileCafeCash(wrongAmount).balanced).toBe(false);
   });
+  it('uses accepted recipe snapshot even when the catalog changes later', () => {
+    const initial = createCafeStore({ rice: 10, chicken: 10 });
+    const accepted = submitCafeOrder(initial, catalog, request);
+    const changedCatalog = [{ id: 'halal-porridge', priceSatang: 9000, recipe: { chicken: 8 }, enabled: true }];
+    const preparing = advanceCafeOrder(accepted.store, changedCatalog, accepted.order.id, 'preparing');
+    expect(preparing.stock.rice).toBe(6);
+    expect(preparing.stock.chicken).toBe(10);
+    const costed = recordCafeOrderCost(preparing, changedCatalog, accepted.order.id, { rice: 350 });
+    expect(costed.orders[0].consumedCostSatang).toBe(1400);
+    expect(accepted.store.orders[0].recipeSnapshot).toEqual({ rice: 2 });
+  });
 });
