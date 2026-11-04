@@ -267,7 +267,17 @@ function scheduleStaff(s: GameState) {
   if (!off.controlled && (!off.task||off.task.kind==='station')) setTask(off, 'rest', REST, 999999);
   if (!serving.controlled && serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
   if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
-    const ready = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'ready' && !o.workerId);
+    // Only assign a delivery if the customer can be reached from pickup.
+    // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
+    const ready = s.orders.find(o => {
+      if (o.componentOrderIds?.length || o.status !== 'ready' || o.workerId) return false;
+      const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
+      if (!customer) return false;
+      const destination = customerTarget(s, customer);
+      const route = findPath(STATIONS.pickup, destination);
+      const endpoint = route[route.length - 1];
+      return !!endpoint && Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
+    });
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
     const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
