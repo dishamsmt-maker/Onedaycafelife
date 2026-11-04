@@ -94,7 +94,7 @@ export function advanceCafeOrder(
     const item = catalog.find(i => i.id === order.itemId);
     if (!item && !order.recipeSnapshot) return store;
     const needs = Object.entries(order.recipeSnapshot ?? item!.recipe).map(([id, n]) => [id, n * order.quantity] as const);
-    if (needs.some(([id, n]) => !Number.isFinite(n) || n < 0 || (next.stock[id] ?? 0) < n)) return store;
+    if (needs.some(([id, n]) => !Number.isFinite(n) || n < 0 || !Number.isFinite(next.stock[id] ?? 0) || (next.stock[id] ?? 0) < n)) return store;
     for (const [id, n] of needs) next.stock[id] -= n;
     order.stockConsumed = true;
   }
