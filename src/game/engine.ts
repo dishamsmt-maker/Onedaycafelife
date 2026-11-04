@@ -143,7 +143,11 @@ function chooseMenu(s: GameState, c: Customer): MenuItem[] {
 }
 /** Accept one sale item. Bundles are a priced root plus real zero-price production jobs. */
 export function placeCustomerOrder(s:GameState,c:Customer,menuId:string,sweetness=c.sweetness??100):Order|null {
- const m=s.menu.find(m=>m.id===menuId);if(!m||!menuAvailable(m,s.minute)||s.phase!=='open')return null;
+ const m=s.menu.find(m=>m.id===menuId);
+ // Validate the full bundle before creating any order rows. A rejected order
+ // must not leave orphan production jobs or a sale that cannot be fulfilled.
+ if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,sweetness))return null;
+ if(m.components?.some(part=>!Number.isInteger(part.quantity)||part.quantity<=0||!s.menu.some(item=>item.id===part.menuId)))return null;
  const add=(item:MenuItem,parentOrderId?:string):Order=>{const o:Order={id:uid(s,'order'),customerId:c.id,tableId:c.tableId,menuId:item.id,status:'waiting',createdAt:s.minute,cost:0,price:parentOrderId?0:item.price,stockConsumed:false,paid:false,parentOrderId,sweetness};s.orders.push(o);c.orderIds.push(o.id);return o;};
  const root=add(m);
  if(m.components?.length){root.componentOrderIds=[];for(const component of m.components){const childMenu=s.menu.find(x=>x.id===component.menuId);if(!childMenu)continue;for(let n=0;n<component.quantity;n++){const child=add(childMenu,root.id);root.componentOrderIds.push(child.id);}}}
