@@ -2,7 +2,7 @@ import {chromium,expect} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 const url=process.env.GAME_URL;if(!url)throw new Error('GAME_URL required');
 const out='test-results/published';await mkdir(out,{recursive:true});
-const browser=await chromium.launch({args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
