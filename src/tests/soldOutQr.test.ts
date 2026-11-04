@@ -42,4 +42,18 @@ describe('QR/POS inventory rejection regression',()=>{
   expect(s.orders).toHaveLength(1);
  });
 
+ it('does not lock the channel after a rejected counter bundle',()=>{
+  let s=createGame(20261104);
+  s.phase='open';s.minute=420;s.settings.arrivalsPerHour=0;s.events=[];
+  s.menu.find(m=>m.id==='thai-tea')!.components=[{menuId:'missing',quantity:1}];
+  s=act(s,{type:'visitor-submit',channel:'counter',requestId:'retry',menuId:'thai-tea'});
+  expect(s.orders).toHaveLength(0);
+  expect(s.customers.find(c=>c.player)?.orderChannel).toBeUndefined();
+  s.menu.find(m=>m.id==='thai-tea')!.components=[];
+  s=act(s,{type:'visitor-seat',tableId:'t3'});
+  s=act(s,{type:'visitor-submit',channel:'table-qr',requestId:'retry',menuId:'thai-tea'});
+  expect(s.orders).toHaveLength(1);
+  expect(s.orders[0].tableId).toBe('t3');
+ });
+
 });

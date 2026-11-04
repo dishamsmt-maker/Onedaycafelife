@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 test.beforeEach(async({page})=>{await page.route(/fonts\.(googleapis|gstatic)\.com/,route=>route.abort());});
 test.use({viewport:{width:390,height:844},hasTouch:true});
-test('phone walking, independent look, light presets, photo menu, audio and save',async({page})=>{
+test('phone walking, independent look, light presets, photo menu, audio and save',async({page},info)=>{
  test.setTimeout(240000);
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'เดินเข้าร้าน',exact:true}).tap();await page.getByRole('button',{name:'หยุดเวลา',exact:true}).tap();
@@ -21,11 +21,11 @@ test('phone walking, independent look, light presets, photo menu, audio and save
  expect(Math.abs((await page.evaluate(()=>(window as any).__ONE_DAY_PLAYER__.position.z))-after)).toBeLessThan(.04);
  await page.getByRole('button',{name:'เปิดเมนูเกม',exact:true}).tap();await page.getByRole('button',{name:'เปิดตั้งค่า',exact:true}).tap();await page.getByRole('button',{name:'ค่ำ',exact:true}).tap();await expect(page.getByRole('button',{name:'ค่ำ',exact:true})).toHaveAttribute('aria-pressed','true');
  await expect.poll(()=>page.evaluate(()=>(window as any).__ONE_DAY_AUDIO__?.period)).toBe('evening');
- await page.getByRole('button',{name:'ย่อแผง',exact:true}).tap();await page.screenshot({path:'screenshot-walk-phone.png'});
- await page.getByRole('button',{name:'ดูร้าน',exact:true}).tap();await page.screenshot({path:'screenshot-evening-phone.png'});
+ await page.getByRole('button',{name:'ย่อแผง',exact:true}).tap();await page.screenshot({path:info.outputPath('screenshot-walk-phone.png')});
+ await page.getByRole('button',{name:'ดูร้าน',exact:true}).tap();await page.screenshot({path:info.outputPath('screenshot-evening-phone.png')});
  await page.getByRole('button',{name:'เปิดเมนูร้าน',exact:true}).tap();await expect(page.getByRole('tab',{name:/อาหารเช้า/})).toBeVisible();
  await page.getByRole('button',{name:'ดูเมนู ข้าวต้มไก่',exact:true}).tap();await expect(page.getByRole('dialog',{name:'ข้าวต้มไก่',exact:true})).toBeVisible();await page.getByRole('button',{name:'ปิดรายละเอียดเมนู'}).tap();
- await page.getByRole('tab',{name:/กาแฟ/}).tap();await expect(page.getByRole('button',{name:'ดูเมนู ลาเต้เย็น',exact:true})).toBeVisible();await page.screenshot({path:'screenshot-menu-phone.png'});
+ await page.getByRole('tab',{name:/กาแฟ/}).tap();await expect(page.getByRole('button',{name:'ดูเมนู ลาเต้เย็น',exact:true})).toBeVisible();await page.screenshot({path:info.outputPath('screenshot-menu-phone.png')});
  await page.getByRole('button',{name:'ปิดเมนูอาหาร',exact:true}).tap();
  const final=await page.evaluate(()=>(window as any).__ONE_DAY_DEV__.store.getState().game);expect(final.cash).toBe(before.cash);expect(final.minute).toBe(before.minute);expect(errors).toEqual([]);
 });

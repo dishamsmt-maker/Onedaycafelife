@@ -24,9 +24,9 @@ test('inventory purchase is a cash movement and menu edits affect actual simulat
  expect((await state(page)).menu.find((m:any)=>m.id==='latte').price).toBe(55);
  await page.getByLabel('เลือกหน้าจัดการ').selectOption('settings');await page.getByLabel('สภาพอากาศ',{exact:true}).selectOption('rain');expect((await state(page)).weather).toBe('rain');
 });
-test('mobile starts with accessible scene and opens management on demand',async({page})=>{
+test('mobile starts with accessible scene and opens management on demand',async({page},info)=>{
  await page.setViewportSize({width:390,height:844});await launch(page);await expect(page.locator('.management-panel')).toHaveCount(0);
  await page.getByRole('button',{name:'เปิดเมนูเกม',exact:true}).click();await page.getByRole('button',{name:'เปิดออร์เดอร์',exact:true}).click();await expect(page.locator('.management-panel')).toBeVisible();
  await page.getByRole('button',{name:'ย่อแผง',exact:true}).click();await expect(page.locator('.management-panel')).toHaveCount(0);
- await page.screenshot({path:'screenshot-mobile.png'});
+ await page.screenshot({path:info.outputPath('screenshot-mobile.png')});
 });
