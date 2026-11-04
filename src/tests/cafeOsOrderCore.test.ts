@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder } from '../cafe-os/orderCore';
+import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder, refundAndCancelCafeOrder } from '../cafe-os/orderCore';
 
 const catalog = [{ id: 'halal-porridge', priceSatang: 4500, recipe: { rice: 2 }, enabled: true }];
 const request = { requestId: 'qr-t3-001', tableId: 't3', itemId: 'halal-porridge', quantity: 2 };
@@ -59,5 +59,24 @@ describe('Café OS isolated order pipeline', () => {
     const paid = payCafeOrder(accepted.store, accepted.order.id);
     expect(advanceCafeOrder(paid, catalog, accepted.order.id, 'cancelled')).toBe(paid);
     expect(paid.cashSatang).toBe(9000);
+  });
+  it('refunds paid queued order once and blocks later payment', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const paid = payCafeOrder(accepted.store, accepted.order.id);
+    const refunded = refundAndCancelCafeOrder(paid, accepted.order.id);
+    expect(refunded.cashSatang).toBe(0);
+    expect(refunded.orders[0].refundedSatang).toBe(9000);
+    expect(refunded.orders[0].status).toBe('cancelled');
+    expect(refundAndCancelCafeOrder(refunded, accepted.order.id)).toBe(refunded);
+    expect(payCafeOrder(refunded, accepted.order.id)).toBe(refunded);
+  });
+
+  it('does not return already consumed ingredients after cancellation', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
+    const paid = payCafeOrder(preparing, accepted.order.id);
+    const refunded = refundAndCancelCafeOrder(paid, accepted.order.id);
+    expect(refunded.stock.rice).toBe(6);
+    expect(refunded.cashSatang).toBe(0);
   });
 });
