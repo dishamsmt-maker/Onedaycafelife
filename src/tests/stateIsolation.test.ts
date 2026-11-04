@@ -3,8 +3,11 @@ import { act, createGame } from '../game/engine';
 
 describe('simulation state isolation', () => {
   it('does not share mutable QR retry IDs, bundle components, or order component IDs between states', () => {
-    const before = createGame(20261104);
-    before.customers[0] && (before.customers[0].requestIds = ['initial']);
+    let before = createGame(20261104);
+    before.phase = 'open';
+    before = act(before, { type: 'visitor-seat', tableId: 't3' });
+    expect(before.customers.length).toBeGreaterThan(0);
+    before.customers[0].requestIds = ['initial'];
     const menu = before.menu[0];
     menu.components = [{ menuId: 'thai-tea', quantity: 1 }];
     before.orders.push({
