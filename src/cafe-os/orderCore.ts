@@ -22,7 +22,14 @@ export interface CafeOrder {
   refundedSatang?: number;
   stockConsumed: boolean;
 }
+export interface CafeCashEvent {
+  id: string;
+  orderId: string;
+  type: 'payment' | 'refund';
+  amountSatang: number;
+}
 export interface CafeStore {
+  cashEvents: CafeCashEvent[];
   orders: CafeOrder[];
   stock: Record<string, number>;
   cashSatang: number;
@@ -31,12 +38,13 @@ export type CafeResult = { store: CafeStore; order: CafeOrder; accepted: boolean
 const copy = (store: CafeStore): CafeStore => ({
   orders: store.orders.map(order => ({ ...order })),
   stock: { ...store.stock },
+  cashEvents: (store.cashEvents ?? []).map(e => ({ ...e })),
   cashSatang: store.cashSatang,
 });
 const validId = (s: string) => typeof s === 'string' && s.trim().length > 0;
 export function createCafeStore(stock: Record<string, number>): CafeStore {
   if (Object.values(stock).some(n => !Number.isFinite(n) || n < 0)) throw new Error('invalid stock');
-  return { orders: [], stock: { ...stock }, cashSatang: 0 };
+  return { orders: [], stock: { ...stock }, cashEvents: [], cashSatang: 0 };
 }
 export function submitCafeOrder(
   store: CafeStore, catalog: readonly CafeCatalogItem[],
@@ -96,7 +104,9 @@ export function payCafeOrder(store: CafeStore, orderId: string): CafeStore {
   const paidOrder = next.orders.find(o => o.id === orderId)!;
   paidOrder.paidSatang = amount;
   paidOrder.paymentRecorded = true;
+  if (!Number.isSafeInteger(next.cashSatang + amount)) return store;
   next.cashSatang += amount;
+  next.cashEvents.push({ id: 'payment-' + orderId, orderId, type: 'payment', amountSatang: amount });
   return next;
 }
 
@@ -116,5 +126,18 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
   order.refundedSatang = amount;
   order.status = 'cancelled';
   next.cashSatang -= amount;
+  next.cashEvents.push({ id: 'refund-' + orderId, orderId, type: 'refund', amountSatang: amount });
   return next;
+}
+
+/** Reconcile the cash balance against immutable-in-intent journal entries. */
+export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
+  const events = store.cashEvents ?? [];
+  const ids = new Set(events.map(e => e.id));
+  const valid = ids.size === events.length && events.every(e =>
+    Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0 &&
+    e.id === e.type + '-' + e.orderId);
+  const expectedSatang = events.reduce((sum, e) =>
+    sum + (e.type === 'payment' ? e.amountSatang : -e.amountSatang), 0);
+  return { expectedSatang, balanced: valid && Number.isSafeInteger(expectedSatang) && expectedSatang === store.cashSatang };
 }
