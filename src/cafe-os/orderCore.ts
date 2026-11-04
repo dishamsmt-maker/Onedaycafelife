@@ -21,6 +21,7 @@ export interface CafeOrder {
   paymentRecorded?: boolean;
   refundedSatang?: number;
   stockConsumed: boolean;
+  consumedCostSatang?: number;
 }
 export interface CafeCashEvent {
   id: string;
@@ -33,6 +34,7 @@ export interface CafeStore {
   orders: CafeOrder[];
   stock: Record<string, number>;
   cashSatang: number;
+  wasteCostSatang: number;
 }
 export type CafeResult = { store: CafeStore; order: CafeOrder; accepted: boolean; reason?: string };
 const copy = (store: CafeStore): CafeStore => ({
@@ -40,11 +42,12 @@ const copy = (store: CafeStore): CafeStore => ({
   stock: { ...store.stock },
   cashEvents: (store.cashEvents ?? []).map(e => ({ ...e })),
   cashSatang: store.cashSatang,
+  wasteCostSatang: store.wasteCostSatang ?? 0,
 });
 const validId = (s: string) => typeof s === 'string' && s.trim().length > 0;
 export function createCafeStore(stock: Record<string, number>): CafeStore {
   if (Object.values(stock).some(n => !Number.isFinite(n) || n < 0)) throw new Error('invalid stock');
-  return { orders: [], stock: { ...stock }, cashEvents: [], cashSatang: 0 };
+  return { orders: [], stock: { ...stock }, cashEvents: [], cashSatang: 0, wasteCostSatang: 0 };
 }
 export function submitCafeOrder(
   store: CafeStore, catalog: readonly CafeCatalogItem[],
@@ -92,6 +95,7 @@ export function advanceCafeOrder(
     for (const [id, n] of needs) next.stock[id] -= n;
     order.stockConsumed = true;
   }
+  if (nextStatus === 'cancelled' && order.stockConsumed) next.wasteCostSatang += order.consumedCostSatang ?? 0;
   order.status = nextStatus;
   return next;
 }
@@ -124,6 +128,7 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
   const amount = order.paidSatang;
   if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(next.cashSatang - amount)) return store;
   order.refundedSatang = amount;
+  if (order.stockConsumed) next.wasteCostSatang += order.consumedCostSatang ?? 0;
   order.status = 'cancelled';
   next.cashSatang -= amount;
   next.cashEvents.push({ id: 'refund-' + orderId, orderId, type: 'refund', amountSatang: amount });
@@ -140,4 +145,30 @@ export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; b
   const expectedSatang = events.reduce((sum, e) =>
     sum + (e.type === 'payment' ? e.amountSatang : -e.amountSatang), 0);
   return { expectedSatang, balanced: valid && Number.isSafeInteger(expectedSatang) && expectedSatang === store.cashSatang };
+}
+
+/**
+ * Record ingredient cost at production time. Prices are satang per stock unit;
+ * returns the unchanged state if an ingredient cost is missing or invalid.
+ * This can be called only once, before or after preparation, and never on
+ * cancelled orders. Actual ingredient deduction remains in advanceCafeOrder.
+ */
+export function recordCafeOrderCost(
+  store: CafeStore, catalog: readonly CafeCatalogItem[], orderId: string,
+  unitCostSatang: Readonly<Record<string, number>>,
+): CafeStore {
+  const old = store.orders.find(o => o.id === orderId);
+  if (!old || !old.stockConsumed || old.status === 'cancelled' || old.consumedCostSatang !== undefined) return store;
+  const item = catalog.find(i => i.id === old.itemId);
+  if (!item) return store;
+  let cost = 0;
+  for (const [id, quantity] of Object.entries(item.recipe)) {
+    const unitCost = unitCostSatang[id];
+    if (!Number.isSafeInteger(unitCost) || unitCost < 0) return store;
+    cost += unitCost * quantity * old.quantity;
+  }
+  if (!Number.isSafeInteger(cost) || cost < 0) return store;
+  const next = copy(store);
+  next.orders.find(o => o.id === orderId)!.consumedCostSatang = cost;
+  return next;
 }
