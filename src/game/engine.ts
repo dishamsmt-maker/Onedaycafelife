@@ -122,7 +122,15 @@ function arrive(s: GameState, count: number, eventId?: string) {
       preference: random(s) < .75 ? guest.preferred : pick(s, ['coffee', 'tea', 'breakfast', 'snack']), budget: 65 + Math.floor(random(s) * 100), patience: s.settings.patience * (.7 + random(s) * .7),
       groupId: group, takeaway, position: [-.5 + (i % 3) * .18, -.75], path: [], status: 'arriving', tableId: null, orderIds: [], arrivedAt: s.minute, seatedAt: 0,
       eatRemaining: 8 + random(s) * (s.minute >= 1020 ? 25 : 15), satisfaction: 100, isReturn, sweetness:pick(s,[0,25,50,75,100]),tourId: eventId };
-    if (takeaway) c.path = findPath(c.position, seatPosition(s, c));
+    // Occasional accompanied visits share one table and departure lifecycle.
+    const guardian=i>0&&s.todayArrivals%5===1?s.customers.find(g=>g.groupId===group&&!g.takeaway&&g.tableId&&!g.guardianId):undefined;
+    const familyTable=guardian?s.tables.find(t=>t.id===guardian.tableId&&t.customerIds.length<t.capacity):undefined;
+    if(guardian&&familyTable){
+      c.guardianId=guardian.id;c.name=`ลูกของ${guardian.name}`;c.takeaway=false;c.preference='snack';
+      c.reason=`มากับผู้ปกครอง ${guardian.name}`;c.tableId=familyTable.id;
+      familyTable.customerIds.push(c.id);c.path=findPath(c.position,seatPosition(s,c));
+    }
+    else if (takeaway) c.path = findPath(c.position, seatPosition(s, c));
     else if (!seatCustomer(s, c)) { c.status = 'queuing'; c.path = findPath(c.position, [-1.7 + (i % 3) * .6, .2 + (Math.floor(i / 3) % 3) * .4]); }
     s.customers.push(c); s.todayArrivals++;
   }
@@ -289,10 +297,14 @@ function progressEmployees(s: GameState, dt: number) {
 }
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
-  const serving = s.employees.find(e => e.id === server)!;
-  const off = s.employees.find(e => (e.id === 'ken' || e.id === 'pun') && e.id !== server)!;
-  if (!off.controlled && (!off.task||off.task.kind==='station')) setTask(off, 'rest', REST, 999999);
-  if (!serving.controlled && serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
+  const primary=s.employees.find(e=>e.id===server)!;
+  const off=s.employees.find(e=>(e.id==='ken'||e.id==='pun')&&e.id!==server)!;
+  const pending=s.orders.filter(o=>!o.componentOrderIds?.length&&['ready','serving'].includes(o.status)).length+s.tables.filter(t=>t.dirty&&!t.customerIds.length).length+s.customers.filter(c=>!c.player&&c.takeaway&&c.status==='seated'&&!c.orderIds.length).length;
+  const helpers=s.serverOverride==='auto'&&pending>0&&(pending>=2||off.tasksDone<primary.tasksDone);
+  if(!helpers&&!off.controlled&&(!off.task||off.task.kind==='station'))setTask(off,'rest',REST,999999);
+  const servers=helpers?[primary,off].sort((a,b)=>a.tasksDone-b.tasksDone):[primary];
+  for(const serving of servers){
+    if(!serving.controlled&&serving.task?.kind==='rest'){serving.task=null;serving.available=true;}
   if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
     // Only assign a delivery if the customer can be reached from pickup.
     // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
@@ -306,13 +318,14 @@ function scheduleStaff(s: GameState) {
       return !!endpoint && Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
     });
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
-    const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
-    const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
-    if (ready) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
+    const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving'&&!s.employees.some(e=>e.task?.maintenance==='question'&&e.task.customerId===c.id));
+    const dirty = s.tables.find(t => t.dirty && !t.customerIds.length&&!s.employees.some(e=>e.task?.kind==='clean'&&e.task.tableId===t.id));
+    if (ready) { ready.workerId = serving.id; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
     else if(question)setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
     else if (waiting) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
     else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
     else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
+  }
   }
   const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
@@ -339,7 +352,7 @@ function scheduleStaff(s: GameState) {
   const alee = s.employees.find(e => e.id === 'alee')!;
   if (!alee.controlled && (!alee.task || alee.task.kind==='station')) {
     if(Boolean(s.signMounted)!==signWanted(s))setTask(alee,'inspect',[-2.1,-.6],.8,{maintenance:'sign'});
-    else if(s.phase!=='closing'&&s.minute<630&&(s.wateredCount??0)<WATER_STOPS.length)setTask(alee,'garden',WATER_STOPS[s.wateredCount??0],.35,{maintenance:'water',stopIndex:s.wateredCount??0});
+    else if(((s.phase!=='closing'&&s.minute<630)||(s.phase==='closing'))&&(s.wateredCount??0)<WATER_STOPS.length*(s.phase==='closing'?2:1))setTask(alee,'garden',WATER_STOPS[(s.wateredCount??0)%WATER_STOPS.length],.35,{maintenance:'water',stopIndex:s.wateredCount??0});
     else
     if (s.garden.careRequested || s.garden.lastInspection < 0 || s.minute - s.garden.lastInspection > 180 || (s.phase === 'closing' && s.minute - s.garden.lastInspection > 10)) setTask(alee, 'inspect', INSPECT, 2);
     else if (s.garden.moisture < 45 && !s.weather.includes('rain')) setTask(alee, 'garden', STATIONS.garden, 3);
@@ -393,6 +406,7 @@ function leave(s: GameState, c: Customer, pay: boolean) {
   if (table) { table.customerIds = table.customerIds.filter(id => id !== c.id); if (!table.customerIds.length) table.dirty = true; }
   s.todaySatisfaction.push(c.satisfaction); review(s, c, wait, !pay);
   c.status = 'leaving'; c.path = findPath(c.position, STATIONS.entrance);
+  for(const child of s.customers.filter(child=>child.guardianId===c.id&&child.status!=='leaving'))leave(s,child,pay);
   s.cleanliness = Math.max(0, s.cleanliness - (c.takeaway ? .15 : .7));
 }
 function progressCustomers(s: GameState, dt: number) {
@@ -430,6 +444,10 @@ function progressCustomers(s: GameState, dt: number) {
       else if(c.restroomPhase==='using'){c.restroomRemaining=(c.restroomRemaining??0)-dt;if(c.restroomRemaining<=0){c.restroomPhase='returning';c.path=findPath(c.position,seatPosition(s,c));}}
       else {c.status='eating';c.restroomPhase=undefined;}
     } else if(c.status==='eating'){
+      const guardian=c.guardianId?s.customers.find(g=>g.id===c.guardianId):undefined;
+      if(guardian&&guardian.status!=='leaving')continue;
+      const children=s.customers.filter(child=>child.guardianId===c.id&&child.status!=='leaving');
+      if(children.some(child=>child.status!=='eating'))continue;
       c.eatRemaining-=dt;if(c.eatRemaining<=0)leave(s,c,true);
     }
   }
@@ -480,7 +498,7 @@ function step(s: GameState, dt: number) {
   if (s.phase === 'closing' && !s.customers.length) {
     const dirty = s.tables.some(t => t.dirty);
     const inspected = s.garden.lastInspection >= CLOSE || s.minute - s.garden.lastInspection < 10;
-    if ((!dirty && inspected && !s.signMounted) || s.minute > CLOSE + 120) closeReport(s);
+    if ((!dirty && inspected && !s.signMounted && (s.wateredCount??0)>=WATER_STOPS.length*2) || s.minute > CLOSE + 120) closeReport(s);
   }
 }
 export function tick(state: GameState, dtMinutes: number): GameState {

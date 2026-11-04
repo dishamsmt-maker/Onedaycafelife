@@ -45,10 +45,10 @@ export function LiveProduction({state}:{state:GameState}){
  {kitchen&&(kitchen.menu.visual==='porridge'||kitchen.menu.id==='boiled-egg')&&<><mesh position={[0,.03,0]}><cylinderGeometry args={[.18,.18,.07,24]}/><meshStandardMaterial color="#d4ba82"/></mesh>{Object.keys(kitchen.menu.recipe).slice(0,6).map((id,n)=>{const i=state.inventory.find(i=>i.id===id);return i&&<group key={id} position={[Math.sin(n*2)*.1,.07,Math.cos(n*2)*.1]}><IngredientModel item={{...i,quantity:Math.max(i.reorder,.1)}} scale={.5}/></group>})}</>}
  {kitchen&&lidOpen&&<group rotation={[0,state.minute*4,0]}><Cube p={[.09,.16,0]} s={[.025,.32,.025]} color="#89663f"/></group>}
  <group position={[0,lidOpen?.4:.12,lidOpen?.2:0]} rotation={[lidOpen?1:0,0,0]}><mesh><cylinderGeometry args={[.21,.21,.025,24]}/><meshStandardMaterial color="#c5cec6" metalness={.7}/></mesh><Cube p={[0,.04,0]} s={[.06,.05,.06]} color="#29382f"/></group>
- <StockLabel text={lidOpen?'แตะปิดหม้อ':'แตะเปิดหม้อ'} position={[-.23,.1,0]} width={.35}/>
+
  </group>
- {kitchen&&<><StockLabel text={`${kitchen.menu.name} · ${kitchen.stage}`} position={[1.52,1.5,4.3]} width={.8}/>{kitchen.progress>.65&&<Dish name={kitchen.menu.id} p={[1.95,1.08,3.93]}/>}</>}
- {bar&&<><Drink name={bar.menu.id} p={[1.75,1.11,1.35]} fill={bar.progress}/><StockLabel text={`${bar.menu.name} · ${bar.stage}`} position={[1.52,1.5,1.35]} width={.75}/></>}
+ {kitchen&&<>{kitchen.progress>.65&&<Dish name={kitchen.menu.id} p={[1.95,1.08,3.93]}/>}</>}
+ {bar&&<><Drink name={bar.menu.id} p={[1.75,1.11,1.35]} fill={bar.progress}/></>}
  {jobs.filter(j=>j.order.stockConsumed&&j.employee.task?.phase==='walking').map(j=><group key={j.employee.id} position={[j.employee.position[0],1.0,j.employee.position[1]+.2]}><Cube p={[0,0,0]} s={[.3,.025,.22]} color="#9c8055"/>{Object.keys(j.menu.recipe).slice(0,3).map((id,n)=>{const i=state.inventory.find(i=>i.id===id);return i&&<group key={id} position={[(n-1)*.08,.025,0]}><IngredientModel item={{...i,quantity:Math.max(i.reorder,.1)}} scale={.65}/></group>})}</group>)}
  </>;
 }

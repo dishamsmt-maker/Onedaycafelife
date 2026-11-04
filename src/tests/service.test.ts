@@ -26,3 +26,37 @@ it('drink workflows follow actual recipe families',()=>{
  expect(drinkSteps({tea:.01},'hot-tea')).not.toContain('เติมน้ำแข็ง');
  expect(drinkSteps({soda:1,lime:.03},'lime-soda')).toContain('เติมโซดา');
 });
+it('finishes a second plant round before closing and resumes its progress from save',()=>{
+ let s=quiet();s=tick(s,100);expect(s.wateredCount).toBe(WATER_STOPS.length);
+ s=act(s,{type:'close'});s=tick(s,5);expect(s.phase).toBe('closing');
+ s=JSON.parse(JSON.stringify(s));s=tick(s,90);
+ expect(s.wateredCount).toBe(WATER_STOPS.length*2);expect(s.phase).toBe('closed');
+ expect(s.reports).toHaveLength(1);
+});
+it('both servers help a real delivery backlog without duplicate assignments or charges',()=>{
+ let s=quiet();s.minute=420;s.phase='open';s.settings.patience=180;
+ s=act(s,{type:'rush',size:20});const carriers=new Set<string>();
+ for(let i=0;i<600;i++){
+  s=tick(s,.1);
+  const tasks=s.employees.filter(e=>e.task?.kind==='serve'&&e.task.orderId);
+  expect(new Set(tasks.map(e=>e.task!.orderId)).size).toBe(tasks.length);
+  for(const e of tasks)carriers.add(e.id);
+ }
+ expect([...carriers].sort()).toEqual(['ken','pun']);
+ const counts=s.employees.filter(e=>e.id==='ken'||e.id==='pun').map(e=>e.tasksDone);
+ expect(Math.min(...counts)/counts.reduce((a,b)=>a+b,0)).toBeGreaterThanOrEqual(.4);
+ const sales=s.ledger.filter(t=>t.type==='food-sale'||t.type==='drink-sale');
+ expect(new Set(sales.map(t=>t.orderId)).size).toBe(sales.length);
+ expect(s.orders.some(o=>o.status==='completed')).toBe(true);
+});
+it('occasional children reserve a seat with their guardian and depart together',()=>{
+ let s=quiet();s.minute=420;s.phase='open';s.settings.patience=180;
+ s=act(s,{type:'rush',size:20});const children=s.customers.filter(c=>c.guardianId);
+ expect(children.length).toBeGreaterThan(0);
+ for(const child of children){const guardian=s.customers.find(c=>c.id===child.guardianId)!;expect(guardian).toBeDefined();expect(child.tableId).toBe(guardian.tableId);}
+ for(let i=0;i<1000;i++){
+  s=tick(s,.1);
+  for(const child of s.customers.filter(c=>c.guardianId&&c.status!=='leaving'))expect(s.customers.find(c=>c.id===child.guardianId)?.status).not.toBe('leaving');
+ }
+ s=act(s,{type:'close'});s=tick(s,180);expect(s.phase).toBe('closed');expect(s.customers).toHaveLength(0);
+});
