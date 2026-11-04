@@ -10,7 +10,14 @@ export interface PlanningLayout {
 export interface LayoutFinding { code: 'OUTSIDE'|'TABLE_OVERLAP'|'ENTRY_BLOCKED'; tableIds: string[]; }
 export function auditLayout(layout: PlanningLayout, clearance = 0.75): LayoutFinding[] {
   if (!Number.isFinite(clearance) || clearance < 0) throw new Error('Invalid clearance');
-  if (!(layout.width > 0 && layout.depth > 0)) throw new Error('Invalid site dimensions');
+  if (![layout.width, layout.depth].every(Number.isFinite) || !(layout.width > 0 && layout.depth > 0)) throw new Error('Invalid site dimensions');
+  const corridor = layout.corridor;
+  if (!corridor || ![corridor.xMin, corridor.xMax, corridor.zMin, corridor.zMax].every(Number.isFinite)
+      || corridor.xMin < 0 || corridor.zMin < 0 || corridor.xMin >= corridor.xMax || corridor.zMin >= corridor.zMax
+      || corridor.xMax > layout.width || corridor.zMax > layout.depth)
+    throw new Error('Invalid entry corridor');
+  if (new Set(layout.tables.map(t => t.id)).size !== layout.tables.length || layout.tables.some(t => !t.id.trim()))
+    throw new Error('Invalid or duplicate table IDs');
   const issues: LayoutFinding[] = [];
   const radius = (t: PlanningTable) => t.diameter / 2;
   for (const t of layout.tables) {
