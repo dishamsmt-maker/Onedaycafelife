@@ -472,7 +472,7 @@ function closeReport(s: GameState) {
   s.reports.push({ day: s.day, weather: s.weather, customers: s.todayArrivals, completed: m.completed, cancelled: m.cancelled, foodRevenue: m.foodRevenue, drinkRevenue: m.drinkRevenue,
     revenue: m.revenue, cogs: m.cogs, spoilage: m.spoilage, wages: m.wages, operating: m.operating, profit: m.profit, openingCash: s.openingCash, closingCash: s.cash,
     cashFlow: round(s.cash - s.openingCash), satisfaction: m.satisfaction, averageWait: m.averageWait, shortages: [...s.shortages],
-    inspection: s.garden.inspections ? `อาลีตรวจสวนและความสะอาด ${s.garden.inspections} ครั้ง · ความชื้นสวน ${Math.round(s.garden.moisture)}%` : 'ยังไม่ได้ตรวจพื้นที่' });
+    inspection: (s.garden.inspections ? `อาลีตรวจสวนและความสะอาด ${s.garden.inspections} ครั้ง · ความชื้นสวน ${Math.round(s.garden.moisture)}%` : 'ยังไม่ได้ตรวจพื้นที่') + ((s.wateredCount??0)<WATER_STOPS.length*2 ? ` · รดน้ำยังไม่ครบ ${s.wateredCount??0}/${WATER_STOPS.length*2} จุด` : '') + (s.signMounted?' · ยังไม่ได้ถอดป้าย':'') });
   s.phase = 'closed'; s.paused = true; notice(s, `ปิดวันที่ ${s.day} แล้ว · ยอดขาย ฿${m.revenue.toFixed(0)} · ดูรายงานก่อนเปิดวันถัดไป`);
 }
 function step(s: GameState, dt: number) {

@@ -25,3 +25,10 @@ it('finishes the physical morning plant route before opening in the expanded wor
  let s=createGame();s.paused=false;s.events=[];s.settings.arrivalsPerHour=0;
  s=tick(s,59.9);expect(s.minute).toBeLessThan(390);expect(s.phase).toBe('preparing');expect(s.wateredCount).toBeGreaterThanOrEqual(22);
 });
+it('reports unfinished maintenance when closing reaches the fallback deadline',()=>{
+ let s=createGame();s.minute=1350;s.phase='closing';s.paused=false;s.events=[];s.settings.arrivalsPerHour=0;s.wateredCount=0;s.signMounted=true;
+ s.employees.find(e=>e.id==='alee')!.controlled=true;
+ s=tick(s,.1);
+ expect(s.phase).toBe('closed');expect(s.reports).toHaveLength(1);
+ expect(s.reports[0].inspection).toContain('รดน้ำยังไม่ครบ 0/44');expect(s.reports[0].inspection).toContain('ยังไม่ได้ถอดป้าย');
+});
