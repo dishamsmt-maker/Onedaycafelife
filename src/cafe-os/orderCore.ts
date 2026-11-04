@@ -139,9 +139,21 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
 export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
   const events = store.cashEvents ?? [];
   const ids = new Set(events.map(e => e.id));
-  const valid = ids.size === events.length && events.every(e =>
-    Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0 &&
-    e.id === e.type + '-' + e.orderId);
+  const valid = ids.size === events.length && events.every(e => {
+    const order = store.orders.find(o => o.id === e.orderId);
+    if (!order || !Number.isSafeInteger(e.amountSatang) || e.amountSatang < 0 ||
+      e.id !== e.type + '-' + e.orderId) return false;
+    if (e.type === 'payment') return order.paymentRecorded === true &&
+      order.paidSatang === e.amountSatang;
+    return e.type === 'refund' && order.status === 'cancelled' &&
+      order.refundedSatang === e.amountSatang && order.paidSatang === e.amountSatang;
+  }) && store.orders.every(o => {
+    const paymentCount = events.filter(e => e.orderId === o.id && e.type === 'payment').length;
+    const refundCount = events.filter(e => e.orderId === o.id && e.type === 'refund').length;
+    return paymentCount === (o.paymentRecorded ? 1 : 0) &&
+      refundCount === (o.refundedSatang === undefined ? 0 : 1) &&
+      (!o.paymentRecorded || o.paidSatang === o.quantity * o.unitPriceSatang);
+  });
   const expectedSatang = events.reduce((sum, e) =>
     sum + (e.type === 'payment' ? e.amountSatang : -e.amountSatang), 0);
   return { expectedSatang, balanced: valid && Number.isSafeInteger(expectedSatang) && expectedSatang === store.cashSatang };
