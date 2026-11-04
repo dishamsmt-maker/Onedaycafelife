@@ -230,6 +230,15 @@ function progressEmployees(s: GameState, dt: number) {
       walk(e.position, t.path, dt * 4.5);
       if (t.path.length) continue;
       const o = s.orders.find(o => o.id === t.orderId);
+      // A missing/empty route must never complete a delivery from across the map.
+      if (t.kind === 'serve' && t.stage === 'deliver') {
+        const customer = s.customers.find(c => c.id === t.customerId);
+        const destination = customer ? customerTarget(s, customer) : t.target;
+        if (!customer || customer.status === 'leaving' || Math.hypot(e.position[0]-destination[0], e.position[1]-destination[1]) > .45) {
+          if (o && o.status === 'serving') { o.status = 'ready'; o.workerId = undefined; }
+          e.task = null; e.available = true; continue;
+        }
+      }
       if ((t.kind === 'cook' || t.kind === 'brew') && o) {
         const menu = s.menu.find(m => m.id === o.menuId)!;
         if (o.status === 'cancelled' || !consume(s, o, menu)) { if (o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; } e.task = null; continue; }
