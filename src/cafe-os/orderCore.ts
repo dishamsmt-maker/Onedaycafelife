@@ -187,6 +187,8 @@ export function closeCafeDay(store: CafeStore) {
   const ingredientCostSatang = produced.reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
   const wasteCostSatang = produced.filter(o => o.status === 'cancelled')
     .reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
+  const openOrderIds = store.orders.filter(o => o.status !== 'served' && o.status !== 'cancelled').map(o => o.id);
+  const unpaidServedOrderIds = store.orders.filter(o => o.status === 'served' && !o.paymentRecorded).map(o => o.id);
   const netSalesSatang = paymentsSatang - refundsSatang;
   const validNumbers = [paymentsSatang, refundsSatang, ingredientCostSatang, wasteCostSatang, netSalesSatang]
     .every(Number.isSafeInteger);
@@ -195,9 +197,9 @@ export function closeCafeDay(store: CafeStore) {
     cancelledCount: store.orders.filter(o => o.status === 'cancelled').length,
     paymentsSatang, refundsSatang, netSalesSatang, ingredientCostSatang,
     wasteCostSatang, grossMarginSatang: missingCostOrders.length ? null : netSalesSatang - ingredientCostSatang,
-    missingCostOrders,
+    missingCostOrders, openOrderIds, unpaidServedOrderIds,
     cashBalanced: reconciliation.balanced,
-    readyToClose: reconciliation.balanced && validNumbers && missingCostOrders.length === 0 &&
+    readyToClose: reconciliation.balanced && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 &&
       wasteCostSatang === store.wasteCostSatang,
   };
 }
