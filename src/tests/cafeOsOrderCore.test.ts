@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder, refundAndCancelCafeOrder } from '../cafe-os/orderCore';
+import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder, refundAndCancelCafeOrder, reconcileCafeCash } from '../cafe-os/orderCore';
 
 const catalog = [{ id: 'halal-porridge', priceSatang: 4500, recipe: { rice: 2 }, enabled: true }];
 const request = { requestId: 'qr-t3-001', tableId: 't3', itemId: 'halal-porridge', quantity: 2 };
@@ -78,5 +78,15 @@ describe('Café OS isolated order pipeline', () => {
     const refunded = refundAndCancelCafeOrder(paid, accepted.order.id);
     expect(refunded.stock.rice).toBe(6);
     expect(refunded.cashSatang).toBe(0);
+  });
+  it('reconciles payment and refund journals and detects tampering', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const paid = payCafeOrder(accepted.store, accepted.order.id);
+    expect(paid.cashEvents).toEqual([{ id: 'payment-' + accepted.order.id, orderId: accepted.order.id, type: 'payment', amountSatang: 9000 }]);
+    expect(reconcileCafeCash(paid)).toEqual({ expectedSatang: 9000, balanced: true });
+    const refunded = refundAndCancelCafeOrder(paid, accepted.order.id);
+    expect(refunded.cashEvents).toHaveLength(2);
+    expect(reconcileCafeCash(refunded)).toEqual({ expectedSatang: 0, balanced: true });
+    expect(reconcileCafeCash({ ...refunded, cashSatang: 100 }).balanced).toBe(false);
   });
 });
