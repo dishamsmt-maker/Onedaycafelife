@@ -129,4 +129,16 @@ describe('Café OS isolated order pipeline', () => {
     const costed = recordCafeOrderCost(paid, catalog, accepted.order.id, { rice: 350 });
     expect(closeCafeDay({ ...costed, cashSatang: 0 }).readyToClose).toBe(false);
   });
+  it('blocks closing while orders are open or served but unpaid', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const open = closeCafeDay(accepted.store);
+    expect(open.readyToClose).toBe(false);
+    expect(open.openOrderIds).toEqual([accepted.order.id]);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
+    const costed = recordCafeOrderCost(preparing, catalog, accepted.order.id, { rice: 350 });
+    const served = advanceCafeOrder(advanceCafeOrder(costed, catalog, accepted.order.id, 'ready'), catalog, accepted.order.id, 'served');
+    expect(closeCafeDay(served).unpaidServedOrderIds).toEqual([accepted.order.id]);
+    expect(closeCafeDay(served).readyToClose).toBe(false);
+    expect(closeCafeDay(payCafeOrder(served, accepted.order.id)).readyToClose).toBe(true);
+  });
 });
