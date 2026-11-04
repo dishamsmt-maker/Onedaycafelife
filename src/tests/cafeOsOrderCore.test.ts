@@ -165,4 +165,21 @@ describe('Café OS isolated order pipeline', () => {
     expect(costed.orders[0].consumedCostSatang).toBe(1400);
     expect(accepted.store.orders[0].recipeSnapshot).toEqual({ rice: 2 });
   });
+  it('does not expose mutable recipe snapshots through submit or retry results', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    accepted.order.recipeSnapshot!.rice = 999;
+    expect(accepted.store.orders[0].recipeSnapshot!.rice).toBe(2);
+    const retry = submitCafeOrder(accepted.store, catalog, request);
+    retry.order.recipeSnapshot!.rice = 999;
+    expect(accepted.store.orders[0].recipeSnapshot!.rice).toBe(2);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.store.orders[0].id, 'preparing');
+    expect(preparing.stock.rice).toBe(6);
+  });
+
+  it('rejects overflowing ingredient requirements before accepting the order', () => {
+    const hugeCatalog = [{ id: 'huge', priceSatang: 1, recipe: { rice: Number.MAX_VALUE }, enabled: true }];
+    const accepted = submitCafeOrder(createCafeStore({ rice: Number.MAX_VALUE }), hugeCatalog,
+      { requestId: 'huge-1', tableId: 't1', itemId: 'huge', quantity: 2 });
+    expect(accepted.accepted).toBe(false);
+  });
 });
