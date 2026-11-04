@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder, refundAndCancelCafeOrder, reconcileCafeCash, recordCafeOrderCost } from '../cafe-os/orderCore';
+import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder, refundAndCancelCafeOrder, reconcileCafeCash, recordCafeOrderCost, closeCafeDay } from '../cafe-os/orderCore';
 
 const catalog = [{ id: 'halal-porridge', priceSatang: 4500, recipe: { rice: 2 }, enabled: true }];
 const request = { requestId: 'qr-t3-001', tableId: 't3', itemId: 'halal-porridge', quantity: 2 };
@@ -105,5 +105,28 @@ describe('Café OS isolated order pipeline', () => {
     const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
     const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
     expect(recordCafeOrderCost(preparing, catalog, accepted.order.id, {})).toBe(preparing);
+  });
+  it('closes a balanced day with known COGS and reports net margin', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
+    const costed = recordCafeOrderCost(preparing, catalog, accepted.order.id, { rice: 350 });
+    const served = advanceCafeOrder(advanceCafeOrder(costed, catalog, accepted.order.id, 'ready'), catalog, accepted.order.id, 'served');
+    const paid = payCafeOrder(served, accepted.order.id);
+    const report = closeCafeDay(paid);
+    expect(report.readyToClose).toBe(true);
+    expect(report.netSalesSatang).toBe(9000);
+    expect(report.ingredientCostSatang).toBe(1400);
+    expect(report.grossMarginSatang).toBe(7600);
+    expect(report.wasteCostSatang).toBe(0);
+  });
+
+  it('flags missing ingredient costs and cash mismatches', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
+    const paid = payCafeOrder(preparing, accepted.order.id);
+    expect(closeCafeDay(paid).readyToClose).toBe(false);
+    expect(closeCafeDay(paid).grossMarginSatang).toBeNull();
+    const costed = recordCafeOrderCost(paid, catalog, accepted.order.id, { rice: 350 });
+    expect(closeCafeDay({ ...costed, cashSatang: 0 }).readyToClose).toBe(false);
   });
 });
