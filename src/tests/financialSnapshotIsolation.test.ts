@@ -16,12 +16,12 @@ describe('ledger and report snapshot isolation', () => {
     const after = act(before, { type:'pause' });
     after.ledger[0].amount = 999;
     after.reviews[0].stars = 1;
-    after.notices[0].text = 'Changed';
+    after.notices.find(n => n.id === 'notice-test')!.text = 'Changed';
     after.reports[0].shortages.push('milk');
     after.reports[0].revenue = 999;
     expect(before.ledger[0].amount).toBe(45);
     expect(before.reviews[0].stars).toBe(5);
-    expect(before.notices[0].text).toBe('Ready');
+    expect(before.notices.find(n => n.id === 'notice-test')!.text).toBe('Ready');
     expect(before.reports[0].shortages).toEqual(['chicken']);
     expect(before.reports[0].revenue).toBe(45);
   });
