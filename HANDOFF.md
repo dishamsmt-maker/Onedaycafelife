@@ -102,3 +102,5 @@ Current owner authorized continuing outstanding game work and deployment after v
 ## Full-site implementation — 4 November 2026
 
 Branch `feature/full-site-5x50` continues from `9719106`. Current owner approved full5×50 design, bar interior, merge and deploy. Initial expanded-world validation: Vitest77/77, build passed. New tests cover full50m corridor/table routes, legacy migration idempotence/financial preservation, table5 production/payment, and actual morning plant round before opening. Browser suite currently running; do not count incomplete runs as passed. See docs/FULL_SITE_IMPLEMENTATION.md for remaining visual/navigation limitations.
+
+Full-site local browser run:9/9 passed in4.2min before the authored-plant pass. A subsequent77/77 unit run passed after removing an experimental deadlocking avoidance approach. The added table5 UI scenario and latest authored assets require final browser/CI validation; do not count them passed until results arrive. Asset pass introduces a5.76MB attributed plant GLB and2MB generated leaf texture. Static detail meshes now use instancing.

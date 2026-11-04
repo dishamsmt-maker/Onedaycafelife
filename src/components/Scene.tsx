@@ -1,6 +1,7 @@
+import AuthoredPlants from './AuthoredPlants';
 import {GARDEN_PLANTS} from '../game/service';
 import { useEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Customer, Employee, GameState, Vec2 } from '../game/types';
 import { TABLE_LAYOUT } from '../game/world';
@@ -39,6 +40,7 @@ function LeafGeometry(){
 }
 /** Curated planting: open eye-level sightlines, small understory, shade overhead. */
 function Foliage({quality}:{quality:'low'|'high'}){
+ const leafMap=useLoader(THREE.TextureLoader,import.meta.env.BASE_URL+'assets/plants/tropical-leaf.png');leafMap.colorSpace=THREE.SRGBColorSpace;
  const leaves=useRef<THREE.InstancedMesh>(null),trunks=useRef<THREE.InstancedMesh>(null);
  const plants=useMemo(()=>[
  // Remove oversized perimeter trees; retain the existing low garden planting.
@@ -51,8 +53,8 @@ function Foliage({quality}:{quality:'low'|'high'}){
  if(p.type==='tree'){const radius=.25+Math.sqrt(v)*.95;x=Math.cos(a)*radius;z=Math.sin(a)*radius;y=p.h-.4+Math.sin(i*5.13)*.48;sx=.14;sy=.32;sz=.055;d.rotation.set(1.15+v*.6,a,Math.sin(i)*.5)}
  else if(p.type==='palm'){const frond=i%8,t=Math.floor(i/8)/(perPlant/8),f=frond*Math.PI/4;const r=.2+t*.65;x=Math.cos(f)*r;z=Math.sin(f)*r;y=p.h-.35*t*t;sx=.065;sy=.28;sz=.018;d.rotation.set(.95+t*.5,f,i%2?.5:-.5)}
  else{const r=Math.sqrt(v)*(p.type==='pot'?.27:.4);x=Math.cos(a)*r;z=Math.sin(a)*r;y=p.h*.62+Math.sin(i*2.1)*p.h*.28;sx=p.type==='pot'?.16:.13;sy=p.type==='pot'?.32:.23;sz=.045;d.rotation.set(.8,a,Math.sin(a)*.6)}
- d.position.set(p.x+x,y,p.z+z);d.scale.set(sx,sy,sz);d.updateMatrix();leaves.current!.setMatrixAt(n,d.matrix);color.set(['#285235','#3e6b37','#608344','#315f36','#77994d'][i%5]);leaves.current!.setColorAt(n++,color)}});leaves.current.instanceMatrix.needsUpdate=true;leaves.current.instanceColor!.needsUpdate=true;trunks.current.instanceMatrix.needsUpdate=true},[plants,quality,perPlant]);
- return <><instancedMesh ref={leaves} args={[undefined,undefined,plants.length*perPlant]} castShadow receiveShadow><LeafGeometry/><meshStandardMaterial roughness={.57} side={THREE.DoubleSide}/></instancedMesh><instancedMesh ref={trunks} args={[undefined,undefined,plants.length]} castShadow><cylinderGeometry args={[.72,1,1,8]}/><meshStandardMaterial color="#76654b" roughness={1}/></instancedMesh>{plants.filter(p=>p.type==='pot').map(p=><group key={p.x} position={[p.x,0,p.z]}><Cyl p={[0,.2,0]} r={.21} top={.25} h={.4} color="#b6b0a1"/><Cyl p={[0,.405,0]} r={.22} h={.012} color="#514c38"/></group>)}</>
+ d.position.set(p.x+x,y,p.z+z);d.scale.set(sx,sy,sz);d.updateMatrix();leaves.current!.setMatrixAt(n,d.matrix);color.set(['#b0cba0','#c6d5ae','#e0deb3','#bdd0a5','#d6deb0'][i%5]);leaves.current!.setColorAt(n++,color)}});leaves.current.instanceMatrix.needsUpdate=true;leaves.current.instanceColor!.needsUpdate=true;trunks.current.instanceMatrix.needsUpdate=true},[plants,quality,perPlant]);
+ return <><instancedMesh ref={leaves} args={[undefined,undefined,plants.length*perPlant]} castShadow receiveShadow><LeafGeometry/><meshStandardMaterial map={leafMap} alphaTest={.35} roughness={.68} side={THREE.DoubleSide}/></instancedMesh><instancedMesh ref={trunks} args={[undefined,undefined,plants.length]} castShadow><cylinderGeometry args={[.72,1,1,8]}/><meshStandardMaterial color="#76654b" roughness={1}/></instancedMesh>{plants.filter(p=>p.type==='pot').map(p=><group key={p.x} position={[p.x,0,p.z]}><Cyl p={[0,.2,0]} r={.21} top={.25} h={.4} color="#b6b0a1"/><Cyl p={[0,.405,0]} r={.22} h={.012} color="#514c38"/></group>)}</>
 }
 function SolarSignLight(){const target=useMemo(()=>{const o=new THREE.Object3D();o.position.set(-3.45,3,-.18);return o},[]);return <><primitive object={target}/><spotLight position={[-3.45,3.45,-.8]} target={target} color="#ffdfac" intensity={7} angle={.75} penumbra={.6} distance={3}/></>}
 function Lantern({p,night}:{p:V3;night:boolean}){return <group position={p}><Box p={[0,.35,0]} s={[.055,.7,.055]} color={P.steel}/><Box p={[0,.75,0]} s={[.19,.3,.19]} color={P.dark}/><mesh position={[0,.75,0]}><boxGeometry args={[.145,.24,.145]}/><meshStandardMaterial color="#eed5a0" emissive="#ffbe5d" emissiveIntensity={night?2.5:.15}/></mesh><Box p={[0,.93,0]} s={[.24,.04,.24]} color={P.steel}/></group>}
@@ -94,6 +96,10 @@ function Grounds({state,raining,quality,night,onSelect}:{state:GameState;raining
  {/* The inspection sign stays blue; the temporary café sign appears only during drink service. */}{/* TASK-028: neutral matte gray boundary for the relative\u0027s house (right of the cafe). */}<Box p={[3.45,1.25,5.2]} s={[.18,2.5,11]} color="#858b89" map={stone}/><Box p={[3.45,2.53,5.2]} s={[.24,.1,11.1]} color="#757c7a"/><Box p={[-4.4,-.02,4.5]} s={[2.2,.07,10]} color="#9da693" map={stone} shadow={false}/><Box p={[-5.7,.75,5.5]} s={[.12,1.5,12]} color="#8d9c87"/><Cyl p={[-3.45,1.65,-.1]} r={.055} h={3.3} color="#3a4a3e"/><Box p={[-3.45,3,-.15]} s={[.94,.92,.05]} color="#2879b9"/><Sign text="ตรอ." sub="ตรวจสภาพรถ" width={.9} height={.88} p={[-3.45,3,-.18]} blue/><Box p={[-3.45,3.55,-.14]} s={[.55,.05,.22]} color="#1c2c3b"/><Box p={[-3.45,3.46,-.26]} s={[.42,.05,.12]} color="#303333"/>{night&&<SolarSignLight/>}<Box p={[-4.3,2.9,6.5]} s={[2.2,.1,4]} color="#59685c"/><Box p={[-5.4,1.4,6.5]} s={[.1,2.8,4]} color="#9aab99"/>{drinksOnly&&<group position={[-3.45,2.05,-.15]} rotation={[0,.1,0]}><Sign text="ONE DAY CAFE" sub="COFFEE · TEA · TO GO" width={.8} height={.22} dark/></group>}
  {[-2.1,2.35].flatMap((x,j)=>(j===0?[.7,4.8,7.4,9.8]:[.2,6.6,9.8]).map(z=><Lantern key={`${x},${z}`} p={[x,0,z]} night={night}/>))}<group onClick={e=>{e.stopPropagation();onSelect('garden')}}><Box p={[.15,.03,9.9]} s={[1.3,.05,.6]} color="#aaa78e" map={stone}/><Sign text="THE GARDEN" sub="TAKE A LITTLE BREAK" width={.9} height={.27} p={[-1.4,1.2,9.9]} dark glow={night?.1:0}/></group>
  </>}
+const FENCE_PARTS=Array.from({length:26},(_,i)=>[{p:[-2.5,.7,i*2] as V3,s:[.05,1.4,.05] as V3},...[.3,.7,1.1].map(y=>({p:[-2.5,y,i*2+1] as V3,s:[.025,.025,2] as V3}))]).flat();
+const WALK_JOINTS=Array.from({length:50},(_,i)=>({p:[-1.45,.06,.5+i] as V3,s:[1.46,.015,.018] as V3}));
+const DRAIN_PARTS=Array.from({length:80},(_,i)=>({p:[-2.47+i*.062,.045,.12] as V3,s:[.018,.012,.12] as V3}));
+function StaticBoxes({items,color}:{items:{p:V3;s:V3}[];color:string}){const ref=useRef<THREE.InstancedMesh>(null);useEffect(()=>{const m=new THREE.Object3D();items.forEach(({p,s},i)=>{m.position.set(...p);m.scale.set(...s);m.updateMatrix();ref.current!.setMatrixAt(i,m.matrix)});ref.current!.instanceMatrix.needsUpdate=true;ref.current!.computeBoundingSphere()},[items]);return <instancedMesh ref={ref} args={[undefined,undefined,items.length]} receiveShadow><boxGeometry/><meshStandardMaterial color={color} roughness={.85}/></instancedMesh>}
 function FullSiteMaintenance({state}:{state:GameState}){const a=state.employees.find(e=>e.id==='alee')!,task=a.task;return <>
  {task?.maintenance==='water'&&<group position={[a.position[0],.8,a.position[1]]}><Cyl p={[.15,0,0]} r={.1} h={.18} color="#476c59"/><Box p={[.28,.03,0]} s={[.24,.04,.04]} color="#476c59"/>{task.phase==='working'&&<mesh position={[.4,-.25,0]} rotation={[0,0,.25]}><cylinderGeometry args={[.008,.035,.5,6]}/><meshStandardMaterial color="#b4dce4" transparent opacity={.55}/></mesh>}</group>}
  {task?.maintenance==='sign'&&<group position={[-2.1,0,1.1]} rotation={[0,0,.35]}>{[-.18,.18].map(x=><Box key={x} p={[x,1.2,0]} s={[.035,2.4,.035]} color="#b4b9ae"/>)}{[.3,.6,.9,1.2,1.5,1.8,2.1].map(y=><Box key={y} p={[0,y,0]} s={[.36,.025,.03]} color="#b4b9ae"/>)}</group>}
@@ -106,13 +112,13 @@ function FullSiteGrounds({state,raining,quality,night,onSelect}:{state:GameState
  <Box p={[0,-.07,25]} s={[5,.12,50]} color={raining?'#a39e96':'#eee5d6'} map={gravel}/>
  <Box p={[0,-.015,2.5]} s={[5,.12,5]} color="#d2cec3" map={stone}/>
  <Box p={[-1.45,.015,25]} s={[1.5,.08,50]} color="#dcd6c9" map={stone}/>
- {Array.from({length:50},(_,i)=><Box key={i} p={[-1.45,.06,.5+i]} s={[1.46,.015,.018]} color="#b2ac9e" shadow={false}/>)}
+ <StaticBoxes items={WALK_JOINTS} color="#b2ac9e"/>
  <Box p={[0,-.05,-3]} s={[24,.12,6]} color="#535b5c" shadow={false}/>
- <Box p={[0,.025,.12]} s={[5,.03,.13]} color="#444f4d"/>{Array.from({length:80},(_,i)=><Box key={i} p={[-2.47+i*.062,.045,.12]} s={[.018,.012,.12]} color="#939d93" shadow={false}/>)}
+ <Box p={[0,.025,.12]} s={[5,.03,.13]} color="#444f4d"/><StaticBoxes items={DRAIN_PARTS} color="#939d93"/>
  <Box p={[-5,-.015,15]} s={[5,.1,30]} color="#b7bab3" map={stone} shadow={false}/>
  <Box p={[2.55,1.3,25]} s={[.15,2.6,50]} color="#858b89"/><Box p={[2.55,2.63,25]} s={[.25,.06,50]} color="#6e7774"/>
- {Array.from({length:26},(_,i)=><group key={i}><Box p={[-2.5,.7,i*2]} s={[.05,1.4,.05]} color="#eee9de"/>{[.3,.7,1.1].map(y=><Box key={y} p={[-2.5,y,i*2+1]} s={[.025,.025,2]} color="#eee9de" shadow={false}/>)}</group>)}
- <Foliage quality={quality}/>
+ <StaticBoxes items={FENCE_PARTS} color="#eee9de"/>
+ <Foliage quality={quality}/><AuthoredPlants/>
  {[2,6,14,18,22,27,32,37,42,47].map(z=><Lantern key={z} p={[-2.25,0,z]} night={night}/>)}
  {night&&[5,17,29,41].map(z=><pointLight key={z} position={[-1.95,.7,z]} intensity={5} color="#ffc27c" distance={6} decay={2}/>)}
  <Box p={[-3.1,2.1,1.2]} s={[.1,4.2,.1]} color="#2a4c63"/><Sign text="ตรอ." sub="ตรวจสภาพรถ" p={[-3.1,3.5,1.15]} width={.9} height={.9} blue glow={night?.35:0}/>
