@@ -1,6 +1,16 @@
 # ส่งต่องาน ONE DAY Café Life
 
-## Latest: 30 October 2026 — service realism
+## Latest: 4 November 2026 — QR retry and one-day verification
+
+Based on PR #23 head `fcd95a7`; branch `fix/one-day-validation-20261104`. Fixed the confirmed CI failure by applying the Pages base only to production builds, and moved QR/POS channel assignment after successful order creation so rejected bundles do not lock future ordering. Added T3 UI-to-closing, mid-production persistence, remote-delivery, cancellation, duplicate assignment and static route regressions. QA screenshots now use test output directories.
+
+Actually run: `npm ci` exit 0; `npm test` **54/54** (9 files), exit 0; `GITHUB_ACTIONS=true npm run build` exit 0, Pages prefix verified; original Chromium E2E suite **8/8** followed by the new T3 scenario **1/1**, both exit 0. This is nine scenarios across two runs. Existing large-bundle warning remains. No physical iPhone/Safari test, new hosted Preview, main merge or production deployment.
+
+[Evidence mapped to issue #22's 24 gates](docs/verification-2026-11-04.md) and [physical layout A/B review](docs/layout-ab-review-2026-11-04.md) identify remaining device, visual, real-store and measurement gaps. Do not claim 24/24 acceptance or a real multi-device Café OS from these simulation tests.
+
+GitHub metadata reports repository **public**. On 4 November 2026 the owner explicitly authorized pushing this prepared change and opening a Draft PR in the current public repository. That authorization resolves the private-before-push constraint for this change; it does not authorize merging or production deployment. Baseline tag remains unchanged.
+
+## Previous: 30 October 2026 — service realism
 
 Branch `feature/service-realism` starts from merged PR #4 (`9719cc5`). The user has explicitly authorized merge/publish and changed repository visibility to public; those instructions supersede the earlier private-only/no-publish constraints. Baseline tag is unchanged. See `docs/SERVICE_REALISM.md` for implementation and physical-animation limits.
 

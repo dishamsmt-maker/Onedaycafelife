@@ -21,3 +21,10 @@
 1. Review/merge PR เอกสารโดยผู้มีสิทธิ์ หลังตรวจว่า diff มีเพียง 4 Markdown files
 2. เลือกงาน P1 หนึ่งเรื่องและกำหนด acceptance criteria กับผู้ใช้ก่อนเริ่ม implementation
 3. เก็บ baseline tag เดิมไว้ ใช้ feature branch ใหม่ และแยกผลทดสอบแต่ละรอบ
+
+
+## 4 November 2026 — current verification follow-up
+
+Use GitHub issue #22 as the reconstructed 24-item tracker. Evidence and limits are mapped in [the verification report](docs/verification-2026-11-04.md); do not mark the whole tracker complete from unit tests alone. Current fixes cover CI dev-server paths and rejected QR/POS request channel state, with T3 service, accounting, retry and delivery-guard regressions.
+
+Remaining release evidence: physical iPhone/Safari, complete three-mode UI acceptance, crowd/animation review, physical-layout measurements, and owner review before merge/deployment. See [layout A/B](docs/layout-ab-review-2026-11-04.md). Real Café OS multi-device permissions/offline/payment functionality is not implemented by this browser simulation.
