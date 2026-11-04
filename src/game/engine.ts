@@ -206,6 +206,11 @@ function finishTask(s: GameState, e: Employee) {
           // The customer moved after the route was planned: never mark a remote delivery complete.
           o.status = 'ready'; o.workerId = undefined;
         }
+      } else if (o && o.status === 'serving') {
+        // A cancelled/absent customer cannot receive this delivery. Release the
+        // assignment so it cannot remain stuck in the serving queue forever.
+        o.status = c && c.status !== 'leaving' && c.orderIds.includes(o.id) ? 'ready' : 'cancelled';
+        o.workerId = undefined;
       }
     }
   } else if (t.kind === 'clean') {
