@@ -13,7 +13,7 @@ export const OBSTACLES:Obstacle[]=[
  {x:-.65,z:9.175,w:.1,d:4.35},{x:-.65,z:12.625,w:.1,d:.75},
  {x:2.3,z:10,w:.4,d:6},{x:.8,z:12.95,w:3,d:.1},
  ...TABLE_LAYOUT.map(t=>({x:t.position[0],z:t.position[1],w:1.15,d:1.05})),
- {x:2.025,z:28.6,w:.55,d:3.2},{x:1.2,z:46,w:2,d:5}
+ {x:1.2,z:35,w:.3,d:.3},{x:1.2,z:39,w:.3,d:.3},{x:2.025,z:28.6,w:.55,d:3.2},{x:1.2,z:46,w:2,d:5}
 ];
 export function canWalk(x:number,z:number, radius=.16){return x>-2.5+radius&&x<2.5-radius&&z>radius&&z<50-radius&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);}
 /** Sample a complete movement segment so NPCs cannot clip through counter corners. */
