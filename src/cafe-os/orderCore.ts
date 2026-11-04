@@ -19,6 +19,7 @@ export interface CafeOrder {
   status: CafeOrderStatus;
   paidSatang: number;
   paymentRecorded?: boolean;
+  refundedSatang?: number;
   stockConsumed: boolean;
 }
 export interface CafeStore {
@@ -96,5 +97,24 @@ export function payCafeOrder(store: CafeStore, orderId: string): CafeStore {
   paidOrder.paidSatang = amount;
   paidOrder.paymentRecorded = true;
   next.cashSatang += amount;
+  return next;
+}
+
+/**
+ * Explicit full refund and cancellation. Consumed ingredients remain consumed
+ * (waste accounting is a separate follow-up). Retrying cannot refund twice.
+ */
+export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): CafeStore {
+  const old = store.orders.find(o => o.id === orderId);
+  if (!old || old.status === 'served' || old.status === 'cancelled') return store;
+  if (!old.paymentRecorded) return advanceCafeOrder(store, [], orderId, 'cancelled');
+  if (old.refundedSatang !== undefined) return store;
+  const next = copy(store);
+  const order = next.orders.find(o => o.id === orderId)!;
+  const amount = order.paidSatang;
+  if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(next.cashSatang - amount)) return store;
+  order.refundedSatang = amount;
+  order.status = 'cancelled';
+  next.cashSatang -= amount;
   return next;
 }
