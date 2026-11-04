@@ -8,7 +8,7 @@ Actually run: `npm ci` exit 0; `npm test` **54/54** (9 files), exit 0; `GITHUB_A
 
 [Evidence mapped to issue #22's 24 gates](docs/verification-2026-11-04.md) and [physical layout A/B review](docs/layout-ab-review-2026-11-04.md) identify remaining device, visual, real-store and measurement gaps. Do not claim 24/24 acceptance or a real multi-device Café OS from these simulation tests.
 
-GitHub metadata currently reports repository **public**. AGENTS.md still requires private verification before push; local changes are prepared for review pending resolution of that publication constraint. Baseline tag remains unchanged.
+GitHub metadata reports repository **public**. On 4 November 2026 the owner explicitly authorized pushing this prepared change and opening a Draft PR in the current public repository. That authorization resolves the private-before-push constraint for this change; it does not authorize merging or production deployment. Baseline tag remains unchanged.
 
 ## Previous: 30 October 2026 — service realism
 
