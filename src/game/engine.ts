@@ -194,7 +194,9 @@ function finishTask(s: GameState, e: Employee) {
     else if (t.stage === 'take-order' && c) placeOrders(s, c);
     else {
       const o = s.orders.find(o => o.id === t.orderId);
-      if (o && o.status !== 'cancelled' && c?.status !== 'leaving') {
+      // A delivery can only complete for a live customer and an order actively
+      // assigned for serving. Never resurrect cancelled or abandoned orders.
+      if (o && o.status === 'serving' && c && c.status !== 'leaving' && c.orderIds.includes(o.id)) {
         o.status = 'completed'; o.completedAt = s.minute; o.workerId = undefined;
         s.todayWaits.push(s.minute - o.createdAt);
       }
