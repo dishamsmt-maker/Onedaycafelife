@@ -141,4 +141,17 @@ describe('Café OS isolated order pipeline', () => {
     expect(closeCafeDay(served).readyToClose).toBe(false);
     expect(closeCafeDay(payCafeOrder(served, accepted.order.id)).readyToClose).toBe(true);
   });
+  it('rejects balanced but forged journal events and missing payment entries', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const paid = payCafeOrder(accepted.store, accepted.order.id);
+    expect(reconcileCafeCash(paid).balanced).toBe(true);
+    const forged = { ...paid, cashEvents: paid.cashEvents.map(e => ({
+      ...e, orderId: 'unrelated-order', id: e.type + '-unrelated-order',
+    })) };
+    expect(reconcileCafeCash(forged).balanced).toBe(false);
+    expect(closeCafeDay(forged).readyToClose).toBe(false);
+    expect(reconcileCafeCash({ ...paid, cashEvents: [] }).balanced).toBe(false);
+    const wrongAmount = { ...paid, orders: paid.orders.map(o => ({ ...o, paidSatang: 1 })) };
+    expect(reconcileCafeCash(wrongAmount).balanced).toBe(false);
+  });
 });
