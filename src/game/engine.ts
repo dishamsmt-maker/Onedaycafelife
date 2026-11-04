@@ -14,11 +14,11 @@ function random(s: GameState) { s.seed = (Math.imul(s.seed, 1664525) + 101390422
 function pick<T>(s: GameState, items: T[]): T { return items[Math.min(items.length - 1, Math.floor(random(s) * items.length))]; }
 function draft(s: GameState): GameState {
   return { ...s, guests: (s.guests ?? []).map(g => ({ ...g })), employees: s.employees.map(e => ({ ...e, position: [...e.position], task: e.task ? { ...e.task, target: [...e.task.target], path: e.task.path.map(p => [...p]) } : null })),
-    customers: s.customers.map(c => ({ ...c, position: [...c.position], path: c.path.map(p => [...p]), orderIds: [...c.orderIds] })),
-    orders: s.orders.map(o => ({ ...o })), tables: s.tables.map(t => ({ ...t, customerIds: [...t.customerIds] })),
+    customers: s.customers.map(c => ({ ...c, position: [...c.position], path: c.path.map(p => [...p]), orderIds: [...c.orderIds], requestIds: c.requestIds ? [...c.requestIds] : undefined })),
+    orders: s.orders.map(o => ({ ...o, componentOrderIds: o.componentOrderIds ? [...o.componentOrderIds] : undefined })), tables: s.tables.map(t => ({ ...t, customerIds: [...t.customerIds] })),
     inventory: s.inventory.map(i => ({ ...i })), ledger: [...s.ledger], reviews: [...s.reviews], reports: [...s.reports],
     events: s.events.map(e => ({ ...e })), garden: { ...s.garden }, notices: [...s.notices], shortages: [...s.shortages],
-    todayWaits: [...s.todayWaits], todaySatisfaction: [...s.todaySatisfaction], settings: { ...s.settings }, menu: s.menu.map(m => ({ ...m, recipe: { ...m.recipe } })) };
+    todayWaits: [...s.todayWaits], todaySatisfaction: [...s.todaySatisfaction], settings: { ...s.settings }, menu: s.menu.map(m => ({ ...m, recipe: { ...m.recipe }, components: m.components?.map(component => ({ ...component })) })) };
 }
 function notice(s: GameState, text: string) { s.notices.unshift({ id: uid(s, 'notice'), text, minute: s.minute }); s.notices = s.notices.slice(0, 25); }
 function transaction(s: GameState, type: Transaction['type'], amount: number, cashDelta: number, note: string, orderId?: string) {
