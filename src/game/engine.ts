@@ -550,8 +550,12 @@ export function act(state: GameState, action: GameAction): GameState {
       if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       const c=ensurePlayer(s);c.orderChannel=action.channel;c.takeaway=action.channel==='counter';
+      // Only consume the idempotency key after an order was actually created.
+      // Invalid bundles must remain retryable after their catalog is repaired.
+      const order=placeCustomerOrder(s,c,m.id);
+      if(!order)break;
       c.requestIds=[...(c.requestIds??[]),action.requestId];
-      placeCustomerOrder(s,c,m.id);c.status='waiting';break;
+      c.status='waiting';break;
     }
     case 'visitor-prepay': {
       const c=s.customers.find(c=>c.player&&c.status!=='leaving'&&c.orderChannel==='counter');if(!c)break;
