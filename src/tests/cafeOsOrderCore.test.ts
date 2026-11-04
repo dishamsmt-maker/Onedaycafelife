@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder, refundAndCancelCafeOrder, reconcileCafeCash } from '../cafe-os/orderCore';
+import { createCafeStore, submitCafeOrder, advanceCafeOrder, payCafeOrder, refundAndCancelCafeOrder, reconcileCafeCash, recordCafeOrderCost } from '../cafe-os/orderCore';
 
 const catalog = [{ id: 'halal-porridge', priceSatang: 4500, recipe: { rice: 2 }, enabled: true }];
 const request = { requestId: 'qr-t3-001', tableId: 't3', itemId: 'halal-porridge', quantity: 2 };
@@ -88,5 +88,22 @@ describe('Café OS isolated order pipeline', () => {
     expect(refunded.cashEvents).toHaveLength(2);
     expect(reconcileCafeCash(refunded)).toEqual({ expectedSatang: 0, balanced: true });
     expect(reconcileCafeCash({ ...refunded, cashSatang: 100 }).balanced).toBe(false);
+  });
+  it('records actual ingredient cost once and treats cancelled preparation as waste', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
+    const costed = recordCafeOrderCost(preparing, catalog, accepted.order.id, { rice: 350 });
+    expect(costed.orders[0].consumedCostSatang).toBe(1400);
+    expect(recordCafeOrderCost(costed, catalog, accepted.order.id, { rice: 350 })).toBe(costed);
+    const cancelled = refundAndCancelCafeOrder(costed, accepted.order.id);
+    expect(cancelled.wasteCostSatang).toBe(1400);
+    expect(cancelled.stock.rice).toBe(6);
+    expect(refundAndCancelCafeOrder(cancelled, accepted.order.id)).toBe(cancelled);
+  });
+
+  it('refuses to invent cost when ingredient pricing is absent', () => {
+    const accepted = submitCafeOrder(createCafeStore({ rice: 10 }), catalog, request);
+    const preparing = advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing');
+    expect(recordCafeOrderCost(preparing, catalog, accepted.order.id, {})).toBe(preparing);
   });
 });
