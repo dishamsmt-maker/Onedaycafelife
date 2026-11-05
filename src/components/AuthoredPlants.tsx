@@ -11,7 +11,7 @@ export default function AuthoredPlants(){
    const source=scene.getObjectByName(name);if(!source)continue;
    const part=source.clone(true);
    part.traverse(node=>{if(!(node instanceof THREE.Mesh))return;const original=node.material as THREE.MeshStandardMaterial;
-    const material=new THREE.MeshStandardMaterial({map:original.map,normalMap:original.normalMap,roughnessMap:original.roughnessMap,aoMap:original.aoMap,color:original.color,roughness:Math.max(.55,original.roughness),metalness:0,alphaTest:name==='leaves'?.4:0,side:name==='leaves'?THREE.DoubleSide:THREE.FrontSide});
+    const material=new THREE.MeshStandardMaterial({map:original.map,normalMap:original.normalMap,roughnessMap:original.roughnessMap,aoMap:original.aoMap,color:original.color,roughness:Math.max(.55,original.roughness),metalness:0,emissive:name==='leaves'?new THREE.Color('#355c31'):new THREE.Color('#000000'),emissiveIntensity:name==='leaves'?.08:0,alphaTest:name==='leaves'?.4:0,side:name==='leaves'?THREE.DoubleSide:THREE.FrontSide});
     node.material=material;node.castShadow=true;node.receiveShadow=true;materials.push(material);
    });root.add(part);
   }
