@@ -166,7 +166,7 @@ describe('shared demo day projections', () => {
       tableId: 't3', itemId: 'congee-chicken', quantity: 1,
     });
     const orderId = day.store.orders[0].id;
-    const invalidCosts = [
+    const invalidCosts: ReadonlyArray<Readonly<Record<string, number>>> = [
       { congee: 500 },
       { congee: 500, chicken: -1 },
       { congee: 500, chicken: Number.NaN },
