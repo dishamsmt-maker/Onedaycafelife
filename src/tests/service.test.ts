@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import {act,createGame,tick} from '../game/engine';
-import {WATER_STOPS,drinkSteps} from '../game/service';
+import {GARDEN_PLANTS,WATER_STOPS,drinkSteps} from '../game/service';
 import {canWalk} from '../game/world';
 function quiet(){const s=createGame(123);s.paused=false;s.settings.arrivalsPerHour=0;s.events=[];return s;}
 it('Alee mounts before opening, removes at midday, remounts evening and removes closing',()=>{
@@ -59,4 +59,13 @@ it('occasional children reserve a seat with their guardian and depart together',
   for(const child of s.customers.filter(c=>c.guardianId&&c.status!=='leaving'))expect(s.customers.find(c=>c.id===child.guardianId)?.status).not.toBe('leaving');
  }
  s=act(s,{type:'close'});s=tick(s,180);expect(s.phase).toBe('closed');expect(s.customers).toHaveLength(0);
+});
+
+it('monstera, rubber plants and ferns share the existing accessible watering route',()=>{
+ expect(GARDEN_PLANTS).toHaveLength(22);expect(WATER_STOPS).toHaveLength(22);
+ for(const species of ['monstera','rubber','fern'] as const){
+  const indices=GARDEN_PLANTS.flatMap((plant,i)=>plant.species===species?[i]:[]);
+  expect(indices.length).toBeGreaterThanOrEqual(3);
+  expect(indices.every(i=>canWalk(...WATER_STOPS[i]))).toBe(true);
+ }
 });

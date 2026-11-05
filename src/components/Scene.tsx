@@ -1,10 +1,11 @@
+import FeaturedPlants from './FeaturedPlants';
 import AuthoredPlants from './AuthoredPlants';
 import {GARDEN_PLANTS} from '../game/service';
 import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Customer, Employee, GameState, Vec2 } from '../game/types';
-import { TABLE_LAYOUT } from '../game/world';
+import { TABLE_LAYOUT, BAR_SIDE_WINDOW } from '../game/world';
 import CameraRig from './CameraRig';
 import { Dish, Drink } from './FoodModels';
 import {LiveFridge,LiveProduction} from './LiveWorkstations';
@@ -49,7 +50,7 @@ function Foliage({quality}:{quality:'low'|'high'}){
  const perPlant=quality==='high'?72:48;
  useEffect(()=>{if(!leaves.current||!trunks.current)return;const d=new THREE.Object3D(),color=new THREE.Color();let n=0;plants.forEach((p,pi)=>{
  const trunkH=p.type==='tree'?p.h*.78:p.type==='palm'?p.h*.72:p.h*.6;d.position.set(p.x,trunkH/2,p.z);d.rotation.set(0,0,p.type==='tree'?.06:0);d.scale.set(p.type==='tree'?.09:.025,trunkH,p.type==='tree'?.09:.025);d.updateMatrix();trunks.current!.setMatrixAt(pi,d.matrix);
- for(let i=0;i<perPlant;i++){const a=i*2.399+pi*.8,v=(i*.618)%1;let x=0,y=0,z=0,sx=.09,sy=.16,sz=.025;
+ for(let i=0;i<perPlant;i++){if(p.species){d.position.set(p.x,0,p.z);d.scale.setScalar(0);d.updateMatrix();leaves.current!.setMatrixAt(n,d.matrix);color.set('#ffffff');leaves.current!.setColorAt(n++,color);continue;}const a=i*2.399+pi*.8,v=(i*.618)%1;let x=0,y=0,z=0,sx=.09,sy=.16,sz=.025;
  if(p.type==='tree'){const radius=.25+Math.sqrt(v)*.95;x=Math.cos(a)*radius;z=Math.sin(a)*radius;y=p.h-.4+Math.sin(i*5.13)*.48;sx=.14;sy=.32;sz=.055;d.rotation.set(1.15+v*.6,a,Math.sin(i)*.5)}
  else if(p.type==='palm'){const frond=i%8,t=Math.floor(i/8)/(perPlant/8),f=frond*Math.PI/4;const r=.2+t*.65;x=Math.cos(f)*r;z=Math.sin(f)*r;y=p.h-.35*t*t;sx=.065;sy=.28;sz=.018;d.rotation.set(.95+t*.5,f,i%2?.5:-.5)}
  else{const r=Math.sqrt(v)*(p.x< -2.2?.05:p.type==='pot'?.27:.4);x=Math.cos(a)*r;z=Math.sin(a)*r;y=p.h*.62+Math.sin(i*2.1)*p.h*.28;sx=p.x< -2.2?.035:p.type==='pot'?.16:.13;sy=p.x< -2.2?.10:p.type==='pot'?.32:.23;sz=.045;d.rotation.set(.8,a,Math.sin(a)*.6)}
@@ -118,7 +119,7 @@ function FullSiteGrounds({state,raining,quality,night,onSelect}:{state:GameState
  <Box p={[-5,-.015,15]} s={[5,.1,30]} color="#b7bab3" map={stone} shadow={false}/>
  <Box p={[2.55,1.3,25]} s={[.15,2.6,50]} color="#858b89"/><Box p={[2.55,2.63,25]} s={[.25,.06,50]} color="#6e7774"/>
  <StaticBoxes items={FENCE_PARTS} color="#eee9de"/>
- <Foliage quality={quality}/><AuthoredPlants/>
+ <Foliage quality={quality}/><FeaturedPlants quality={quality}/><AuthoredPlants/>
  {[2,6,14,18,22,27,32,37,42,47].map(z=><Lantern key={z} p={[-2.25,0,z]} night={night}/>)}
  {night&&[5,17,29,41].map(z=><pointLight key={z} position={[-1.95,.7,z]} intensity={5} color="#ffc27c" distance={6} decay={2}/>)}
  <Box p={[-3.1,2.1,1.2]} s={[.1,4.2,.1]} color="#2a4c63"/><Sign text="ตรอ." sub="ตรวจสภาพรถ" p={[-3.1,3.5,1.15]} width={.9} height={.9} blue glow={night?.35:0}/>
@@ -136,7 +137,16 @@ function FullSiteShop({state,first,night,fridgeOpen,onSelect}:{state:GameState;f
  return <>
  <Box p={[.8,.025,10]} s={[3,.08,6]} color="#dfd8c8" map={stone}/>
  <Box p={[2.3,1.35,10]} s={[.4,2.7,6]} color="#e7ddca"/>
- <Box p={[-.65,1.35,9.175]} s={[.1,2.7,4.35]} color="#e7ddca"/>
+ {/* Open drink-bar hatch faces the inspection fence; the rear kitchen stays enclosed. */}
+ <Box p={[-.65,BAR_SIDE_WINDOW.sill/2,9.175]} s={[.1,BAR_SIDE_WINDOW.sill,4.35]} color="#e7ddca"/>
+ <Box p={[-.65,(2.7+BAR_SIDE_WINDOW.head)/2,9.175]} s={[.1,2.7-BAR_SIDE_WINDOW.head,4.35]} color="#e7ddca"/>
+ <Box p={[-.65,1.7,7.2]} s={[.1,1.3,.4]} color="#e7ddca"/>
+ <Box p={[-.65,1.7,10.725]} s={[.1,1.3,1.25]} color="#e7ddca"/>
+ <group onClick={e=>{e.stopPropagation();onSelect('bar')}}>
+ <Box p={[-.55,1.045,8.75]} s={[.3,.07,2.75]} color="#a07145" map={wood}/>
+ {[7.4,10.1].map(z=><Box key={z} p={[-.66,1.7,z]} s={[.13,1.3,.055]} color="#303b32"/>)}
+ <Box p={[-.66,2.35,8.75]} s={[.13,.055,2.75]} color="#303b32"/>
+ </group>
  <Box p={[-.65,1.35,12.625]} s={[.1,2.7,.75]} color="#e7ddca"/>
  <Box p={[.8,1.35,12.95]} s={[3,2.7,.1]} color="#e7ddca"/>
  <Box p={[-.65,2.55,11.8]} s={[.1,.3,.9]} color="#b7ae98"/>
@@ -148,7 +158,7 @@ function FullSiteShop({state,first,night,fridgeOpen,onSelect}:{state:GameState;f
  <Sign text="PICK UP" p={[-.1,.78,7.075]} width={.65} height={.16} dark/><Sign text="ORDER / PAY" p={[1.65,.78,7.075]} width={.8} height={.16} dark/>
  {[[-.375,9.65,.65,3.4],[1.875,10.1,.65,4.3],[.8,12.575,2.8,.65]].map(([x,z,w,d],i)=><group key={i}><Box p={[x,.44,z]} s={[w,.88,d]} color="#d7c9ac"/><Box p={[x,.92,z]} s={[w+.025,.055,d+.025]} color="#b5c0b8" metalness={.55} roughness={.3}/></group>)}
  <group position={[-2.4,-.1,6.7]}><Espresso busy={brew} paused={state.paused}/></group>
- <Box p={[-.4,1.85,8.7]} s={[.55,.06,1.8]} color="#997246" map={wood}/>{[8.2,8.5,8.8,9.1].map(z=><Cyl key={z} p={[-.4,1.95,z]} r={.045} h={.14} color="#f2ead8"/>)}
+ <Box p={[-.4,1.24,8.7]} s={[.55,.06,1.8]} color="#997246" map={wood}/>{[8.2,8.5,8.8,9.1].map(z=><Cyl key={z} p={[-.4,1.34,z]} r={.045} h={.14} color="#f2ead8"/>)}
  <Box p={[1.875,1.94,10.4]} s={[.8,.3,1.4]} color="#82918a" metalness={.65}/><Box p={[1.875,2.43,10.4]} s={[.4,.7,.5]} color="#8f9b95" metalness={.65}/>
  <Box p={[1.6,1.25,7.45]} s={[.32,.24,.04]} color="#283731"/><Box p={[1.6,1.25,7.48]} s={[.27,.18,.01]} color="#6d9d91"/>
  <Box p={[.15,.94,12.575]} s={[.6,.025,.42]} color="#64766b" metalness={.6}/><Box p={[.95,.94,12.575]} s={[.4,.025,.35]} color="#64766b" metalness={.6}/>

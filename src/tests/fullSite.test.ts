@@ -32,3 +32,8 @@ it('reports unfinished maintenance when closing reaches the fallback deadline',(
  expect(s.phase).toBe('closed');expect(s.reports).toHaveLength(1);
  expect(s.reports[0].inspection).toContain('รดน้ำยังไม่ครบ 0/44');expect(s.reports[0].inspection).toContain('ยังไม่ได้ถอดป้าย');
 });
+it('side ordering point is public while the solid kitchen remains staff-only',async()=>{
+ const {CUSTOMER_COUNTER_POINTS,nearCustomerCounter}=await import('../game/world');
+ const side=CUSTOMER_COUNTER_POINTS[1];expect(canVisitorWalk(...side)).toBe(true);expect(nearCustomerCounter(side)).toBe(true);
+ expect(nearCustomerCounter([-1.4,30])).toBe(false);expect(canVisitorWalk(...STATIONS.kitchen)).toBe(false);
+});

@@ -4,6 +4,9 @@ export const WORLD = {width:5,depth:50,front:0,back:50};
 export const siteToWorld=(x:number,z:number):Vec2=>[x-2.5,z];
 export const toRender=([x,z]:Vec2):Vec2=>[-x,z];
 export const STATIONS = {bar:[.4,8.65],kitchen:[1.2,10.4],pickup:[-.1,6.6],dish:[.3,11.9],garden:[-1.4,32],restroom:[-.1,46],rest:[1.1,42],manager:[-.9,5.5],entrance:[-1.4,.4],queue:[.6,5.7],fridge:[1.2,11.65]} satisfies Record<string,Vec2>;
+export const BAR_SIDE_WINDOW={x:-.65,zMin:7.4,zMax:10.1,sill:1.05,head:2.35};
+export const CUSTOMER_COUNTER_POINTS:Vec2[]=[STATIONS.pickup,[-1.0,8.65]];
+export const nearCustomerCounter=(p:Vec2)=>CUSTOMER_COUNTER_POINTS.some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<1.15);
 export const TABLE_LAYOUT = [14.2,16.6,19,21.4,23.8].map((z,i)=>({id:`t${i+1}`,name:`T${i+1}`,position:[.8,z] as Vec2,capacity:4}));
 export interface Obstacle {x:number;z:number;w:number;d:number;}
 export const OBSTACLES:Obstacle[]=[

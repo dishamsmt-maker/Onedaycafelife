@@ -4,7 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import { PerspectiveCamera } from 'three';
 import { useVisitor } from '../game/visitor';
 import { useGame } from '../game/store';
-import { canWalk, canVisitorWalk, STATIONS } from '../game/world';
+import { canWalk, canVisitorWalk, STATIONS, CUSTOMER_COUNTER_POINTS } from '../game/world';
 import { touchControls, type InteractionKind } from '../game/touchControls';
 
 export interface CameraRigProps {
@@ -127,7 +127,7 @@ export default function CameraRig({mode,onSelect,onInteract}:CameraRigProps) {
     camera.rotation.set(touchControls.view.pitch,yaw,0,'YXZ');
     touchControls.position.x=camera.position.x;touchControls.position.z=camera.position.z;
     const choices:{kind:InteractionKind;label:string;point:readonly[number,number];id?:string}[]=visitor.role==='customer'?
-      [{kind:'bar',label:'ดูเมนูและสั่งอาหาร',point:STATIONS.pickup}]:[
+      CUSTOMER_COUNTER_POINTS.map(point=>({kind:'bar' as const,label:'ดูเมนูและสั่งอาหาร',point})):[
       {kind:'fridge',label:'เปิดตู้เย็น',point:STATIONS.fridge},{kind:'bar',label:'สำรวจบาร์กาแฟ',point:STATIONS.bar},
       {kind:'kitchen',label:'สำรวจครัว',point:STATIONS.kitchen},{kind:'garden',label:'สำรวจสวน',point:STATIONS.garden}];
     if(visitor.role==='customer'&&!visitor.tableId)for(const t of useGame.getState().game.tables)choices.push({kind:'table',label:`นั่งโต๊ะ ${t.name}`,point:t.position,id:t.id});
