@@ -35,7 +35,7 @@ describe('Café OS isolated order pipeline', () => {
   it('rejects sold-out production without mutating stock or status', () => {
     const accepted = submitCafeOrder(createCafeStore({ rice: 3 }), catalog, request);
     expect(accepted.accepted).toBe(false);
-    expect(accepted.reason).toBe('insufficient-stock');
+    expect(accepted.reason).toBe('out-of-stock');
     expect(accepted.store.orders).toHaveLength(0);
     expect(accepted.store.stock.rice).toBe(3);
   });
