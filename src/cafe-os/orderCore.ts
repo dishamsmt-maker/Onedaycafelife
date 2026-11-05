@@ -48,7 +48,7 @@ const copy = (store: CafeStore): CafeStore => ({
 });
 const validId = (s: string) => typeof s === 'string' && s.trim().length > 0;
 export function createCafeStore(stock: Record<string, number>): CafeStore {
-  if (Object.values(stock).some(n => !Number.isFinite(n) || n < 0)) throw new Error('invalid stock');
+  if (Object.entries(stock).some(([id, n]) => !validId(id) || !Number.isFinite(n) || n < 0)) throw new Error('invalid stock');
   return { orders: [], stock: { ...stock }, cashEvents: [], cashSatang: 0, wasteCostSatang: 0 };
 }
 export function submitCafeOrder(
