@@ -1,6 +1,6 @@
 import {
   advanceCafeOrder, closeCafeDay, createCafeStore, payCafeOrder,
-  recordCafeOrderCost, submitCafeOrder,
+  recordCafeOrderCost, refundAndCancelCafeOrder, submitCafeOrder,
   type CafeCatalogItem, type CafeStore,
 } from './orderCore';
 
@@ -12,7 +12,7 @@ import {
 export type DemoEvent = {
   sequence: number;
   actor: 'customer' | 'Na' | 'Ken' | 'manager';
-  action: 'ordered' | 'preparing' | 'ready' | 'served' | 'paid';
+  action: 'ordered' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled';
   orderId: string;
 };
 export interface DemoDay {
@@ -30,7 +30,8 @@ export function applyDemoAction(
     | { actor: 'Na'; type: 'prepare'; orderId: string; costs: Readonly<Record<string, number>> }
     | { actor: 'Na'; type: 'ready'; orderId: string }
     | { actor: 'Ken'; type: 'serve'; orderId: string }
-    | { actor: 'manager'; type: 'pay'; orderId: string },
+    | { actor: 'manager'; type: 'pay'; orderId: string }
+    | { actor: 'manager'; type: 'cancel'; orderId: string },
 ): DemoDay {
   let next = day.store;
   let orderId = '';
@@ -59,6 +60,9 @@ export function applyDemoAction(
     } else if (action.type === 'serve') {
       next = advanceCafeOrder(next, catalog, orderId, 'served');
       eventAction = 'served';
+    } else if (action.type === 'cancel') {
+      next = refundAndCancelCafeOrder(next, orderId);
+      eventAction = 'cancelled';
     } else {
       next = payCafeOrder(next, orderId);
       eventAction = 'paid';
