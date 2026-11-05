@@ -91,8 +91,9 @@ export function applyDemoAction(
 export function demoDayViews(day: DemoDay) {
   return {
     customer: day.store.orders.map(o => ({ id: o.id, tableId: o.tableId, status: o.status })),
-    kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing'),
-    service: day.store.orders.filter(o => o.status === 'ready'),
+    // Return detached projections: UI consumers must never mutate the canonical day state.
+    kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing').map(o => ({ ...o, recipeSnapshot: o.recipeSnapshot ? { ...o.recipeSnapshot } : undefined })),
+    service: day.store.orders.filter(o => o.status === 'ready').map(o => ({ ...o, recipeSnapshot: o.recipeSnapshot ? { ...o.recipeSnapshot } : undefined })),
     manager: { cashSatang: day.store.cashSatang, stock: { ...day.store.stock }, closed: day.closed, close: closeCafeDay(day.store) },
   };
 }
