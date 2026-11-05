@@ -1,3 +1,4 @@
+import {cameraStride,clearCameraSegment} from '../game/cameraMotion';
 import {potObstacles} from '../game/cozy';
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -117,15 +118,15 @@ export default function CameraRig({mode,onSelect,onInteract}:CameraRigProps) {
     const keyboardSide=(keys.current.has('KeyD')||keys.current.has('ArrowRight')?1:0)-(keys.current.has('KeyA')||keys.current.has('ArrowLeft')?1:0);
     let forward=CLAMP(touchControls.move.y+keyboardForward,-1,1),side=CLAMP(touchControls.move.x+keyboardSide,-1,1);
     const length=Math.hypot(forward,side);if(length>1){forward/=length;side/=length;}
-    const yaw=touchControls.view.yaw,pace=Math.min(dt,.08)*1.65;
+    const yaw=touchControls.view.yaw,pace=cameraStride(dt);
     const dx=(-Math.sin(yaw)*forward+Math.cos(yaw)*side)*pace;
     const dz=(-Math.cos(yaw)*forward-Math.sin(yaw)*side)*pace;
     // The rendered world is X-mirrored; navigation always uses original coordinates.
     const state=useGame.getState().game;
     const walkable=(x:number,z:number,r:number)=>(visitor.role==='customer'?canVisitorWalk:canWalk)(x,z,r,state.tables,potObstacles(state));
     if(!visitor.tableId){
-      if(walkable(-camera.position.x-dx,camera.position.z,.18))camera.position.x+=dx;
-      if(walkable(-camera.position.x,camera.position.z+dz,.18))camera.position.z+=dz;
+      if(clearCameraSegment([-camera.position.x,camera.position.z],[-camera.position.x-dx,camera.position.z],(x,z)=>walkable(x,z,.18)))camera.position.x+=dx;
+      if(clearCameraSegment([-camera.position.x,camera.position.z],[-camera.position.x,camera.position.z+dz],(x,z)=>walkable(x,z,.18)))camera.position.z+=dz;
     }
     camera.position.y+=(touchControls.eyeHeight-camera.position.y)*Math.min(1,dt*12);
     camera.rotation.set(touchControls.view.pitch,yaw,0,'YXZ');

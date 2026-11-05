@@ -37,6 +37,6 @@ See [the dimensioned proposal](design-5x50/site-layout-v2.json) for the coordina
 
 The initial application JS was reduced from roughly **454 kB gzip** to **158 kB gzip**, with a separate ~293 kB gzip scene chunk. The 3D chunk still exceeds Vite's 500 kB uncompressed warning. Asset loads have local Suspense boundaries so a plant download cannot suspend the welcome/management UI. Details use instancing and the low quality tier lowers particles, leaves and shadow-map resolution.
 
-Vitest: **97/97 passed**, including manual production/reload/once-only costs and payment, decoration budget, shared moved-table routes and save preservation, real dirty-dish washing, greetings, shifts/wages, journal continuity and spatial attenuation. TypeScript/Vite build passed. Browser and deployment evidence is recorded in HANDOFF after its actual completion.
+Vitest: **100/100 passed**, including manual production/reload/once-only costs and payment, decoration budget, shared moved-table routes and save preservation, real dirty-dish washing, greetings, shifts/wages, journal continuity and spatial attenuation. TypeScript/Vite build passed. Browser and deployment evidence is recorded in HANDOFF after its actual completion.
 
 Physical iPhone/Safari performance, exact site measurements and photorealism are not established by these tests. Dynamic person-to-person avoidance remains separate from the furniture collision/pathfinding delivered here; it must not be described as complete.
