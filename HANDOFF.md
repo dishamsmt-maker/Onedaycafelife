@@ -124,3 +124,11 @@ Plant additions use the existing22 planting/watering positions: three monstera, 
 Build passed; full unit suite79/79 passed before the added side-counter regression, then targeted full-site/service suite14/14 passed including that regression. Browser side-hatch order test is pending at this writing. Full crowd avoidance, physical-device verification and final visual acceptance remain open. Earlier owner authorization to merge/deploy persists; no new permission is required for those actions once validation and intended scope are complete.
 
 The targeted side-hatch browser journey passed (1/1,52.3s): public approach, contextual menu, Thai-tea selection and one real counter-channel order. Captured actual window screenshot was inspected. This validates the requested hatch interaction, not all remaining game/visual acceptance items.
+
+## 5 November 2026 — Cozy life systems
+
+Owner repeatedly requested implementing the entire Cozy Realistic / Slow Living brief and checking before delivery. See [docs/COZY_LIFE.md](docs/COZY_LIFE.md) for the playable scope, shared state, save behaviour and explicit fidelity boundaries. Adds manual employee preparation/service/cleaning/washing, editable shifts, customer activities and greetings, quiet breaks, ambience animals/traffic, positional audio, decoration with real cash/collision, journal/progression and actual WebGL photo capture/album. New games run at0.25× with selectable0.25/0.5/1/2/5×.
+
+Site context now includes the pink roof and neighbouring buildings/cables; road setback is still a proposal, not a measured survey. New and existing saves retain finances, and moved tables/decoration survive reload. No backend or real payment service has been added.
+
+Actual verification so far:94/94 Vitest passed; TypeScript/Vite build passed. Initial JS505.93kB /158.30kB gzip, lazy Scene1053.39kB /293.46kB gzip. Earlier browser attempts caught a root-level asset suspension and an invalid literal newline in the existing Sky shader; these were fixed. Three targeted cozy browser flows passed; the manual-flow test initially asserted before the last2.2s action completed and now waits for the actual order status. A full16-case browser run is in progress; do not count it as passed before completion. Preserve the baseline tag and don't claim measured/photographic100% or physical-device approval.

@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef} from 'react';
 import * as THREE from 'three';
-import {GARDEN_PLANTS,type GardenSpecies} from '../game/service';
+import {GARDEN_PLANTS,type GardenSpecies,type GardenPlant} from '../game/service';
 
 /** Distinct silhouettes keep the requested species legible even on the mobile tier. */
 function leafShape(species:GardenSpecies){
@@ -17,8 +17,8 @@ function leafShape(species:GardenSpecies){
  }
  const geometry=new THREE.ShapeGeometry(shape,8);geometry.computeVertexNormals();return geometry;
 }
-function SpeciesLeaves({species,quality}:{species:GardenSpecies;quality:'low'|'high'}){
- const ref=useRef<THREE.InstancedMesh>(null),plants=useMemo(()=>GARDEN_PLANTS.filter(p=>p.species===species),[species]);
+function SpeciesLeaves({species,quality,extra=[]}:{species:GardenSpecies;quality:'low'|'high';extra?:GardenPlant[]}){
+ const ref=useRef<THREE.InstancedMesh>(null),plants=useMemo(()=>[...GARDEN_PLANTS,...extra].filter(p=>p.species===species),[species,extra]);
  const geometry=useMemo(()=>leafShape(species),[species]),perPlant=species==='fern'?8:quality==='high'?10:7;
  useEffect(()=>()=>geometry.dispose(),[geometry]);
  useEffect(()=>{if(!ref.current)return;const o=new THREE.Object3D();let index=0;
@@ -34,4 +34,4 @@ function SpeciesLeaves({species,quality}:{species:GardenSpecies;quality:'low'|'h
   <meshStandardMaterial color={species==='monstera'?'#39764c':species==='rubber'?'#264d37':'#719654'} roughness={species==='rubber'?.38:.72} side={THREE.DoubleSide}/>
  </instancedMesh>;
 }
-export default function FeaturedPlants({quality}:{quality:'low'|'high'}){return <>{(['monstera','rubber','fern'] as const).map(species=><SpeciesLeaves key={species} species={species} quality={quality}/>)}</>}
+export default function FeaturedPlants({quality,extra}:{quality:'low'|'high';extra?:GardenPlant[]}){return <>{(['monstera','rubber','fern'] as const).map(species=><SpeciesLeaves key={species} species={species} quality={quality} extra={extra}/>)}</>}

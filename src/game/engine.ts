@@ -1,3 +1,4 @@
+import { freshLife, activeTables, gardenComfort, guestActivity, POT_SLOTS, PLANT_PRICES, UMBRELLAS, potObstacles, staffSteps } from './cozy';
 import type { Customer, Employee, GameAction, GameState, Guest, MenuItem, Order, StaffId, Task, Transaction, Vec2, Weather } from './types';
 import {WATER_STOPS,signWanted} from './service';
 import { DEFAULT_SETTINGS, INITIAL_EMPLOYEES, INITIAL_INVENTORY, INITIAL_MENU, menuAvailable, servicePeriod } from './data';
@@ -13,20 +14,25 @@ const uid = (s: GameState, prefix: string) => `${prefix}-${s.day}-${s.nextId++}`
 function random(s: GameState) { s.seed = (Math.imul(s.seed, 1664525) + 1013904223) >>> 0; return s.seed / 4294967296; }
 function pick<T>(s: GameState, items: T[]): T { return items[Math.min(items.length - 1, Math.floor(random(s) * items.length))]; }
 function draft(s: GameState): GameState {
-  return { ...s, guests: (s.guests ?? []).map(g => ({ ...g })), employees: s.employees.map(e => ({ ...e, position: [...e.position], task: e.task ? { ...e.task, target: [...e.task.target], path: e.task.path.map(p => [...p]) } : null })),
+  return { ...s, life: {...(s.life??freshLife()),pots:(s.life?.pots??[]).map(p=>({...p})),journal:(s.life?.journal??[]).map(n=>({...n})),photos:(s.life?.photos??[]).map(n=>({...n}))},staffSchedule:structuredClone(s.staffSchedule??{}), guests: (s.guests ?? []).map(g => ({ ...g })), employees: s.employees.map(e => ({ ...e, position: [...e.position], task: e.task ? { ...e.task, target: [...e.task.target], path: e.task.path.map(p => [...p]) } : null })),
     customers: s.customers.map(c => ({ ...c, position: [...c.position], path: c.path.map(p => [...p]), orderIds: [...c.orderIds], requestIds: c.requestIds ? [...c.requestIds] : undefined })),
-    orders: s.orders.map(o => ({ ...o, componentOrderIds: o.componentOrderIds ? [...o.componentOrderIds] : undefined })), tables: s.tables.map(t => ({ ...t, customerIds: [...t.customerIds] })),
+    orders: s.orders.map(o => ({ ...o, componentOrderIds: o.componentOrderIds ? [...o.componentOrderIds] : undefined })), tables: s.tables.map(t => ({ ...t, position:[...t.position], customerIds: [...t.customerIds] })),
     inventory: s.inventory.map(i => ({ ...i })), ledger: s.ledger.map(entry => ({ ...entry })), reviews: s.reviews.map(review => ({ ...review })), reports: s.reports.map(report => ({ ...report, shortages: [...report.shortages] })),
     events: s.events.map(e => ({ ...e })), garden: { ...s.garden }, notices: s.notices.map(entry => ({ ...entry })), shortages: [...s.shortages],
     todayWaits: [...s.todayWaits], todaySatisfaction: [...s.todaySatisfaction], settings: { ...s.settings }, menu: s.menu.map(m => ({ ...m, recipe: { ...m.recipe }, components: m.components?.map(component => ({ ...component })) })) };
 }
-function notice(s: GameState, text: string) { s.notices.unshift({ id: uid(s, 'notice'), text, minute: s.minute }); s.notices = s.notices.slice(0, 25); }
+function notice(s: GameState, text: string) { const life=s.life??(s.life=freshLife());life.journal=[...life.journal,{id:uid(s,'journal'),day:s.day,minute:s.minute,text}].slice(-400); s.notices.unshift({ id: uid(s, 'notice'), text, minute: s.minute }); s.notices = s.notices.slice(0, 25); }
 function transaction(s: GameState, type: Transaction['type'], amount: number, cashDelta: number, note: string, orderId?: string) {
   if (orderId && s.ledger.some(t => t.orderId === orderId && t.type === type)) return;
   s.ledger.push({ id: uid(s, 'tx'), day: s.day, minute: round(s.minute), type, amount: round(amount), cashDelta: round(cashDelta), note, orderId });
   s.cash = round(s.cash + cashDelta);
 }
-export function activeServer(s: GameState): 'ken' | 'pun' { return s.serverOverride === 'auto' ? (s.minute < 840 ? 'ken' : 'pun') : s.serverOverride; }
+export function activeServer(s: GameState): 'ken' | 'pun' {
+ if(s.serverOverride!=='auto')return s.serverOverride;
+ const preferred=s.minute<840?'ken':'pun',other=preferred==='ken'?'pun':'ken';
+ const scheduled=(id:StaffId)=>{const shift=s.staffSchedule?.[id];return !shift||(s.minute>=shift.start&&s.minute<shift.end)};
+ return scheduled(preferred)?preferred:scheduled(other)?other:preferred;
+}
 function scheduleEvents(s: GameState) {
   const size = 8 + Math.floor(random(s) * 9);
   const minute = (s.day % 2 ? 8 * 60 : 17 * 60) + Math.floor(random(s) * 50);
@@ -34,9 +40,9 @@ function scheduleEvents(s: GameState) {
   if (s.day % 3 === 0) s.events[0].size = 12 + Math.floor(random(s) * 14);
 }
 export function createGame(seed = DEFAULT_SETTINGS.seed): GameState {
-  const s: GameState = { version: 1, catalogVersion:2, layoutVersion:2, day: 1, minute: 330, phase: 'preparing', paused: true, speed: 1, seed: seed >>> 0, nextId: 1,
+  const s: GameState = { life:freshLife(), staffSchedule:{}, version: 1, catalogVersion:2, layoutVersion:2, day: 1, minute: 330, phase: 'preparing', paused: true, speed: .25, seed: seed >>> 0, nextId: 1,
     cash: DEFAULT_SETTINGS.openingCash, reputation: 3.8, hearts: 0, cleanliness: 100, weather: 'sunny', weatherRemaining: 240,
-    employees: structuredClone(INITIAL_EMPLOYEES).map(e=>({...e,position:[...(e.id==='ham'?STATIONS.bar:e.id==='na'?STATIONS.kitchen:e.id==='alee'?STATIONS.manager:e.id==='ken'?STATIONS.pickup:STATIONS.rest)]})), customers: [], orders: [], tables: TABLE_LAYOUT.map(t => ({ ...t, position: [...t.position], customerIds: [], dirty: false })),
+    employees: structuredClone(INITIAL_EMPLOYEES).map(e=>({...e,position:[...(e.id==='ham'?STATIONS.bar:e.id==='na'?STATIONS.kitchen:e.id==='alee'?STATIONS.manager:e.id==='ken'?STATIONS.pickup:STATIONS.rest)]})), customers: [], orders: [], tables: TABLE_LAYOUT.map(t => ({ ...t, enabled:true, umbrella:'cream', position: [...t.position], customerIds: [], dirty: false })),
     inventory: structuredClone(INITIAL_INVENTORY), menu: structuredClone(INITIAL_MENU), ledger: [], reviews: [], reports: [], events: [], guests: [],
     garden: { moisture: 65, cleanliness: 95, lastInspection: -1, inspections: 0 }, baristaMode: 'auto', serverOverride: 'auto', notices: [],
     todayArrivals: 0, todayWaits: [], todaySatisfaction: [], openingCash: DEFAULT_SETTINGS.openingCash, settings: { ...DEFAULT_SETTINGS, seed }, shortages: [] };
@@ -45,8 +51,9 @@ export function createGame(seed = DEFAULT_SETTINGS.seed): GameState {
   return s;
 }
 
-function setTask(e: Employee, kind: Task['kind'], target: Vec2, remaining: number, extra: Partial<Task> = {}) {
-  e.task = { kind, target: [...target], remaining, phase: 'walking', path: findPath(e.position, target), ...extra };
+function pathFor(s:GameState,from:Vec2,to:Vec2){return findPath(from,to,s.tables,potObstacles(s))}
+function setTask(s:GameState,e: Employee, kind: Task['kind'], target: Vec2, remaining: number, extra: Partial<Task> = {}) {
+  e.task = { kind, target: [...target], remaining, phase: 'walking', path: pathFor(s,e.position, target), ...extra };
   e.available = false;
 }
 function walk(position: Vec2, path: Vec2[], distance: number) {
@@ -67,11 +74,11 @@ function seatPosition(s: GameState, c: Customer): Vec2 {
 function seatCustomer(s: GameState, c: Customer): boolean {
   // Reserve only a table with a reachable chair-side approach. A failed route
   // must not instantly turn a customer into a seated, orderable guest.
-  for (const table of s.tables) {
+  for (const table of activeTables(s)) {
     if (table.dirty || table.customerIds.length >= table.capacity) continue;
     const index = table.customerIds.length;
     const target: Vec2 = [table.position[0] + (index % 2 === 0 ? -.9 : .9), table.position[1] + (index < 2 ? -.25 : .25)];
-    const path = findPath(c.position, target);
+    const path = pathFor(s,c.position, target);
     const last = path[path.length - 1];
     if (!last || Math.hypot(last[0] - target[0], last[1] - target[1]) > .35) continue;
     table.customerIds.push(c.id);
@@ -88,13 +95,13 @@ function arrivingGuest(s: GameState): { guest: Guest; referrer?: Guest; returnin
   const guests = s.guests ?? (s.guests = []);
   const currentGuests = new Set(s.customers.filter(c => c.status !== 'leaving').flatMap(c => [c.guestId, c.referrer]));
   const returning = guests.filter(g => g.visits > 0 && g.affinity >= 55 && g.lastVisit < s.day && !currentGuests.has(g.id));
-  if (returning.length && random(s) < Math.min(.6, .12 + s.hearts * .003)) {
+  if (s.settings.rememberGuests!==false && returning.length && random(s) < Math.min(.6, .12 + s.hearts * .003)) {
     // A stronger memory of good service increases this person's return chance.
     let weight = random(s) * returning.reduce((n, g) => n + g.affinity * g.affinity, 0);
     const guest = returning.find(g => { weight -= g.affinity * g.affinity; return weight <= 0; }) ?? returning[returning.length - 1];
     return { guest, returning: true };
   }
-  const recommenders = guests.filter(g => g.visits > 0 && g.affinity >= 75);
+  const recommenders = s.settings.rememberGuests===false?[]:guests.filter(g => g.visits > 0 && g.affinity >= 75);
   const referrer = recommenders.length && random(s) < .24 ? pick(s, recommenders) : undefined;
   if (referrer) referrer.referrals++;
   const guest: Guest = { id: uid(s, 'guest'), name: pick(s, NAMES), visits: 0, affinity: 50, lastVisit: -1, preferred: pick(s, ['coffee', 'tea', 'breakfast', 'snack']), referrals: 0 };
@@ -121,17 +128,17 @@ function arrive(s: GameState, count: number, eventId?: string) {
     const c: Customer = { id: uid(s, 'customer'), name: guest.name, guestId: guest.id, referrer: referrer?.id, reason: visitReason,
       preference: random(s) < .75 ? guest.preferred : pick(s, ['coffee', 'tea', 'breakfast', 'snack']), budget: 65 + Math.floor(random(s) * 100), patience: s.settings.patience * (.7 + random(s) * .7),
       groupId: group, takeaway, position: [-1.4 + (i % 3) * .18, .4], path: [], status: 'arriving', tableId: null, orderIds: [], arrivedAt: s.minute, seatedAt: 0,
-      eatRemaining: 8 + random(s) * (s.minute >= 1020 ? 25 : 15), satisfaction: 100, isReturn, sweetness:pick(s,[0,25,50,75,100]),tourId: eventId };
+      activity:guestActivity(guest.id,takeaway,reason),eatRemaining: 8 + random(s) * (s.minute >= 1020 ? 25 : 15), satisfaction: 100, isReturn, sweetness:pick(s,[0,25,50,75,100]),tourId: eventId };
     // Occasional accompanied visits share one table and departure lifecycle.
     const guardian=i>0&&s.todayArrivals%5===1?s.customers.find(g=>g.groupId===group&&!g.takeaway&&g.tableId&&!g.guardianId):undefined;
-    const familyTable=guardian?s.tables.find(t=>t.id===guardian.tableId&&t.customerIds.length<t.capacity):undefined;
+    const familyTable=guardian?s.tables.find(t=>t.id===guardian.tableId&&t.enabled!==false&&t.customerIds.length<t.capacity):undefined;
     if(guardian&&familyTable){
       c.guardianId=guardian.id;c.name=`ลูกของ${guardian.name}`;c.takeaway=false;c.preference='snack';
       c.reason=`มากับผู้ปกครอง ${guardian.name}`;c.tableId=familyTable.id;
-      familyTable.customerIds.push(c.id);c.path=findPath(c.position,seatPosition(s,c));
+      familyTable.customerIds.push(c.id);c.path=pathFor(s,c.position,seatPosition(s,c));
     }
-    else if (takeaway) c.path = findPath(c.position, seatPosition(s, c));
-    else if (!seatCustomer(s, c)) { c.status = 'queuing'; c.path = findPath(c.position, [-1.9+(i%3)*.6,1.2+(Math.floor(i/3)%3)*.5]); }
+    else if (takeaway) c.path = pathFor(s,c.position, seatPosition(s, c));
+    else if (!seatCustomer(s, c)) { c.status = 'queuing'; c.path = pathFor(s,c.position, [-1.9+(i%3)*.6,1.2+(Math.floor(i/3)%3)*.5]); }
     s.customers.push(c); s.todayArrivals++;
   }
 }
@@ -226,7 +233,7 @@ function finishTask(s: GameState, e: Employee) {
       }
     }
   } else if (t.kind === 'clean') {
-    const table = s.tables.find(table => table.id === t.tableId); if (table) table.dirty = false;
+    const table = s.tables.find(table => table.id === t.tableId); if (table) {table.dirty = false;s.life!.dirtyDishes+=Math.max(1,table.capacity);}
     s.cleanliness = Math.min(100, s.cleanliness + 4);
   } else if (t.kind === 'inspect') {
     s.garden.cleanliness = 100; s.garden.lastInspection = s.minute; s.garden.inspections++;
@@ -242,6 +249,8 @@ function finishTask(s: GameState, e: Employee) {
       if (!s.notices.some(n => n.text === text)) notice(s, text);
     }
   }
+  if(t.purpose==='wash')s.life!.dirtyDishes=0;
+  if(t.purpose==='water-break')e.nextBreakMinute=s.minute+180;
   if (t.kind !== 'rest') e.tasksDone++;
   e.task = null; e.available = true;
 }
@@ -274,7 +283,7 @@ function progressEmployees(s: GameState, dt: number) {
         const c = s.customers.find(c => c.id === t.customerId);
         if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
         const destination = customerTarget(s, c);
-        const route = findPath(e.position, destination);
+        const route = pathFor(s,e.position, destination);
         const endpoint = route[route.length - 1];
         // Do not mark a delivery complete when the waiter cannot reach the guest.
         if (!endpoint || Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
@@ -286,24 +295,27 @@ function progressEmployees(s: GameState, dt: number) {
       t.phase = 'working';
     }
     if(t.kind==='station'){e.available=true;continue;}
-    if (t.kind === 'rest') { e.available = false; continue; }
+    if (t.kind === 'rest'&&t.purpose!=='water-break') { e.available = false; continue; }
     t.remaining -= dt;
     if(t.remaining<=0&&t.productionStep==='collect'){
       const o=s.orders.find(o=>o.id===t.orderId),m=s.menu.find(m=>m.id===o?.menuId);
       if(!o||!m||o.status==='cancelled'){e.task=null;continue;}
-      t.productionStep='prepare';t.target=[...(t.kind==='brew'?STATIONS.bar:STATIONS.kitchen)];t.path=findPath(e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
+      t.productionStep='prepare';t.target=[...(t.kind==='brew'?STATIONS.bar:STATIONS.kitchen)];t.path=pathFor(s,e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
     }else if (t.remaining <= 0) finishTask(s, e);
   }
 }
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
+  for(const e of s.employees){const shift=s.staffSchedule?.[e.id];if(shift&&!e.controlled&&(!e.task||['station','rest'].includes(e.task.kind))){if(s.minute<shift.start||s.minute>=shift.end){setTask(s,e,'rest',REST,999999);e.available=false;}}}
+  const onShift=(e:Employee)=>{const shift=s.staffSchedule?.[e.id];return !shift||(s.minute>=shift.start&&s.minute<shift.end)};
   const primary=s.employees.find(e=>e.id===server)!;
   const off=s.employees.find(e=>(e.id==='ken'||e.id==='pun')&&e.id!==server)!;
   const pending=s.orders.filter(o=>!o.componentOrderIds?.length&&['ready','serving'].includes(o.status)).length+s.tables.filter(t=>t.dirty&&!t.customerIds.length).length+s.customers.filter(c=>!c.player&&c.takeaway&&c.status==='seated'&&!c.orderIds.length).length;
   const helpers=s.serverOverride==='auto'&&pending>0&&(pending>=2||off.tasksDone<primary.tasksDone);
-  if(!helpers&&!off.controlled&&(!off.task||off.task.kind==='station'))setTask(off,'rest',REST,999999);
+  if(!helpers&&!off.controlled&&(!off.task||off.task.kind==='station'))setTask(s,off,'rest',REST,999999);
   const servers=helpers?[primary,off].sort((a,b)=>a.tasksDone-b.tasksDone):[primary];
   for(const serving of servers){
+    if(!onShift(serving))continue;
     if(!serving.controlled&&serving.task?.kind==='rest'){serving.task=null;serving.available=true;}
   if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
     // Only assign a delivery if the customer can be reached from pickup.
@@ -313,36 +325,37 @@ function scheduleStaff(s: GameState) {
       const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
       if (!customer) return false;
       const destination = customerTarget(s, customer);
-      const route = findPath(STATIONS.pickup, destination);
+      const route = pathFor(s,STATIONS.pickup, destination);
       const endpoint = route[route.length - 1];
       return !!endpoint && Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
     });
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving'&&!s.employees.some(e=>e.task?.maintenance==='question'&&e.task.customerId===c.id));
     const dirty = s.tables.find(t => t.dirty && !t.customerIds.length&&!s.employees.some(e=>e.task?.kind==='clean'&&e.task.tableId===t.id));
-    if (ready) { ready.workerId = serving.id; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
-    else if(question)setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
-    else if (waiting) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
-    else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
-    else if(!serving.task)setTask(serving,'station',[-1.05,6],999999);
+    if (ready) { ready.workerId = serving.id; setTask(s,serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
+    else if(question)setTask(s,serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
+    else if (waiting) setTask(s,serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
+    else if (dirty) setTask(s,serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
+    else if((s.life?.dirtyDishes??0)>0&&!s.employees.some(e=>e.task?.purpose==='wash'))setTask(s,serving,'clean',STATIONS.dish,1.5,{purpose:'wash'});
+    else if(!serving.task)setTask(s,serving,'station',[-1.05,6],999999);
   }
   }
   const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
-  if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
+  if (food && onShift(na) && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
-    setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
+    setTask(s,na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
   const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
     const order = drinks.find(o => stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
-    const candidates = s.employees.filter(e => !e.controlled && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
+    const candidates = s.employees.filter(e => !e.controlled && onShift(e) && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
     candidates.sort((a, b) => {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
       return score(a) - score(b);
     });
-    if (order && candidates.length) { const e = candidates[0], m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(e, 'brew', order.stockConsumed?STATIONS.bar:STATIONS.fridge, order.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: order.id, productionStep:order.stockConsumed?'prepare':'collect' }); }
+    if (order && candidates.length) { const e = candidates[0], m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(s,e, 'brew', order.stockConsumed?STATIONS.bar:STATIONS.fridge, order.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: order.id, productionStep:order.stockConsumed?'prepare':'collect' }); }
   }
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
@@ -350,21 +363,25 @@ function scheduleStaff(s: GameState) {
     if (!stockAvailable(s, m)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
   }
   const alee = s.employees.find(e => e.id === 'alee')!;
-  if (!alee.controlled && (!alee.task || alee.task.kind==='station')) {
-    if(Boolean(s.signMounted)!==signWanted(s))setTask(alee,'inspect',[-1.9,1.1],.8,{maintenance:'sign'});
-    else if(((s.phase!=='closing'&&s.minute<630)||(s.phase==='closing'))&&(s.wateredCount??0)<WATER_STOPS.length*(s.phase==='closing'?2:1))setTask(alee,'garden',WATER_STOPS[(s.wateredCount??0)%WATER_STOPS.length],.35,{maintenance:'water',stopIndex:s.wateredCount??0});
+  if (onShift(alee) && !alee.controlled && (!alee.task || alee.task.kind==='station')) {
+    if(Boolean(s.signMounted)!==signWanted(s))setTask(s,alee,'inspect',[-1.9,1.1],.8,{maintenance:'sign'});
+    else if(((s.phase!=='closing'&&s.minute<630)||(s.phase==='closing'))&&(s.wateredCount??0)<WATER_STOPS.length*(s.phase==='closing'?2:1))setTask(s,alee,'garden',WATER_STOPS[(s.wateredCount??0)%WATER_STOPS.length],.35,{maintenance:'water',stopIndex:s.wateredCount??0});
     else
-    if (s.garden.careRequested || s.garden.lastInspection < 0 || s.minute - s.garden.lastInspection > 180 || (s.phase === 'closing' && s.minute - s.garden.lastInspection > 10)) setTask(alee, 'inspect', INSPECT, 2);
-    else if (s.garden.moisture < 45 && !s.weather.includes('rain')) setTask(alee, 'garden', STATIONS.garden, 3);
-    else if (s.cleanliness < 90) setTask(alee, 'garden', [-.8, 1.2], 2);
+    if (s.garden.careRequested || s.garden.lastInspection < 0 || s.minute - s.garden.lastInspection > 180 || (s.phase === 'closing' && s.minute - s.garden.lastInspection > 10)) setTask(s,alee, 'inspect', INSPECT, 2);
+    else if (s.garden.moisture < 45 && !s.weather.includes('rain')) setTask(s,alee, 'garden', STATIONS.garden, 3);
+    else if (s.cleanliness < 90) setTask(s,alee, 'garden', [-.8, 1.2], 2);
+  }
+  if(s.minute>=510&&s.phase==='open'&&!s.orders.some(o=>!['completed','cancelled'].includes(o.status))){
+    const thirsty=s.employees.find(e=>onShift(e)&&!e.controlled&&(!e.task||e.task.kind==='station')&&s.minute>=(e.nextBreakMinute??510));
+    if(thirsty)setTask(s,thirsty,'rest',thirsty.id==='alee'?[-1.2,31]:[.3,11.9],2,{purpose:'water-break'});
   }
   const ham = s.employees.find(e => e.id === 'ham')!;
   // A barista remains behind the counter even when the drinks queue is empty.
   const assigned=s.baristaMode==='auto'?'ham':s.baristaMode;
-  for(const e of s.employees.filter(e=>!e.controlled&&['ham','na','alee'].includes(e.id))){
+  for(const e of s.employees.filter(e=>!e.controlled&&onShift(e)&&['ham','na','alee'].includes(e.id))){
    if(e.task&&e.task.kind!=='station')continue;
    const target=e.id===assigned?STATIONS.bar:e.id==='na'?STATIONS.kitchen:e.id==='ham'?STATIONS.manager:null;
-   if(target&&(!e.task||Math.hypot(e.task.target[0]-target[0],e.task.target[1]-target[1])>.05))setTask(e,'station',target,999999);
+   if(target&&(!e.task||Math.hypot(e.task.target[0]-target[0],e.task.target[1]-target[1])>.05))setTask(s,e,'station',target,999999);
   }
 }
 function review(s: GameState, c: Customer, wait: number, cancelled: boolean) {
@@ -398,14 +415,14 @@ function leave(s: GameState, c: Customer, pay: boolean) {
       transaction(s, m.kind === 'food' ? 'food-sale' : 'drink-sale', o.price, o.price, `${c.name} · ${m.name}`, o.id); o.paid = true;
     }
     const waitPenalty = Math.max(0, wait - 10) * 1.7;
-    c.satisfaction = clamp(100 - waitPenalty - (100 - s.cleanliness) * .2 - (failed ? 30 : 0), 10, 100);
+    c.satisfaction = clamp(100 + gardenComfort(s) - waitPenalty - (100 - s.cleanliness) * .2 - (failed ? 30 : 0), 10, 100);
   } else c.satisfaction = clamp(35 - Math.max(0, wait - c.patience), 5, 35);
   for (const o of orders) if (o.status !== 'completed') { o.status = 'cancelled'; o.workerId = undefined; }
   for (const e of s.employees) if (e.task?.customerId === c.id || orders.some(o => e.task?.orderId === o.id && o.status === 'cancelled')) { e.task = null; e.available = true; }
   const table = s.tables.find(t => t.id === c.tableId);
   if (table) { table.customerIds = table.customerIds.filter(id => id !== c.id); if (!table.customerIds.length) table.dirty = true; }
   s.todaySatisfaction.push(c.satisfaction); review(s, c, wait, !pay);
-  c.status = 'leaving'; c.path = findPath(c.position, STATIONS.entrance);
+  c.status = 'leaving'; c.path = pathFor(s,c.position, STATIONS.entrance);
   for(const child of s.customers.filter(child=>child.guardianId===c.id&&child.status!=='leaving'))leave(s,child,pay);
   s.cleanliness = Math.max(0, s.cleanliness - (c.takeaway ? .15 : .7));
 }
@@ -430,7 +447,7 @@ function progressCustomers(s: GameState, dt: number) {
       const orders = s.orders.filter(o => c.orderIds.includes(o.id));
       if (orders.length && orders.every(o => o.status === 'completed' || o.status === 'cancelled')) {
         if (c.takeaway || orders.every(o => o.status === 'cancelled')) leave(s, c, orders.some(o => o.status === 'completed'));
-        else c.status = 'eating';
+        else {c.status = 'eating';if(c.activity==='reading')c.eatRemaining+=8;}
       } else {
         const oldest = Math.min(...orders.map(o => o.createdAt));
         if (s.minute - oldest > c.patience) {
@@ -441,7 +458,7 @@ function progressCustomers(s: GameState, dt: number) {
     } else if(c.status==='restroom'){
       if(c.path.length)continue;
       if(c.restroomPhase==='going'){c.restroomPhase='using';c.restroomRemaining=1.2+random(s)*1.3;}
-      else if(c.restroomPhase==='using'){c.restroomRemaining=(c.restroomRemaining??0)-dt;if(c.restroomRemaining<=0){c.restroomPhase='returning';c.path=findPath(c.position,seatPosition(s,c));}}
+      else if(c.restroomPhase==='using'){c.restroomRemaining=(c.restroomRemaining??0)-dt;if(c.restroomRemaining<=0){c.restroomPhase='returning';c.path=pathFor(s,c.position,seatPosition(s,c));}}
       else {c.status='eating';c.restroomPhase=undefined;}
     } else if(c.status==='eating'){
       const guardian=c.guardianId?s.customers.find(g=>g.id===c.guardianId):undefined;
@@ -472,7 +489,7 @@ function closeReport(s: GameState) {
   s.reports.push({ day: s.day, weather: s.weather, customers: s.todayArrivals, completed: m.completed, cancelled: m.cancelled, foodRevenue: m.foodRevenue, drinkRevenue: m.drinkRevenue,
     revenue: m.revenue, cogs: m.cogs, spoilage: m.spoilage, wages: m.wages, operating: m.operating, profit: m.profit, openingCash: s.openingCash, closingCash: s.cash,
     cashFlow: round(s.cash - s.openingCash), satisfaction: m.satisfaction, averageWait: m.averageWait, shortages: [...s.shortages],
-    inspection: (s.garden.inspections ? `อาลีตรวจสวนและความสะอาด ${s.garden.inspections} ครั้ง · ความชื้นสวน ${Math.round(s.garden.moisture)}%` : 'ยังไม่ได้ตรวจพื้นที่') + ((s.wateredCount??0)<WATER_STOPS.length*2 ? ` · รดน้ำยังไม่ครบ ${s.wateredCount??0}/${WATER_STOPS.length*2} จุด` : '') + (s.signMounted?' · ยังไม่ได้ถอดป้าย':'') });
+    inspection: (s.garden.inspections ? `อาลีตรวจสวนและความสะอาด ${s.garden.inspections} ครั้ง · ความชื้นสวน ${Math.round(s.garden.moisture)}%` : 'ยังไม่ได้ตรวจพื้นที่') + ((s.wateredCount??0)<WATER_STOPS.length*2 ? ` · รดน้ำยังไม่ครบ ${s.wateredCount??0}/${WATER_STOPS.length*2} จุด` : '') + (s.signMounted?' · ยังไม่ได้ถอดป้าย':'') + ((s.life?.dirtyDishes??0)>0?` · อุปกรณ์รอล้าง ${s.life!.dirtyDishes} ชิ้น`:'') });
   s.phase = 'closed'; s.paused = true; notice(s, `ปิดวันที่ ${s.day} แล้ว · ยอดขาย ฿${m.revenue.toFixed(0)} · ดูรายงานก่อนเปิดวันถัดไป`);
 }
 function step(s: GameState, dt: number) {
@@ -498,7 +515,7 @@ function step(s: GameState, dt: number) {
   if (s.phase === 'closing' && !s.customers.length) {
     const dirty = s.tables.some(t => t.dirty);
     const inspected = s.garden.lastInspection >= CLOSE || s.minute - s.garden.lastInspection < 10;
-    if ((!dirty && inspected && !s.signMounted && (s.wateredCount??0)>=WATER_STOPS.length*2) || s.minute > CLOSE + 120) closeReport(s);
+    if ((!dirty && !(s.life?.dirtyDishes??0) && inspected && !s.signMounted && (s.wateredCount??0)>=WATER_STOPS.length*2) || s.minute > CLOSE + 120) closeReport(s);
   }
 }
 export function tick(state: GameState, dtMinutes: number): GameState {
@@ -544,19 +561,97 @@ function ensurePlayer(s:GameState):Customer {
 }
 function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled){e.controlled=false;e.available=true;}}
 function playerSeat(s:GameState,tableId:string){
- const table=s.tables.find(t=>t.id===tableId);const current=s.customers.find(c=>c.player&&c.status!=='leaving');
+ const table=s.tables.find(t=>t.id===tableId&&t.enabled!==false);const current=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(current?.orderChannel==='counter')return;
  if(!table||table.dirty||(table.customerIds.length>=table.capacity&&!table.customerIds.includes(current?.id??'')))return;
  const c=ensurePlayer(s);for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
  table.customerIds.push(c.id);c.tableId=table.id;c.position=seatPosition(s,c);c.path=[];
  for(const o of s.orders.filter(o=>o.customerId===c.id))o.tableId=table.id;
  // Retarget a waiter already carrying the player's order, preserving its service status.
- for(const e of s.employees)if(e.task?.customerId===c.id&&e.task.stage==='deliver'){e.task.target=customerTarget(s,c);e.task.path=findPath(e.position,e.task.target);e.task.phase='walking';}
+ for(const e of s.employees)if(e.task?.customerId===c.id&&e.task.stage==='deliver'){e.task.target=customerTarget(s,c);e.task.path=pathFor(s,e.position,e.task.target);e.task.phase='walking';}
+}
+
+function buyDecoration(s:GameState,cost:number,label:string){
+ const spent=s.ledger.filter(t=>t.type==='decoration').reduce((n,t)=>n+t.amount,0);
+ if(cost>s.cash||spent+cost>s.settings.setupBudget){notice(s,'เงินสดหรืองบจัดร้านเพิ่มเติมไม่พอ');return false;}
+ if(cost>0)transaction(s,'decoration',cost,-cost,label);
+ notice(s,`${label} · ฿${cost}`);return true;
+}
+function reroute(s:GameState){
+ for(const e of s.employees)if(e.task?.phase==='walking')e.task.path=pathFor(s,e.position,e.task.target);
+ for(const c of s.customers){if(c.player)continue;if(c.status==='leaving')c.path=pathFor(s,c.position,STATIONS.entrance);else if(c.path.length)c.path=pathFor(s,c.position,c.status==='restroom'?STATIONS.restroom:seatPosition(s,c));}
+}
+function beginManualWork(s:GameState,id:StaffId,work:import('./types').StaffWork){
+ const e=s.employees.find(e=>e.id===id&&e.controlled);if(!e||e.task||s.phase==='closed')return;
+ if(work==='brew'||work==='cook'){
+  if(s.employees.some(p=>p.task?.kind===work))return;
+  const order=s.orders.find(o=>!o.componentOrderIds?.length&&o.status==='waiting'&&!o.workerId&&s.menu.find(m=>m.id===o.menuId)?.kind===(work==='brew'?'drink':'food')&&!(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid));
+  if(!order){notice(s,'ยังไม่มีออร์เดอร์รอที่สถานีนี้');return;}
+  order.status='walking';order.workerId=e.id;setTask(s,e,work,order.stockConsumed?(work==='brew'?STATIONS.bar:STATIONS.kitchen):STATIONS.fridge,.6,{manual:true,manualStep:0,productionStep:order.stockConsumed?'prepare':'collect',orderId:order.id});
+ }else if(work==='serve'){
+  const o=s.orders.find(o=>!o.componentOrderIds?.length&&o.status==='ready'&&!o.workerId);
+  const waiting=s.customers.find(c=>c.takeaway&&!c.player&&c.status==='seated'&&!c.orderIds.length&&!s.employees.some(p=>p.task?.customerId===c.id));
+  if(o){o.workerId=e.id;setTask(s,e,'serve',STATIONS.pickup,.35,{manual:true,stage:'pickup',orderId:o.id,customerId:o.customerId});}
+  else if(waiting)setTask(s,e,'serve',customerTarget(s,waiting),.65,{manual:true,stage:'take-order',customerId:waiting.id});
+  else notice(s,'ยังไม่มีถาดพร้อมส่งหรือออร์เดอร์หน้าร้านรอรับ');
+ }else if(work==='clean'){
+  const t=s.tables.find(t=>t.dirty&&!t.customerIds.length&&!s.employees.some(p=>p.task?.tableId===t.id));
+  if(t)setTask(s,e,'clean',[t.position[0],t.position[1]-.9],1.5,{manual:true,tableId:t.id});else notice(s,'โต๊ะสะอาดอยู่แล้ว');
+ }else if(work==='wash'){
+  if(s.life!.dirtyDishes>0&&!s.employees.some(p=>p.task?.purpose==='wash'))setTask(s,e,'clean',STATIONS.dish,1.5,{manual:true,purpose:'wash'});else notice(s,'ยังไม่มีอุปกรณ์รอล้าง');
+ }else{
+  if(Boolean(s.signMounted)!==signWanted(s))setTask(s,e,'inspect',[-1.9,1.1],.8,{manual:true,maintenance:'sign'});
+  else if((s.wateredCount??0)<WATER_STOPS.length*(s.phase==='closing'?2:1))setTask(s,e,'garden',WATER_STOPS[(s.wateredCount??0)%WATER_STOPS.length],.35,{manual:true,maintenance:'water',stopIndex:s.wateredCount??0});
+  else setTask(s,e,'inspect',STATIONS.garden,2,{manual:true});
+ }
+}
+function manualWorkStep(s:GameState,id:StaffId){
+ const e=s.employees.find(e=>e.id===id&&e.controlled),t=e?.task;if(!e||!t?.manual)return;
+ if(Math.hypot(e.position[0]-t.target[0],e.position[1]-t.target[1])>1.05){notice(s,'เดินไปถึงจุดทำงานก่อนเริ่มขั้นตอน');return;}
+ t.phase='working';t.path=[];
+ if(t.kind==='cook'||t.kind==='brew'){
+  const o=s.orders.find(o=>o.id===t.orderId),m=s.menu.find(m=>m.id===o?.menuId);if(!o||!m||o.status==='cancelled'){e.task=null;return;}
+  if(t.productionStep==='collect'){
+   if(!consume(s,o,m)){o.status='waiting';o.workerId=undefined;e.task=null;return;}
+   t.productionStep='prepare';t.target=[...(t.kind==='brew'?STATIONS.bar:STATIONS.kitchen)];t.path=pathFor(s,e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;return;
+  }
+  if(!consume(s,o,m))return;
+  o.status='preparing';t.manualStep=(t.manualStep??0)+1;
+  t.remaining=m.duration*s.settings.prepMultiplier*(1-t.manualStep/staffSteps(t.kind,m.visual).length);
+  if(t.remaining<=.00001)finishTask(s,e);
+ }else if(t.kind==='serve'&&t.stage==='pickup'){
+  const c=s.customers.find(c=>c.id===t.customerId&&c.status!=='leaving'),o=s.orders.find(o=>o.id===t.orderId);if(!c||!o||o.status!=='ready'){e.task=null;if(o)o.workerId=undefined;return;}
+  o.status='serving';t.stage='deliver';t.target=customerTarget(s,c);t.path=pathFor(s,e.position,t.target);t.phase='walking';
+ }else finishTask(s,e);
 }
 
 export function act(state: GameState, action: GameAction): GameState {
   const s = draft(state);
   switch (action.type) {
+    case 'journal-note': {const text=action.text.trim().slice(0,240);if(text)notice(s,`บันทึกของคุณ · ${text}`);break;}
+    case 'photo-memory': {if(!action.photo.id||s.life!.photos.some(p=>p.id===action.photo.id))break;s.life!.photos=[...s.life!.photos,{...action.photo,day:s.day,minute:s.minute,caption:action.photo.caption.slice(0,100)}].slice(-24);break;}
+    case 'greet': {
+      const c=s.customers.find(c=>c.id===action.customerId&&c.status!=='leaving');const g=s.guests?.find(g=>g.id===c?.guestId);
+      if(c&&g&&g.greetedDay!==s.day){g.greetedDay=s.day;g.affinity=clamp(g.affinity+3,0,100);c.satisfaction=clamp(c.satisfaction+2,0,100);notice(s,`ทักทาย ${g.name} · ${c.isReturn?'ดีใจที่ได้เจอกันอีก':'ยินดีที่ได้รู้จัก'} · ชอบ${g.preferred==='coffee'?'กาแฟ':g.preferred==='tea'?'ชา':'อาหารและของว่าง'}`);}break;
+    }
+    case 'shift': {if(s.employees.some(e=>e.id===action.id)&&Number.isFinite(action.start)&&Number.isFinite(action.end)&&action.start>=330&&action.end<=1350&&action.end>action.start)s.staffSchedule={...s.staffSchedule,[action.id]:{start:action.start,end:action.end}};break;}
+    case 'table-enabled': {
+      const t=s.tables.find(t=>t.id===action.id);if(!t||t.customerIds.length||t.dirty)break;
+      if(!action.enabled&&activeTables(s).length<=3){notice(s,'เก็บโต๊ะได้โดยเหลืออย่างน้อย 3 โต๊ะ');break;}
+      t.enabled=action.enabled;reroute(s);break;
+    }
+    case 'move-table': {
+      const t=s.tables.find(t=>t.id===action.id&&t.enabled!==false);if(!t||t.customerIds.length||t.dirty)break;
+      const x=action.position[0],z=Math.round(action.position[1]*4)/4;if(!Number.isFinite(x)||!Number.isFinite(z)||x<.5||x>1||z<14||z>38){notice(s,'วางโต๊ะในสวน x 0.5–1.0, z 14–38 เมตร เพื่อรักษาทางเดินหลัก');break;}
+      if((s.life?.pots??[]).some(p=>Math.abs(POT_SLOTS[p.slot][1]-z)<1.1)||activeTables(s).some(o=>o.id!==t.id&&Math.abs(o.position[1]-z)<2.35-1e-8)||s.customers.some(c=>Math.hypot(c.position[0]-x,c.position[1]-z)<1.5)||s.employees.some(e=>Math.hypot(e.position[0]-x,e.position[1]-z)<1.5)||s.employees.some(e=>e.task?.tableId===t.id)||((z>26&&z<31)||(z>33.5&&z<36.5)||(z>37.5&&z<40.5))){notice(s,'ตำแหน่งนี้ชนโต๊ะ ต้นไม้ เคาน์เตอร์ หรือคนที่กำลังใช้พื้นที่');break;}
+      t.position=[x,z];reroute(s);notice(s,`ย้าย ${t.name} แล้ว · ทุกบทบาทใช้ผังเดียวกัน`);break;
+    }
+    case 'umbrella': {const t=s.tables.find(t=>t.id===action.id);if(!t||!(action.style in UMBRELLAS)||(t.umbrella??'cream')===action.style)break;const cost=UMBRELLAS[action.style].price;if(buyDecoration(s,cost,`ร่ม ${t.name} · ${UMBRELLAS[action.style].label}`))t.umbrella=action.style;break;}
+    case 'plant': {if(!Number.isInteger(action.slot)||!POT_SLOTS[action.slot]||!(action.species in PLANT_PRICES)||s.life!.pots.some(p=>p.slot===action.slot))break;const [x,z]=POT_SLOTS[action.slot];if(s.tables.some(t=>t.enabled!==false&&Math.abs(t.position[1]-z)<1.1)){notice(s,'กระถางนี้อยู่ใกล้เก้าอี้เกินไป · เลือกช่องสวนอื่น');break;}if(buyDecoration(s,PLANT_PRICES[action.species],`ปลูก ${action.species}`)){s.life!.pots.push({slot:action.slot,species:action.species,plantedDay:s.day});reroute(s);}break;}
+    case 'garden-light': {if(!['warm','amber','white'].includes(action.value)||s.life!.light===action.value)break;if(buyDecoration(s,600,'เปลี่ยนชุดไฟสวน'))s.life!.light=action.value;break;}
+    case 'staff-work': beginManualWork(s,action.id,action.work);break;
+    case 'staff-step': manualWorkStep(s,action.id);break;
+
     case 'plan-operation': s.operationPlans=(s.operationPlans??[]).includes(action.id)?s.operationPlans?.filter(id=>id!==action.id):[...(s.operationPlans??[]),action.id];break;
     case 'visitor-submit': {
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
@@ -603,10 +698,10 @@ export function act(state: GameState, action: GameAction): GameState {
       if(o&&!['completed','cancelled'].includes(o.status)){o.status=e.task?.kind==='serve'?'ready':'waiting';o.workerId=undefined;}
       e.task=null;e.controlled=true;e.available=false;break;
     }
-    case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18))e.position=[...action.position];break;}
+    case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18,s.tables,potObstacles(s))&&segmentWalkable(e.position,action.position,.18,s.tables,potObstacles(s)))e.position=[...action.position];break;}
 
     case 'pause': s.paused = !s.paused; break;
-    case 'speed': if ([1, 2, 5].includes(action.value)) s.speed = action.value; break;
+    case 'speed': if ([.25, .5, 1, 2, 5].includes(action.value)) s.speed = action.value; break;
     case 'barista': if (['auto', 'ham', 'na', 'alee'].includes(action.id)) s.baristaMode = action.id; break;
     case 'server': s.serverOverride = action.id; break;
     case 'restock': restock(s, action.id, action.quantity); break;
@@ -625,6 +720,7 @@ export function act(state: GameState, action: GameAction): GameState {
       const numericKeys = ['arrivalsPerHour', 'patience', 'hamWage', 'naWage', 'aleeWage', 'serverWage', 'monthlyRent', 'dailyUtilities', 'rainChance', 'prepMultiplier', 'setupBudget', 'openingCash'] as const;
       for (const key of numericKeys) { const val = action.value[key]; if (typeof val === 'number' && Number.isFinite(val) && val >= 0) s.settings[key] = val; }
       s.settings.patience = clamp(s.settings.patience, 5, 120); s.settings.prepMultiplier = clamp(s.settings.prepMultiplier, .25, 4); s.settings.arrivalsPerHour = clamp(s.settings.arrivalsPerHour, 0, 30); s.settings.rainChance = clamp(s.settings.rainChance, 0, 1);
+      if(typeof action.value.rememberGuests==='boolean')s.settings.rememberGuests=action.value.rememberGuests;
       if (typeof action.value.autoRestock === 'boolean') s.settings.autoRestock = action.value.autoRestock;
       break;
     }
@@ -632,7 +728,7 @@ export function act(state: GameState, action: GameAction): GameState {
       const e = s.employees.find(e => e.id === 'alee')!;
       s.garden.careRequested = true;
       if (e.task?.kind === 'inspect') notice(s, 'อาลีกำลังตรวจสวนและความสะอาดอยู่แล้ว');
-      else if (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) { setTask(e, 'inspect', INSPECT, 2); notice(s, 'อาลีกำลังเดินไปตรวจสวนและความสะอาด'); }
+      else if (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) { setTask(s,e, 'inspect', INSPECT, 2); notice(s, 'อาลีกำลังเดินไปตรวจสวนและความสะอาด'); }
       else notice(s, 'บันทึกงานตรวจสวนแล้ว · อาลีจะไปทันทีหลังทำเครื่องดื่มปัจจุบันเสร็จ');
       break;
     }
