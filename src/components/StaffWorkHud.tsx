@@ -6,7 +6,7 @@ export default function StaffWorkHud({employee:e,state}:{employee:Employee;state
  const dispatch=useGame(s=>s.dispatch),[busy,setBusy]=useState(false),t=e.task;
  const menu=state.menu.find(m=>m.id===state.orders.find(o=>o.id===t?.orderId)?.menuId);
  const step=t?.productionStep==='collect'?'หยิบวัตถุดิบ':t?.kind==='brew'||t?.kind==='cook'?staffSteps(t.kind,menu?.visual)[t.manualStep??0]:t?.purpose==='wash'?'ล้างอุปกรณ์':t?.stage==='pickup'?'รับถาด':t?.stage==='deliver'?'ส่งมอบถึงลูกค้า':t?.stage==='take-order'?'รับออร์เดอร์':t?.maintenance==='water'?'รดน้ำต้นไม้':t?.maintenance==='sign'?'จัดป้ายหน้าร้าน':t?.kind==='clean'?'เก็บโต๊ะ':'ตรวจความเรียบร้อย';
- const close=t&&Math.hypot(e.position[0]-t.target[0],e.position[1]-t.target[1])<=1.05;
+ const close=t&&Math.hypot(e.position[0]-t.target[0],e.position[1]-t.target[1])<=(t.kind==='serve'&&t.stage==='deliver'?.45:1.05);
  useEffect(()=>{setBusy(false)},[e.id,t?.orderId,t?.manualStep,t?.productionStep,t?.stage,t?.tableId]);
  useEffect(()=>{if(!busy)return;const timer=setTimeout(()=>{dispatch({type:'staff-step',id:e.id});setBusy(false)},2200);return()=>clearTimeout(timer)},[busy,e.id,dispatch]);
  const destination=t?.productionStep==='collect'?'ตู้วัตถุดิบ':t?.kind==='brew'?'บาร์เครื่องดื่ม':t?.kind==='cook'?'ครัว':t?.purpose==='wash'?'อ่างล้าง':t?.stage==='pickup'?'จุดรับถาด':t?.stage==='deliver'?'โต๊ะลูกค้า':t?.kind==='clean'?'โต๊ะที่ต้องเก็บ':'จุดเตรียมร้าน';

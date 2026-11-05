@@ -258,7 +258,8 @@ function progressEmployees(s: GameState, dt: number) {
   const server = activeServer(s);
   for (const e of s.employees) {
     if(e.controlled){e.available=false;continue;}
-    const onDuty = !['ken', 'pun'].includes(e.id) || e.id === server || (e.task && e.task.kind !== 'rest');
+    const shift=s.staffSchedule?.[e.id];
+    const onDuty = shift ? s.minute>=shift.start&&s.minute<shift.end||!!e.task&&e.task.kind!=='rest' : !['ken', 'pun'].includes(e.id) || e.id === server || (e.task && e.task.kind !== 'rest');
     if (onDuty && s.phase !== 'closed') e.hours += dt / 60;
     const t = e.task; if (!t) { e.available = !!onDuty; continue; }
     if (t.phase === 'walking') {
@@ -306,7 +307,11 @@ function progressEmployees(s: GameState, dt: number) {
 }
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
-  for(const e of s.employees){const shift=s.staffSchedule?.[e.id];if(shift&&!e.controlled&&(!e.task||['station','rest'].includes(e.task.kind))){if(s.minute<shift.start||s.minute>=shift.end){setTask(s,e,'rest',REST,999999);e.available=false;}}}
+  for(const e of s.employees){
+    const shift=s.staffSchedule?.[e.id];if(!shift||e.controlled)continue;
+    if(s.minute<shift.start||s.minute>=shift.end){if(!e.task||e.task.kind==='station')setTask(s,e,'rest',REST,999999);e.available=false;}
+    else if(e.task?.kind==='rest'&&e.task.purpose!=='water-break'){e.task=null;e.available=true;}
+  }
   const onShift=(e:Employee)=>{const shift=s.staffSchedule?.[e.id];return !shift||(s.minute>=shift.start&&s.minute<shift.end)};
   const primary=s.employees.find(e=>e.id===server)!;
   const off=s.employees.find(e=>(e.id==='ken'||e.id==='pun')&&e.id!==server)!;
@@ -559,7 +564,7 @@ function ensurePlayer(s:GameState):Customer {
  c={id:uid(s,PLAYER_ID),player:true,name:'คุณ',reason:'มานั่งพักที่ ONE DAY',preference:'breakfast',budget:10000,patience:10000,groupId:'visitor',takeaway:false,position:[...STATIONS.queue],path:[],status:'waiting',tableId:null,orderIds:[],arrivedAt:s.minute,seatedAt:s.minute,eatRemaining:99999,satisfaction:100,isReturn:false,sweetness:100};
  s.customers.push(c);s.todayArrivals++;return c;
 }
-function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled){e.controlled=false;e.available=true;}}
+function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled){e.controlled=false;e.available=true;if(e.task?.phase==='walking')e.task.path=pathFor(s,e.position,e.task.target);}}
 function playerSeat(s:GameState,tableId:string){
  const table=s.tables.find(t=>t.id===tableId&&t.enabled!==false);const current=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(current?.orderChannel==='counter')return;
@@ -607,7 +612,7 @@ function beginManualWork(s:GameState,id:StaffId,work:import('./types').StaffWork
 }
 function manualWorkStep(s:GameState,id:StaffId){
  const e=s.employees.find(e=>e.id===id&&e.controlled),t=e?.task;if(!e||!t?.manual)return;
- if(Math.hypot(e.position[0]-t.target[0],e.position[1]-t.target[1])>1.05){notice(s,'เดินไปถึงจุดทำงานก่อนเริ่มขั้นตอน');return;}
+ if(Math.hypot(e.position[0]-t.target[0],e.position[1]-t.target[1])>(t.kind==='serve'&&t.stage==='deliver'?.45:1.05)){notice(s,'เดินไปถึงจุดทำงานก่อนเริ่มขั้นตอน');return;}
  t.phase='working';t.path=[];
  if(t.kind==='cook'||t.kind==='brew'){
   const o=s.orders.find(o=>o.id===t.orderId),m=s.menu.find(m=>m.id===o?.menuId);if(!o||!m||o.status==='cancelled'){e.task=null;return;}

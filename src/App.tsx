@@ -43,6 +43,7 @@ export default function App(){
  const [selected,setSelected]=useState<string|null>(null);const [welcome,setWelcome]=useState(true);const [loaded,setLoaded]=useState(false);const [booted,setBooted]=useState(false);const [toast,setToast]=useState('');const [confirmReset,setConfirmReset]=useState(false);const [audio,setAudio]=useState(false);const [showPanel,setShowPanel]=useState(false);
  const visitor=useVisitor(); const [hub,setHub]=useState(false); const [customerMenu,setCustomerMenu]=useState(false);
  const [saveBusy,setSaveBusy]=useState(false);
+ const [sceneReady,setSceneReady]=useState(false);
  const [photoMode,setPhotoMode]=useState(false);
  const [photoFov,setPhotoFov]=useState(64);
  const [photoMinute,setPhotoMinute]=useState(1035);
@@ -85,8 +86,8 @@ export default function App(){
  }
  };
  return <div className={`app-shell immersive camera-${cameraMode} ${photoMode?'photo-mode':''}`}><AmbientAudio state={game} enabled={audio&&!welcome} musicVolume={musicVolume} effectsVolume={effectsVolume} nature={cozy.nature} spatial={cozy.spatial} periodOverride={lightingMode}/>
-  <main className="immersive-world"><Suspense fallback={<div className="scene-loading">กำลังจัดแสงและเตรียมสวน…</div>}><Scene cozy={cozy} photoMinute={photoMode?photoMinute:undefined} photoMode={photoMode} photoFov={photoMode?photoFov:undefined} state={game} cameraMode={cameraMode} quality={quality} shadows={shadows} fridgeOpen={fridgeOpen} lightingMode={lightingMode} suspended={welcome||showPanel||hub||customerMenu} onSelect={onSelect} onInteract={()=>onSelect('bar')}/></Suspense>
-  <TouchControls visible={cameraMode==='first'&&!showPanel&&!welcome&&!hub&&!customerMenu}/>
+  <main className="immersive-world"><Suspense fallback={<div className="scene-loading">กำลังจัดแสงและเตรียมสวน…</div>}><Scene onReady={setSceneReady} cozy={cozy} photoMinute={photoMode?photoMinute:undefined} photoMode={photoMode} photoFov={photoMode?photoFov:undefined} state={game} cameraMode={cameraMode} quality={quality} shadows={shadows} fridgeOpen={fridgeOpen} lightingMode={lightingMode} suspended={welcome||showPanel||hub||customerMenu} onSelect={onSelect} onInteract={()=>onSelect('bar')}/></Suspense>
+  <TouchControls visible={sceneReady&&cameraMode==='first'&&!showPanel&&!welcome&&!hub&&!customerMenu}/>
   </main>
   {!welcome&&<><header className="play-header"><div className="play-brand">ONE DAY<small>COZY LIFE · OUR LITTLE CAFÉ</small></div><div className="play-clock"><span>{clock(game.minute)}</span><small>วันที่ {game.day} · {weatherNames[game.weather]}</small></div><button className="glass-icon" aria-label={game.paused?'เดินเวลา':'หยุดเวลา'} onClick={()=>dispatch({type:'pause'})}>{game.paused?<Play size={18}/>:<Pause size={18}/>}</button><button className="glass-icon" aria-label="เปิดเมนูเกม" onClick={()=>{setHub(true);setShowPanel(false);setCustomerMenu(false)}}><MenuIcon size={20}/></button></header>
   {!showPanel&&!hub&&!customerMenu&&<><div className="play-location">HAT YAI, THAILAND <span>•</span> {lightingMode==='auto'?(game.minute<630?'MORNING':game.minute<1020?'DAYTIME':'EVENING'):lightingMode.toUpperCase()}</div><VisitorHud state={game} onMenu={()=>setCustomerMenu(true)} onNotice={notify}/><div className="play-bottom"><button onClick={()=>{setCameraMode(v=>v==='first'?'iso':'first')}}><Camera size={17}/>{cameraMode==='first'?'ดูร้าน':'เดินชมร้าน'}</button><button aria-label="เปิดเมนูร้าน" onClick={()=>setCustomerMenu(true)}><BookOpen size={17}/>เมนู</button><button onClick={()=>{setPhotoMinute(game.minute);setPhotoMode(true)}}>ถ่ายภาพ</button><button aria-label="จัดการร้าน" onClick={()=>setHub(true)}><Coffee size={17}/>ดูแลร้าน</button></div></>}

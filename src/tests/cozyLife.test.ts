@@ -1,7 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import {act,createGame,tick,activeServer,getMetrics} from '../game/engine';
 import {validateSave} from '../game/persistence';
-import {canWalk,findPath,STATIONS} from '../game/world';
+import {canWalk,findPath,segmentWalkable,STATIONS} from '../game/world';
 import {gardenComfort,potObstacles,progression} from '../game/cozy';
 import {soundAttenuation,SOUND_SOURCES} from '../game/soundSpace';
 import type {GameState} from '../game/types';
@@ -77,4 +77,22 @@ describe('cozy life shares the restaurant state',()=>{
   expect(soundAttenuation(Math.abs(30-road[2]))).toBeLessThan(soundAttenuation(3)*.1);
   expect(soundAttenuation(1)).toBeGreaterThan(soundAttenuation(25)*8);
  });
+ it('lets a scheduled barista return from an earlier rest and counts actual duty hours',()=>{
+  let s=quiet();s.baristaMode='ham';s=act(s,{type:'shift',id:'ham',start:500,end:900});s=act(s,{type:'visitor-order',menuId:'thai-tea'});
+  s=tick(s,5);expect(s.employees.find(e=>e.id==='ham')!.hours).toBe(0);expect(s.orders[0].stockConsumed).toBe(false);
+  s.minute=500;s=tick(s,15);expect(s.orders[0].stockConsumed).toBe(true);expect(s.employees.find(e=>e.id==='ham')!.hours).toBeGreaterThan(0);
+ });
+ it('replans an abandoned manual trip from the actual employee position',()=>{
+  let s=manualDrink();const e=s.employees.find(e=>e.id==='ham')!;e.position=[-1.4,8];s=act(s,{type:'control-staff',id:null});
+  const employee=s.employees.find(e=>e.id==='ham')!;let previous=employee.position;
+  for(const next of employee.task!.path){expect(segmentWalkable(previous,next,.16,s.tables,potObstacles(s))).toBe(true);previous=next;}
+ });
+ it('keeps a carried tray until the waiter is within actual delivery reach',()=>{
+  let s=manualDrink();atTarget(s);s=act(s,{type:'staff-step',id:'ham'});atTarget(s);for(let n=0;n<4;n++)s=act(s,{type:'staff-step',id:'ham'});
+  s=act(s,{type:'control-staff',id:'ken'});s=act(s,{type:'staff-work',id:'ken',work:'serve'});atTarget(s,'ken');s=act(s,{type:'staff-step',id:'ken'});
+  const e=s.employees.find(e=>e.id==='ken')!;e.position=[e.task!.target[0]-.8,e.task!.target[1]];
+  s=act(s,{type:'staff-step',id:'ken'});expect(s.orders[0].status).toBe('serving');expect(s.employees.find(e=>e.id==='ken')!.task).not.toBeNull();
+  atTarget(s,'ken');s=act(s,{type:'staff-step',id:'ken'});expect(s.orders[0].status).toBe('completed');expect(s.ledger.filter(t=>t.type==='cogs')).toHaveLength(1);
+ });
+
 });
