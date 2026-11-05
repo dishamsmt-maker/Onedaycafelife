@@ -41,14 +41,16 @@ describe('shared demo day projections', () => {
       actor: 'customer', type: 'order', requestId: 'sold-out', tableId: 't3',
       itemId: 'congee-chicken', quantity: 1,
     });
+    // A sold-out QR request is rejected before an order is created.
+    expect(day.store.orders).toHaveLength(0);
+    expect(day.events).toHaveLength(0);
+    expect(day.store.stock.chicken).toBe(0);
     const before = day;
     day = applyDemoAction(day, DEMO_HALAL_MENU, {
-      actor: 'Na', type: 'prepare', orderId: day.store.orders[0].id,
+      actor: 'Na', type: 'prepare', orderId: 'cafe-sold-out',
       costs: { congee: 500, chicken: 1000 },
     });
     expect(day).toBe(before);
-    expect(day.events).toHaveLength(1);
-    expect(day.store.stock.chicken).toBe(0);
   });
   it('cancels a queued order once without payment or stock deduction', () => {
     let day = startDemoDay(createDemoStock());
