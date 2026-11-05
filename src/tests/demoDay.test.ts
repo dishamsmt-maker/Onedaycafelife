@@ -33,9 +33,16 @@ describe('one-day isolated shared event stream', () => {
       actor: 'customer', type: 'order', requestId: 'qr-2',
       tableId: 'T3', itemId: 'halal-porridge', quantity: 2,
     });
-    const id = ordered.store.orders[0].id;
-    expect(applyDemoAction(ordered, catalog, { actor: 'Na', type: 'prepare', orderId: id, costs: {} })).toBe(ordered);
-    expect(applyDemoAction(ordered, catalog, { actor: 'Na', type: 'prepare', orderId: id, costs: { rice: 350 } })).toBe(ordered);
-    expect(ordered.events).toHaveLength(1);
+    expect(ordered.store.orders).toHaveLength(0);
+    expect(ordered.events).toHaveLength(0);
+    expect(ordered.store.stock.rice).toBe(1);
+    const accepted = applyDemoAction(startDemoDay({ rice: 10 }), catalog, {
+      actor: 'customer', type: 'order', requestId: 'qr-3',
+      tableId: 'T3', itemId: 'halal-porridge', quantity: 2,
+    });
+    const id = accepted.store.orders[0].id;
+    expect(applyDemoAction(accepted, catalog, { actor: 'Na', type: 'prepare', orderId: id, costs: {} })).toBe(accepted);
+    expect(accepted.events.map(e => e.action)).toEqual(['ordered']);
+    expect(accepted.store.stock.rice).toBe(10);
   });
 });
