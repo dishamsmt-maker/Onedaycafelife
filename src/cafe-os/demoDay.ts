@@ -12,15 +12,16 @@ import {
 export type DemoEvent = {
   sequence: number;
   actor: 'customer' | 'Na' | 'Ken' | 'manager';
-  action: 'ordered' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled';
+  action: 'ordered' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled' | 'closed';
   orderId: string;
 };
 export interface DemoDay {
   store: CafeStore;
   events: DemoEvent[];
+  closed: boolean;
 }
 export function startDemoDay(stock: Record<string, number>): DemoDay {
-  return { store: createCafeStore(stock), events: [] };
+  return { store: createCafeStore(stock), events: [], closed: false };
 }
 export function applyDemoAction(
   day: DemoDay,
@@ -31,8 +32,16 @@ export function applyDemoAction(
     | { actor: 'Na'; type: 'ready'; orderId: string }
     | { actor: 'Ken'; type: 'serve'; orderId: string }
     | { actor: 'manager'; type: 'pay'; orderId: string }
-    | { actor: 'manager'; type: 'cancel'; orderId: string },
+    | { actor: 'manager'; type: 'cancel'; orderId: string }
+    | { actor: 'manager'; type: 'close' },
 ): DemoDay {
+  if (day.closed) return day;
+  if (action.type === 'close') {
+    if (!closeCafeDay(day.store).readyToClose) return day;
+    return { ...day, closed: true, events: [...day.events, {
+      sequence: day.events.length + 1, actor: 'manager', action: 'closed', orderId: '',
+    }] };
+  }
   let next = day.store;
   let orderId = '';
   let eventAction: DemoEvent['action'];
