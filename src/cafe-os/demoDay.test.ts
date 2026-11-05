@@ -47,4 +47,38 @@ describe('shared demo day projections', () => {
     expect(day.events).toHaveLength(1);
     expect(day.store.stock.chicken).toBe(0);
   });
+  it('cancels a queued order once without payment or stock deduction', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'cancel-queued', tableId: 't3',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    const beforeStock = { ...day.store.stock };
+    const orderId = day.store.orders[0].id;
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'cancel', orderId });
+    expect(day.store.orders[0].status).toBe('cancelled');
+    expect(day.store.stock).toEqual(beforeStock);
+    expect(day.store.cashSatang).toBe(0);
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'cancelled']);
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'cancel', orderId })).toBe(day);
+    expect(demoDayViews(day).manager.close.readyToClose).toBe(true);
+  });
+
+  it('keeps consumed ingredients as waste when cancelling during preparation', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'cancel-prep', tableId: 't3',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    const orderId = day.store.orders[0].id;
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 },
+    });
+    const stockAfterPreparation = { ...day.store.stock };
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'cancel', orderId });
+    expect(day.store.stock).toEqual(stockAfterPreparation);
+    expect(day.store.wasteCostSatang).toBe(1500);
+    expect(day.store.cashSatang).toBe(0);
+    expect(demoDayViews(day).manager.close.readyToClose).toBe(true);
+  });
 });
