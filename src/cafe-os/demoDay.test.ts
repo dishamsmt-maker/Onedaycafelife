@@ -52,6 +52,31 @@ describe('shared demo day projections', () => {
     });
     expect(day).toBe(before);
   });
+  it('reserves queued demand and accepts a new order after cancellation', () => {
+    let day = startDemoDay({ ...createDemoStock(), chicken: 1 });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'reserve-one', tableId: 't1',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    expect(day.store.orders).toHaveLength(1);
+    const queued = day;
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'reserve-two', tableId: 't2',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    expect(day).toBe(queued);
+    expect(day.store.stock.chicken).toBe(1);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'manager', type: 'cancel', orderId: day.store.orders[0].id,
+    });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'reserve-two', tableId: 't2',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    expect(day.store.orders).toHaveLength(2);
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'cancelled', 'ordered']);
+  });
+
   it('cancels a queued order once without payment or stock deduction', () => {
     let day = startDemoDay(createDemoStock());
     day = applyDemoAction(day, DEMO_HALAL_MENU, {
