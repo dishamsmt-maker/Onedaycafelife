@@ -11,6 +11,7 @@ describe('shared demo day projections', () => {
       itemId: 'congee-chicken', quantity: 1,
     });
     expect(day.closed).toBe(false);
+    expect(demoDayViews(day).manager.closed).toBe(false);
     expect(demoDayViews(day).kitchen).toHaveLength(1);
     const retry = applyDemoAction(day, DEMO_HALAL_MENU, {
       actor: 'customer', type: 'order', requestId: 't3-first', tableId: 't3',
@@ -119,6 +120,7 @@ describe('shared demo day projections', () => {
     day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId });
     const closed = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' });
     expect(closed.closed).toBe(true);
+    expect(demoDayViews(closed).manager.closed).toBe(true);
     expect(closed.events.at(-1)?.action).toBe('closed');
     expect(applyDemoAction(closed, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' })).toBe(closed);
     expect(applyDemoAction(closed, DEMO_HALAL_MENU, { actor: 'customer', type: 'order', requestId: 'late', tableId: 't1', itemId: 'congee-chicken', quantity: 1 })).toBe(closed);
