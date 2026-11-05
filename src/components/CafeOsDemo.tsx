@@ -33,22 +33,24 @@ export default function CafeOsDemo() {
   <h3>ลูกค้า · QR</h3>
   <label>โต๊ะ <select aria-label="โต๊ะ" value={table} onChange={e=>setTable(e.target.value)}>{DEMO_TABLE_IDS.map(t=><option key={t} value={t}>{t.toUpperCase()}</option>)}</select></label>
   <label>เมนู <select aria-label="เมนู" value={item} onChange={e=>setItem(e.target.value)}>{DEMO_HALAL_MENU.map(m=><option key={m.id} value={m.id}>{m.nameTh} ฿{baht(m.priceSatang)}</option>)}</select></label>
-  <button className="button primary" onClick={order}>จำลองสั่งผ่าน QR</button><p role="status">{message}</p>
+  <button className="button primary" disabled={day.closed} onClick={order}>จำลองสั่งผ่าน QR</button><p role="status">{message}</p>
   <h3>ลูกค้า · ติดตามออร์เดอร์</h3>
   {views.customer.filter(o=>o.tableId===table).map(o=><p key={o.id}>#{o.id} · {o.status}</p>)}
   {!views.customer.some(o=>o.tableId===table)&&<p>โต๊ะนี้ยังไม่มีออร์เดอร์</p>}
   <h3>Na · คิวครัว ({views.kitchen.length})</h3>
   {views.kitchen.map(o=><article key={o.id}><strong>{o.tableId.toUpperCase()} · {DEMO_HALAL_MENU.find(m=>m.id===o.itemId)?.nameTh}</strong> · {o.status} {' '}
-   {o.status==='queued'?<button onClick={()=>act(o.id,'prepare')}>Na เริ่มทำ</button>:<button onClick={()=>act(o.id,'ready')}>Na ทำเสร็จ</button>}</article>)}
+   {o.status==='queued'?<button disabled={day.closed} onClick={()=>act(o.id,'prepare')}>Na เริ่มทำ</button>:<button disabled={day.closed} onClick={()=>act(o.id,'ready')}>Na ทำเสร็จ</button>}</article>)}
   <h3>Ken · รอเสิร์ฟ ({views.service.length})</h3>
-  {views.service.map(o=><article key={o.id}>{o.tableId.toUpperCase()} <button onClick={()=>act(o.id,'serve')}>Ken เสิร์ฟ</button></article>)}
+  {views.service.map(o=><article key={o.id}>{o.tableId.toUpperCase()} <button disabled={day.closed} onClick={()=>act(o.id,'serve')}>Ken เสิร์ฟ</button></article>)}
   <h3>ผู้จัดการ · POS / ปิดยอด</h3>
   {day.store.orders.map(o=><article key={o.id}>{o.tableId.toUpperCase()} · {o.status} · ฿{baht(o.unitPriceSatang*o.quantity)}
-   {o.paymentRecorded?' · ชำระแล้ว':o.status==='served'?<button onClick={()=>act(o.id,'pay')}>POS รับเงิน</button>:' · รอเสิร์ฟ'}
-   {o.status!=='served'&&o.status!=='cancelled'&&<button onClick={()=>act(o.id,'cancel')}>ยกเลิกออร์เดอร์</button>}
+   {o.paymentRecorded?' · ชำระแล้ว':o.status==='served'?<button disabled={day.closed} onClick={()=>act(o.id,'pay')}>POS รับเงิน</button>:' · รอเสิร์ฟ'}
+   {o.status!=='served'&&o.status!=='cancelled'&&<button disabled={day.closed} onClick={()=>act(o.id,'cancel')}>ยกเลิกออร์เดอร์</button>}
   </article>)}
   <p>เงินสด ฿{baht(views.manager.cashSatang)} · ต้นทุน ฿{baht(views.manager.close.ingredientCostSatang)}</p>
   <p>ยอดตรง: {views.manager.close.cashBalanced?'ใช่':'ไม่ตรง'} · ปิดยอดได้: {views.manager.close.readyToClose?'ใช่':'ไม่'}</p>
+  <button className="button primary" disabled={day.closed || !views.manager.close.readyToClose} onClick={()=>{const next=applyDemoAction(day,DEMO_HALAL_MENU,{actor:'manager',type:'close'});setDay(next);setMessage(next.closed?'ปิดยอดวันทดลองแล้ว · ไม่สามารถรับออร์เดอร์เพิ่ม':'ยังปิดยอดไม่ได้');}}>ปิดยอดวันทดลอง</button>
+  {day.closed&&<p role="status">ปิดวันแล้ว · ยอดสุทธิ ฿{baht(views.manager.close.netSalesSatang)} · ต้นทุน ฿{baht(views.manager.close.ingredientCostSatang)} · ของเสีย ฿{baht(views.manager.close.wasteCostSatang)}</p>}
   <details><summary>ตรวจสต็อกจำลอง ({Object.keys(views.manager.stock).length} วัตถุดิบ)</summary>
    <ul>{Object.entries(views.manager.stock).sort(([a],[b])=>a.localeCompare(b)).map(([name,qty])=><li key={name}>{name}: {qty} หน่วยจำลอง</li>)}</ul>
   </details>
