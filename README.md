@@ -127,3 +127,19 @@ The reference photo's cream building, dark canopy, wood counters, cream umbrella
 Next priorities: test on the user's iPhone; review A/B/C captures; refine chair/aisle clearances; replace key close-up character and plant assets with optimized authored models; bake lighting/AO and validate frame time/memory before increasing scene complexity.
 
 The visitor test also checks that, after delivery, employees remain clear of the seated customer: servers approach the table edge and return to the service point. Menu atlas downloads use WebP (about 985 KB total); original PNG sources remain available for asset editing. Browser QA blocks external font requests to avoid the test runner waiting on Google Fonts; the Thai/system fallback remains usable.
+
+## 2026-11-03 — TASK-028 (Game/UX, review-only)
+
+- **Change:** right-side relative's-house boundary wall body and top cap in the 3D scene now use neutral matte-gray colors (`#858b89` and `#757c7a`) instead of warm cream. No changes to the three game modes, the 3 customer tables, controls, ordering, save format or Café OS.
+- **Source commit:** `2b19904ed1669d3ec8ff0102f6c9f49800d636aa` (`src/components/Scene.tsx`). This is a visual source change on a feature branch, **not a released game build**.
+- **Verification:** GitHub source-level check: one exact old wall-color pair replaced, positions/dimensions unchanged; check diff in PR. Local `npm ci`, `npm test`, `npm run build`, Playwright/mobile and matched WebGL screenshots **not run** because this execution environment cannot resolve github.com to clone dependencies. Run `npm ci && npm test && npm run build && npm run test:e2e` in a networked CI runner before approval; manually inspect the wall in isometric and FPV modes at day/night on a real phone.
+- **Limits:** this stacked change depends on the still-open PR #19; original V2 and production are untouched. `map={stone}` still applies a stone texture; neutral-gray appearance needs screenshot confirmation. No owner approval for merge/deploy yet.
+- **HANDOFF TASK-029 (QA & PM):** verify latest PR stack and CI; run matched before/after mobile screenshots and record pass/fail for the wall color plus all three modes, then propose safe review/merge order without merging.
+
+## Playtest cleanup — 2026-11-04 (draft PR #21)
+
+- Removed floating customer question text and kitchen/bar/POS debug overlays from the 3D scene; underlying customer and order logic remains unchanged.
+- Removed two unsupported floating preparation benches near the kitchen; updated staff apron badges to use staff names rather than generic ONE DAY text.
+- Source commits: `55f8407`, `b0d6609`, `6c6b89e`. **Not merged or deployed.**
+- Verification: source-level string/diff inspection only. `npm ci`, `npm test`, `npm run build`, browser/mobile visual tests **not run** in this task. Verify the three camera modes, kitchen appliances, employee names, and scene geometry before approval.
+- Remaining owner requests (bar alignment, pathfinding/collisions, diverse visitors, shared service duties, gardening schedule, furniture redesign, etc.) are not claimed complete.
