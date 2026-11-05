@@ -73,6 +73,19 @@ export function submitCafeOrder(
     Object.entries(item.recipe).some(([id, amount]) => !validId(id) || !Number.isFinite(amount) || amount < 0 || !Number.isFinite(amount * request.quantity))) {
     return { store, order: undefined as never, accepted: false, reason: 'invalid-order' };
   }
+  // Reserve availability for queued orders without deducting physical stock
+  // until preparation. This rejects sold-out QR requests and overselling.
+  const recipe = item.recipe;
+  const available = Object.entries(recipe).every(([ingredient, perItem]) => {
+    const required = perItem * request.quantity;
+    const committed = store.orders
+      .filter(o => o.status === 'queued' && !o.stockConsumed)
+      .reduce((sum, o) => sum + (o.recipeSnapshot?.[ingredient] ?? 0) * o.quantity, 0);
+    const onHand = store.stock[ingredient];
+    return Number.isFinite(onHand) && Number.isFinite(committed) &&
+      Number.isFinite(required) && onHand >= 0 && onHand - committed >= required;
+  });
+  if (!available) return { store, order: undefined as never, accepted: false, reason: 'out-of-stock' };
   const next = copy(store);
   const order: CafeOrder = { id: 'cafe-' + request.requestId, ...request,
     unitPriceSatang: item.priceSatang, recipeSnapshot: { ...item.recipe }, status: 'queued', paidSatang: 0, paymentRecorded: false, stockConsumed: false };
