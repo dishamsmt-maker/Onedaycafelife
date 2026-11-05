@@ -80,6 +80,7 @@ export function applyDemoAction(
   }
   return {
     store: next,
+    closed: day.closed,
     events: [...day.events, { sequence: day.events.length + 1, actor: action.actor, action: eventAction, orderId }],
   };
 }
