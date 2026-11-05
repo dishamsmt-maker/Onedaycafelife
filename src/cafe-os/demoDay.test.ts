@@ -83,6 +83,30 @@ describe('shared demo day projections', () => {
     expect(day.store.cashSatang).toBe(0);
     expect(demoDayViews(day).manager.close.readyToClose).toBe(true);
   });
+  it('rejects payment before service without changing cash or event log', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'pay-guard', tableId: 't3',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    const orderId = day.store.orders[0].id;
+    const before = day;
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(before);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 },
+    });
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(day);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Na', type: 'ready', orderId });
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(day);
+    expect(day.store.cashSatang).toBe(0);
+    expect(day.store.cashEvents).toHaveLength(0);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Ken', type: 'serve', orderId });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId });
+    expect(day.store.cashSatang).toBe(4500);
+    expect(day.store.cashEvents).toHaveLength(1);
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing', 'ready', 'served', 'paid']);
+  });
+
   it('closes only after payment and rejects further mutations or repeated close', () => {
     let day = startDemoDay(createDemoStock());
     day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'customer', type: 'order', requestId: 'close-day', tableId: 't3', itemId: 'congee-chicken', quantity: 1 });
