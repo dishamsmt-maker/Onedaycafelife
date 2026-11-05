@@ -14,7 +14,7 @@ export interface CafeLife {
   journal:JournalEntry[]; photos:PhotoMemory[];
 }
 export const freshLife = ():CafeLife => ({pots:[],light:'warm',dirtyDishes:0,journal:[],photos:[]});
-export const POT_SLOTS:Vec2[] = [3,5,15.4,20.2,25.5,28,30,33,37,41,44,48].map(z=>[2.08,z]);
+export const POT_SLOTS:Vec2[] = [3,5,15.4,20.2,25.5,28,30,33,37,41,44,48].map(z=>[z===28||z===30?.1:z===44||z===48?-.2:2.08,z]);
 export const PLANT_PRICES:Record<PlantSpecies,number>={monstera:450,rubber:650,fern:250};
 export const UMBRELLAS = {cream:{label:'ผ้าใบครีม',color:'#e4d7b7',price:1200},olive:{label:'เขียวมะกอก',color:'#7e8d65',price:1400},clay:{label:'ดินเผา',color:'#bb8068',price:1400},none:{label:'เก็บร่ม',color:'#e4d7b7',price:0}} as const;
 export type UmbrellaStyle=keyof typeof UMBRELLAS;

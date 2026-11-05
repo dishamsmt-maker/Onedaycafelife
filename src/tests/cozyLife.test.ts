@@ -2,7 +2,7 @@ import {describe,expect,it} from 'vitest';
 import {act,createGame,tick,activeServer,getMetrics} from '../game/engine';
 import {validateSave} from '../game/persistence';
 import {canWalk,findPath,segmentWalkable,STATIONS} from '../game/world';
-import {gardenComfort,potObstacles,progression} from '../game/cozy';
+import {gardenComfort,potObstacles,progression,POT_SLOTS} from '../game/cozy';
 import {soundAttenuation,SOUND_SOURCES} from '../game/soundSpace';
 import type {GameState} from '../game/types';
 function quiet(){const s=createGame(20261105);s.minute=420;s.phase='open';s.paused=false;s.events=[];s.settings.arrivalsPerHour=0;return s;}
@@ -93,6 +93,15 @@ describe('cozy life shares the restaurant state',()=>{
   const e=s.employees.find(e=>e.id==='ken')!;e.position=[e.task!.target[0]-.8,e.task!.target[1]];
   s=act(s,{type:'staff-step',id:'ken'});expect(s.orders[0].status).toBe('serving');expect(s.employees.find(e=>e.id==='ken')!.task).not.toBeNull();
   atTarget(s,'ken');s=act(s,{type:'staff-step',id:'ken'});expect(s.orders[0].status).toBe('completed');expect(s.ledger.filter(t=>t.type==='cogs')).toHaveLength(1);
+ });
+
+ it('offers only plant slots outside equipment and buildings and preserves the full public path',()=>{
+  let s=quiet();for(let slot=0;slot<POT_SLOTS.length;slot++){
+   const [x,z]=POT_SLOTS[slot];expect(canWalk(x,z,.23,s.tables,potObstacles(s))).toBe(true);
+   s=act(s,{type:'plant',slot,species:'fern'});expect(s.life!.pots).toHaveLength(slot+1);
+  }
+  expect(findPath(STATIONS.entrance,[-1.45,49],s.tables,potObstacles(s)).at(-1)).toEqual([-1.45,49]);
+  expect(s.cash).toBe(10000-POT_SLOTS.length*250);expect(getMetrics(s).cogs).toBe(0);
  });
 
 });
