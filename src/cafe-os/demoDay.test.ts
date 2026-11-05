@@ -121,6 +121,7 @@ describe('shared demo day projections', () => {
       { congee: 500, chicken: Number.NaN },
       { congee: 500, chicken: Number.POSITIVE_INFINITY },
       { congee: 500, chicken: 1.5 },
+      { congee: Number.MAX_SAFE_INTEGER, chicken: Number.MAX_SAFE_INTEGER },
     ];
     for (const costs of invalidCosts) {
       const unchanged = applyDemoAction(day, DEMO_HALAL_MENU, {
