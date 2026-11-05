@@ -24,7 +24,19 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify playable build before publishing
+        run: |
+          export CHROMIUM_PATH="$(find "$HOME/.cache/ms-playwright" -type f \( -path '*/chrome-linux/chrome' -o -path '*/chrome-linux64/chrome' \) | head -n 1)"
+          test -n "$CHROMIUM_PATH"
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-browser-evidence
+          path: test-results/
       - uses: actions/configure-pages@v5
         with:
           enablement: true
@@ -50,3 +62,20 @@ jobs:
             curl --fail --retry 5 --retry-delay 3 --retry-all-errors "${GAME_URL}menu/${atlas}.webp" -o "/tmp/${atlas}.webp"
             test "$(wc -c < "/tmp/${atlas}.webp")" -gt 1000
           done
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Play the published game in mobile Chromium
+        env:
+          GAME_URL: ${{ steps.deployment.outputs.page_url }}
+        run: node scripts/published-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-game-evidence
+          path: test-results/published/

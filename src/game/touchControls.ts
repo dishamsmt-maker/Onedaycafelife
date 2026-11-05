@@ -3,6 +3,7 @@ export type InteractionKind = 'staff'|'table'|'fridge'|'garden'|'bar'|'kitchen'|
 type Listener = () => void;
 const listeners = new Set<Listener>();
 export const touchControls = {
+  listener:{x:-1.4,y:1.62,z:-6.1,forwardX:0,forwardZ:1},
   move: {x: 0, y: 0},
   look: {x: 0, y: 0},
   interact: false,

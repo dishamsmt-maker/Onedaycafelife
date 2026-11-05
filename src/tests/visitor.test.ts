@@ -10,8 +10,8 @@ describe('first person café visitor',()=>{
   expect(canVisitorWalk(0,-7)).toBe(false);
   expect(canVisitorWalk(-.2,1.65)).toBe(true);
   // Continuous public aisle clear past all workstations, leading to garden.
-  for(let z=0;z<8.2;z+=.1)expect(canVisitorWalk(-.15,z)).toBe(true);
-  for(const p of [STATIONS.bar,STATIONS.kitchen,[1,9.3] as [number,number]]){
+  for(let z=.3;z<49.5;z+=.1)expect(canVisitorWalk(-1.45,z)).toBe(true);
+  for(const p of [STATIONS.bar,STATIONS.kitchen,STATIONS.rest]){
    expect(canVisitorWalk(...p)).toBe(false);expect(canWalk(...p)).toBe(true);
   }
  });
@@ -49,8 +49,8 @@ describe('first person café visitor',()=>{
   let s=act(game(),{type:'visitor-order',menuId:'chicken-porridge'});
   s=tick(s,2);s=act(s,{type:'control-staff',id:'na'});
   const consumed=s.orders[0].stockConsumed;
-  s=act(s,{type:'control-move',id:'na',position:[-.2,4]});s=tick(s,5);
-  expect(s.employees.find(e=>e.id==='na')!.position).toEqual([-.2,4]);
+  s=act(s,{type:'control-move',id:'na',position:[1.2,10.1]});s=tick(s,5);
+  expect(s.employees.find(e=>e.id==='na')!.position).toEqual([1.2,10.1]);
   expect(s.employees.find(e=>e.id==='na')!.task).toBeNull();
   s=act(s,{type:'control-staff',id:null});s=tick(s,20);
   expect(s.orders[0].status).toBe('completed');expect(s.ledger.filter(t=>t.type==='cogs')).toHaveLength(1);

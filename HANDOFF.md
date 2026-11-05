@@ -1,6 +1,16 @@
 # ส่งต่องาน ONE DAY Café Life
 
-## Latest: 30 October 2026 — service realism
+## Latest: 4 November 2026 — QR retry and one-day verification
+
+Based on PR #23 head `fcd95a7`; branch `fix/one-day-validation-20261104`. Fixed the confirmed CI failure by applying the Pages base only to production builds, and moved QR/POS channel assignment after successful order creation so rejected bundles do not lock future ordering. Added T3 UI-to-closing, mid-production persistence, remote-delivery, cancellation, duplicate assignment and static route regressions. QA screenshots now use test output directories.
+
+Actually run: `npm ci` exit 0; `npm test` **54/54** (9 files), exit 0; `GITHUB_ACTIONS=true npm run build` exit 0, Pages prefix verified; original Chromium E2E suite **8/8** followed by the new T3 scenario **1/1**, both exit 0. This is nine scenarios across two runs. Existing large-bundle warning remains. No physical iPhone/Safari test, new hosted Preview, main merge or production deployment.
+
+[Evidence mapped to issue #22's 24 gates](docs/verification-2026-11-04.md) and [physical layout A/B review](docs/layout-ab-review-2026-11-04.md) identify remaining device, visual, real-store and measurement gaps. Do not claim 24/24 acceptance or a real multi-device Café OS from these simulation tests.
+
+GitHub metadata reports repository **public**. On 4 November 2026 the owner explicitly authorized pushing this prepared change and opening a Draft PR in the current public repository. That authorization resolves the private-before-push constraint for this change; it does not authorize merging or production deployment. Baseline tag remains unchanged.
+
+## Previous: 30 October 2026 — service realism
 
 Branch `feature/service-realism` starts from merged PR #4 (`9719cc5`). The user has explicitly authorized merge/publish and changed repository visibility to public; those instructions supersede the earlier private-only/no-publish constraints. Baseline tag is unchanged. See `docs/SERVICE_REALISM.md` for implementation and physical-animation limits.
 
@@ -84,3 +94,47 @@ Validation **run this round**: `npm test` 42/42 passed in 5 files (40 prior + 2 
 Tracked screenshots produced by this browser run were restored. Browser checks use Chromium software rendering, not physical iPhone/Safari. No dependency installation, vulnerability audit, deployment or tag update was performed in this round. Existing Sites integration remains unavailable in this session; opening the original game URL does not load these changes.
 
 Visual inspection also captured the open storage cabinet and garden without page errors. Bar stool seats were subsequently matched to black (color-only correction); the browser suite above preceded that final color change.
+
+## 4 November 2026 — reference garden release
+
+Current owner authorized continuing outstanding game work and deployment after verification. Recovered original 21-item brief and separate issue #22 QA tracker. Continue from PR #32 integration ancestor on `feature/reference-garden-finish`, without merging main or moving the baseline tag. See `docs/reference-release-2026-11-04.md` for implementation, test evidence and explicit open acceptance items. Do not claim all 21/24 complete or photorealistic/iPhone-certified.
+
+## Full-site implementation — 4 November 2026
+
+Branch `feature/full-site-5x50` continues from `9719106`. Current owner approved full5×50 design, bar interior, merge and deploy. Initial expanded-world validation: Vitest77/77, build passed. New tests cover full50m corridor/table routes, legacy migration idempotence/financial preservation, table5 production/payment, and actual morning plant round before opening. Browser suite currently running; do not count incomplete runs as passed. See docs/FULL_SITE_IMPLEMENTATION.md for remaining visual/navigation limitations.
+
+Full-site local browser run:9/9 passed in4.2min before the authored-plant pass. A subsequent77/77 unit run passed after removing an experimental deadlocking avoidance approach. The added table5 UI scenario and latest authored assets require final browser/CI validation; do not count them passed until results arrive. Asset pass introduces a5.76MB attributed plant GLB and2MB generated leaf texture. Static detail meshes now use instancing.
+
+## 4 November 2026 — CI diagnosis and reporting
+
+GitHub Actions run 41860667615 at `2b39441` passed unit/build and 9/10 browser cases. `service-visuals` failed because its fixture advanced simulation and clicked through before the rendered clock/camera caught up after loading the authored plant. The targeted browser case passed after explicitly waiting for the clock and camera mode before opening the menu; this retains the image-decode and visible-menu assertions. A complete final-head browser run is still required.
+
+Closing fallback now records incomplete watering and an unremoved sign in the daily inspection report instead of silently reporting routine completion. New regression passed. Full local unit suite 78/78 and build passed in this round. A real-browser full-site walking scenario has been added; its result must be recorded separately. The dynamic crowd-avoidance prototype was reverted due to deadlocks; no dynamic-avoidance completion claim is justified. Physical iPhone and final visual acceptance remain open.
+
+Full-site browser walk from z=-0.4 to beyond49m passed in2.0 minutes using Chromium software rendering. This measures a browser journey, not physical-phone performance. The screenshot originally faced out of the rear boundary; the test is adjusted to look back toward the garden. Subsequently the left foliage was narrowed and two back-garden trees received collision boxes; 78/78 unit tests passed after this adjustment. Full final-head CI remains required.
+
+Runtime capture review exposed instanced foliage being culled when the camera moved away from the origin. Recompute the leaves/trunks instance bounding spheres after populating matrices; subsequent local captures at front, bar and garden showed plants and no page errors. Visual comparison still falls well short of the owner’s reference; the current result remains a blockout and is not accepted as 80% similarity. Full crowd avoidance and workstation reservations remain incomplete. Do not merge/deploy as final until those requested items and final CI are resolved.
+
+## 5 November 2026 — inspection-facing bar window and plant species
+
+Owner clarified that the drink counter facing the inspection business must be open, while the rear kitchen stays enclosed. The left facade now has a 2.70m-wide opening from z7.40 to10.10, sill1.05m/head2.35m, dark frame and timber counter ledge kept within the bar footprint. The lower wall still blocks walking through it. Customer ordering now recognises both the front counter and side hatch; production/payment use the existing engine.
+
+Plant additions use the existing22 planting/watering positions: three monstera, three rubber plants and five fern clusters have separate leaf silhouettes. Monstera has split margins and fenestration holes; rubber leaves are oval and glossier. Existing pots and routes are retained, so no save-counter migration is needed. These are authored procedural game models, not scanned botanical assets or proof of100% photo similarity.
+
+Build passed; full unit suite79/79 passed before the added side-counter regression, then targeted full-site/service suite14/14 passed including that regression. Browser side-hatch order test is pending at this writing. Full crowd avoidance, physical-device verification and final visual acceptance remain open. Earlier owner authorization to merge/deploy persists; no new permission is required for those actions once validation and intended scope are complete.
+
+The targeted side-hatch browser journey passed (1/1,52.3s): public approach, contextual menu, Thai-tea selection and one real counter-channel order. Captured actual window screenshot was inspected. This validates the requested hatch interaction, not all remaining game/visual acceptance items.
+
+## 5 November 2026 — Cozy life systems
+
+Owner repeatedly requested implementing the entire Cozy Realistic / Slow Living brief and checking before delivery. See [docs/COZY_LIFE.md](docs/COZY_LIFE.md) for the playable scope, shared state, save behaviour and explicit fidelity boundaries. Adds manual employee preparation/service/cleaning/washing, editable shifts, customer activities and greetings, quiet breaks, ambience animals/traffic, positional audio, decoration with real cash/collision, journal/progression and actual WebGL photo capture/album. New games run at0.25× with selectable0.25/0.5/1/2/5×.
+
+Site context now includes the pink roof and neighbouring buildings/cables; road setback is still a proposal, not a measured survey. New and existing saves retain finances, and moved tables/decoration survive reload. No backend or real payment service has been added.
+
+Actual verification so far:94/94 Vitest passed; TypeScript/Vite build passed. Initial JS505.93kB /158.30kB gzip, lazy Scene1053.39kB /293.46kB gzip. Earlier browser attempts caught a root-level asset suspension and an invalid literal newline in the existing Sky shader; these were fixed. Three targeted cozy browser flows passed; the manual-flow test initially asserted before the last2.2s action completed and now waits for the actual order status. A full16-case browser run is in progress; do not count it as passed before completion. Preserve the baseline tag and don't claim measured/photographic100% or physical-device approval.
+
+Follow-up verification:97/97 unit/simulation tests and TypeScript/Vite build passed after fixing custom-shift return/duty hours, replanning abandoned manual trips, and using the same0.45m reach for manual and automatic delivery. The initial complete browser run passed15/16; the50m walk stayed atz=-0.4 because the fixture held movement before the lazy camera mounted and reset controls. Input readiness is now explicit in the UI, and camera journeys wait for active/enabled controls before starting. The focused6-case cozy/mobile/full-walk rerun is in progress. JPEG storage now retains pictures chronologically. Build:506.42kB/158.45kB gzip initial application;1053.50kB/293.50kB gzip scene. Do not describe the initial15/16 result as a full pass.
+
+The6-case focused rerun passed4.6min, including the complete50m walk and independent two-finger phone input. CI atf41b5ca passed15/16: photo capture was attempted before the renderer registered ("กล้องยังไม่พร้อม"). Readiness is now published atomically with registering the photo renderer; both entry/capture buttons remain disabled until ready. Actual morning, golden-hour, night garden, light rain/bar and rear-boundary captures showed no JS/shader errors. Those captures exposed far-sky clipping atz49: the sky dome now follows the camera, and roofed bar positions are excluded from rain. Movement now preserves pace across slower frames with whole-segment collision checks and a bounded resume delta.100/100 tests and build passed; current focused3-case photo/walk/touch confirmation is running. Latest build:506.44kB/158.47kB gzip app;1053.94kB/293.69kB gzip scene. Captures used software rendering and do not establish phone FPS; the wide1100px capture reported1FPS/609draw calls/138337triangles atDPR0.7, so do not certify physical-device performance from this environment.
+
+CI run41948260394 onab63623 completed successfully:100/100 units/build and16/16 browser cases. The focused photo/full-walk/touch rerun also passed3/3 in2.6min. `scripts/published-smoke.mjs` passed on the compiled production build at localhost4173. Four production-only lighting/weather captures (no development harness) passed with no JS/shader errors and the clock unchanged05:30; images and verification JSON are in `/workspace/designs/one-day-cozy-runtime/`. A final placement audit moved pot slots28/30 away from the garden counter and44/48 out of the rear building, and now rejects obstructed sites before spending. Regression checks all12 offered locations and the continuous public route.101/101 unit tests and build pass after this clearance fix. Its exact-head CI checks on PR34 are authoritative for release; do not confuse earlier run failures or an ancestor pass with the latest commit.

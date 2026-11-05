@@ -123,7 +123,7 @@ describe('service periods and reference menu',()=>{
     expect(c.path.length).toBeGreaterThan(0);
     s=tick(s,.5);expect(s.tables[0].customerIds).toContain(c.id);
     expect(s.tables[0].dirty).toBe(false);
-    s=tick(s,8);const returned=s.customers.find(x=>x.id===c.id)!;
+    s=tick(s,20);const returned=s.customers.find(x=>x.id===c.id)!;
     expect(returned).toBeDefined();expect(returned.status).toBe('eating');
     expect(returned.position[0]).toBeCloseTo(seat[0],2);expect(returned.position[1]).toBeCloseTo(seat[1],2);
     expect(s.tables[0].customerIds).toContain(c.id);

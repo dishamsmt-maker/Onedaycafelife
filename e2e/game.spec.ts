@@ -4,9 +4,9 @@ async function state(page:Page){return page.evaluate(()=>JSON.parse(JSON.stringi
 async function advance(page:Page,minutes:number){await page.evaluate(m=>(window as any).__ONE_DAY_DEV__.advance(m),minutes);}
 async function launch(page:Page){await page.goto('/',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'เดินเข้าร้าน',exact:true}).click();await page.getByRole('button',{name:'หยุดเวลา',exact:true}).click();await expect(page.locator('canvas')).toBeVisible();await page.getByRole('button',{name:'เปิดเมนูเกม',exact:true}).click();await page.getByRole('button',{name:'เปิดตั้งค่า',exact:true}).click();await page.getByLabel('คุณภาพภาพ',{exact:true}).selectOption('low');await page.getByRole('button',{name:'ย่อแผง',exact:true}).click();}
 test('busy service, camera changes and IndexedDB resume preserve real state',async({page})=>{
- const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await launch(page);await advance(page,12);
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await launch(page);await advance(page,72);
  await page.getByRole('button',{name:'เปิดเมนูเกม',exact:true}).click();await page.getByRole('button',{name:'เปิดออร์เดอร์',exact:true}).click();await page.getByLabel('เลือกหน้าจัดการ').selectOption('events');await page.getByRole('button',{name:'20 คน',exact:true}).click();
- let s=await state(page);expect(s.todayArrivals).toBeGreaterThanOrEqual(20);expect(s.tables.reduce((n:number,t:any)=>n+t.customerIds.length,0)).toBeLessThanOrEqual(12);
+ let s=await state(page);expect(s.todayArrivals).toBeGreaterThanOrEqual(20);expect(s.tables.reduce((n:number,t:any)=>n+t.customerIds.length,0)).toBeLessThanOrEqual(20);
  await advance(page,22);s=await state(page);expect(s.orders.length).toBeGreaterThan(0);expect(s.orders.some((o:any)=>o.stockConsumed)).toBeTruthy();
  const signature=JSON.stringify({cash:s.cash,orders:s.orders,inventory:s.inventory,minute:s.minute,employees:s.employees});
  await page.getByRole('button',{name:'ย่อแผง',exact:true}).click();await page.getByRole('button',{name:'ดูร้าน',exact:true}).click();await page.getByRole('button',{name:'เดินชมร้าน',exact:true}).click();
@@ -24,9 +24,9 @@ test('inventory purchase is a cash movement and menu edits affect actual simulat
  expect((await state(page)).menu.find((m:any)=>m.id==='latte').price).toBe(55);
  await page.getByLabel('เลือกหน้าจัดการ').selectOption('settings');await page.getByLabel('สภาพอากาศ',{exact:true}).selectOption('rain');expect((await state(page)).weather).toBe('rain');
 });
-test('mobile starts with accessible scene and opens management on demand',async({page})=>{
+test('mobile starts with accessible scene and opens management on demand',async({page},info)=>{
  await page.setViewportSize({width:390,height:844});await launch(page);await expect(page.locator('.management-panel')).toHaveCount(0);
  await page.getByRole('button',{name:'เปิดเมนูเกม',exact:true}).click();await page.getByRole('button',{name:'เปิดออร์เดอร์',exact:true}).click();await expect(page.locator('.management-panel')).toBeVisible();
  await page.getByRole('button',{name:'ย่อแผง',exact:true}).click();await expect(page.locator('.management-panel')).toHaveCount(0);
- await page.screenshot({path:'screenshot-mobile.png'});
+ await page.screenshot({path:info.outputPath('screenshot-mobile.png')});
 });

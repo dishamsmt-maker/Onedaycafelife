@@ -1,0 +1,238 @@
+{
+  "status": "approved design direction; proposed geometry, not measured construction drawings",
+  "units": "metres",
+  "siteOrigin": [
+    1.8,
+    7
+  ],
+  "localAxes": "u from left to right, v from front to rear; site x=1.8+u, site z=7+v",
+  "outerSize": [
+    3,
+    6
+  ],
+  "wallThickness": 0.1,
+  "clearAisle": {
+    "uMin": 0.75,
+    "uMax": 2.25,
+    "vMin": 0.75,
+    "vMax": 5.25,
+    "width": 1.5
+  },
+  "frontCounter": {
+    "bounds": [
+      0.1,
+      0.1,
+      2.9,
+      0.75
+    ],
+    "height": 1.05,
+    "pickupU": [
+      0.2,
+      1.1
+    ],
+    "orderPayU": [
+      1.9,
+      2.8
+    ]
+  },
+  "leftBench": {
+    "bounds": [
+      0.1,
+      0.95,
+      0.75,
+      4.35
+    ],
+    "height": 0.9
+  },
+  "rightBench": {
+    "bounds": [
+      2.25,
+      0.95,
+      2.9,
+      5.25
+    ],
+    "height": 0.9
+  },
+  "rearBench": {
+    "bounds": [
+      0.1,
+      5.25,
+      2.9,
+      5.9
+    ],
+    "height": 0.9
+  },
+  "staffDoor": {
+    "wall": "left",
+    "vRange": [
+      4.35,
+      5.25
+    ],
+    "clearWidth": 0.9,
+    "type": "sliding",
+    "note": "opening connects directly to public path; no queue or door swing may obstruct path"
+  },
+  "stations": [
+    {
+      "id": "espresso",
+      "equipmentBounds": [
+        0.1,
+        1,
+        0.75,
+        2.25
+      ],
+      "operatorAnchor": [
+        1.1,
+        1.65
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "cold-drinks",
+      "equipmentBounds": [
+        0.1,
+        2.25,
+        0.75,
+        3.45
+      ],
+      "operatorAnchor": [
+        1.1,
+        2.85
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "pack",
+      "equipmentBounds": [
+        0.1,
+        3.45,
+        0.75,
+        4.3
+      ],
+      "operatorAnchor": [
+        1.1,
+        3.85
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "prep",
+      "equipmentBounds": [
+        2.25,
+        1,
+        2.9,
+        2.75
+      ],
+      "operatorAnchor": [
+        1.9,
+        1.9
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "cook",
+      "equipmentBounds": [
+        2.25,
+        2.75,
+        2.9,
+        4.2
+      ],
+      "operatorAnchor": [
+        1.9,
+        3.4
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "ingredients-fridge",
+      "equipmentBounds": [
+        2.25,
+        4.2,
+        2.9,
+        5.2
+      ],
+      "operatorAnchor": [
+        1.9,
+        4.65
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "dishwash",
+      "equipmentBounds": [
+        0.1,
+        5.25,
+        1.2,
+        5.9
+      ],
+      "operatorAnchor": [
+        1,
+        4.9
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "handwash",
+      "equipmentBounds": [
+        1.35,
+        5.25,
+        1.9,
+        5.9
+      ],
+      "operatorAnchor": [
+        1.65,
+        4.9
+      ],
+      "capacity": 1
+    },
+    {
+      "id": "clean-store",
+      "equipmentBounds": [
+        2,
+        5.25,
+        2.9,
+        5.9
+      ],
+      "operatorAnchor": [
+        2.05,
+        4.9
+      ],
+      "capacity": 1
+    }
+  ],
+  "reservations": {
+    "zones": [
+      "front-turn",
+      "centre-crossing",
+      "rear-wet-zone",
+      "staff-door"
+    ],
+    "rule": "station capacity alone is insufficient: overlapping actor bodies, appliance doors and through-traffic also reserve their clearance zones"
+  },
+  "gardenStoolBar": {
+    "siteBounds": [
+      4.25,
+      27,
+      4.8,
+      30.2
+    ],
+    "height": 1.05,
+    "stools": [
+      {
+        "x": 3.65,
+        "z": 27.6
+      },
+      {
+        "x": 3.65,
+        "z": 28.6
+      },
+      {
+        "x": 3.65,
+        "z": 29.6
+      }
+    ],
+    "purpose": "3 optional garden bar seats, separate from 20 table seats and never counted as QR tables"
+  },
+  "staffFlow": "Ham front-left drinks; Na right prep/cook; Alee support only when free work slot exists; Ken/Pun collect outside front pickup and return dirty dishes at rear; no standing queues in central aisle",
+  "rearReturn": "proposed rear wall return hatch aligned with dirty side; keep handwash and clean store separate; collision and approach envelopes must be verified"
+}

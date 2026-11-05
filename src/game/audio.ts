@@ -1,9 +1,10 @@
+import {SOUND_SOURCES,type SoundZone} from './soundSpace';
 import type { GameState } from './types';
 
 export type SoundPeriod = 'morning' | 'day' | 'evening';
 export type SoundPeriodOverride = 'auto' | SoundPeriod;
-export interface AudioMix { volume?:number; musicVolume?:number; effectsVolume?:number; periodOverride?:SoundPeriodOverride; }
-export interface AudioDiagnostics { running:boolean; period:SoundPeriod; notes:number; effects:number; voices:number; }
+export interface AudioMix { volume?:number; musicVolume?:number; effectsVolume?:number; periodOverride?:SoundPeriodOverride;nature?:boolean;spatial?:boolean; }
+export interface AudioDiagnostics { running:boolean; period:SoundPeriod; notes:number; effects:number; voices:number;spatial?:boolean;listener?:{x:number;z:number}; }
 const clamp=(n:number,low=0,high=1)=>Math.max(low,Math.min(high,Number.isFinite(n)?n:0));
 const hz=(midi:number)=>440*Math.pow(2,(midi-69)/12);
 export const soundPeriod=(minute:number):SoundPeriod=>minute<630?'morning':minute<1020?'day':'evening';
@@ -17,7 +18,7 @@ export class CafeSoundscape {
   private effectsBus:GainNode;
   private rainGain:GainNode;
   private musicLayer:GainNode;
-  private mix:Required<AudioMix>={volume:.65,musicVolume:.48,effectsVolume:.42,periodOverride:'auto'};
+  private mix:Required<AudioMix>={volume:.65,musicVolume:.48,effectsVolume:.42,periodOverride:'auto',nature:true,spatial:true};
   private sources=new Set<AudioScheduledSourceNode>();
   private disconnectTimers=new Set<ReturnType<typeof setTimeout>>();
   private scheduler:ReturnType<typeof setInterval>;
@@ -31,6 +32,9 @@ export class CafeSoundscape {
   private priorDay=0;
   private lastSfx=new Map<string,number>();
   private noise:AudioBuffer;
+  private zones={} as Record<SoundZone,PannerNode>;
+  private nextNature=0;
+  private natureSeed=3971;
 
   constructor(context:AudioContext){
     this.context=context;
@@ -39,11 +43,15 @@ export class CafeSoundscape {
     this.master.connect(limiter);limiter.connect(context.destination);
     this.musicBus=context.createGain();this.musicBus.gain.value=.3;this.musicBus.connect(this.master);
     this.effectsBus=context.createGain();this.effectsBus.gain.value=.25;this.effectsBus.connect(this.master);
+    for(const [name,p] of Object.entries(SOUND_SOURCES)){
+      const pan=context.createPanner();pan.panningModel='equalpower';pan.distanceModel='inverse';pan.refDistance=3;pan.maxDistance=80;pan.rolloffFactor=1.5;
+      pan.positionX.value=p[0];pan.positionY.value=p[1];pan.positionZ.value=p[2];pan.connect(this.effectsBus);this.zones[name as SoundZone]=pan;
+    }
     this.musicLayer=context.createGain();this.musicLayer.gain.value=1;this.musicLayer.connect(this.musicBus);
     this.noise=context.createBuffer(1,context.sampleRate*5,context.sampleRate);
     const data=this.noise.getChannelData(0);let seed=83917, filtered=0;
     for(let i=0;i<data.length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const white=seed/2147483648-1;filtered=filtered*.82+white*.18;data[i]=filtered;}
-    this.rainGain=context.createGain();this.rainGain.gain.value=0;this.rainGain.connect(this.effectsBus);
+    this.rainGain=context.createGain();this.rainGain.gain.value=0;this.rainGain.connect(this.zones.awning);
     const rain=context.createBufferSource();rain.buffer=this.noise;rain.loop=true;
     const filter=context.createBiquadFilter();filter.type='highpass';filter.frequency.value=370;rain.connect(filter);filter.connect(this.rainGain);this.track(rain);rain.start();
     this.nextNote=context.currentTime+.12;
@@ -76,12 +84,20 @@ export class CafeSoundscape {
     this.publish();
   }
   setMix(mix:AudioMix){
-    this.mix={volume:clamp(mix.volume??this.mix.volume),musicVolume:clamp(mix.musicVolume??this.mix.musicVolume),effectsVolume:clamp(mix.effectsVolume??this.mix.effectsVolume),periodOverride:mix.periodOverride??this.mix.periodOverride};
+    this.mix={volume:clamp(mix.volume??this.mix.volume),musicVolume:clamp(mix.musicVolume??this.mix.musicVolume),effectsVolume:clamp(mix.effectsVolume??this.mix.effectsVolume),periodOverride:mix.periodOverride??this.mix.periodOverride,nature:mix.nature??this.mix.nature,spatial:mix.spatial??this.mix.spatial};
+    for(const p of Object.values(this.zones))p.rolloffFactor=this.mix.spatial?1.5:0;
+    this.diagnostics.spatial=this.mix.spatial;
     const now=this.context.currentTime;
     this.master.gain.setTargetAtTime(this.mix.volume,now,.15);
     this.effectsBus.gain.setTargetAtTime(this.mix.effectsVolume*.65,now,.15);
     this.musicBus.gain.setTargetAtTime(this.mix.musicVolume*.65*(this.latest?.weather.includes('rain')?.85:1),now,.5);
     if(this.latest)this.setPeriod(this.mix.periodOverride==='auto'?soundPeriod(this.latest.minute):this.mix.periodOverride);
+  }
+  setListener(x:number,y:number,z:number,forwardX:number,forwardZ:number){
+    if(this.disposed)return;const listener=this.context.listener,now=this.context.currentTime;
+    listener.positionX.setTargetAtTime(x,now,.1);listener.positionY.setTargetAtTime(y,now,.1);listener.positionZ.setTargetAtTime(z,now,.1);
+    listener.forwardX.setTargetAtTime(forwardX,now,.1);listener.forwardY.setTargetAtTime(0,now,.1);listener.forwardZ.setTargetAtTime(forwardZ,now,.1);listener.upY.value=1;
+    this.diagnostics.listener={x,z};this.publish();
   }
   private setPeriod(period:SoundPeriod){
     if(this.diagnostics.period===period)return;
@@ -100,7 +116,7 @@ export class CafeSoundscape {
     const rain=state.weather==='rain'?.8:state.weather==='light-rain'?.38:0;
     this.rainGain.gain.setTargetAtTime(rain,now,1.2);
     this.musicBus.gain.setTargetAtTime(this.mix.musicVolume*.65*(rain>0?.85:1),now,.7);
-    if(this.priorDay===state.day&&!state.paused&&this.context.state==='running'&&this.visible){
+    if(this.priorDay===state.day&&(!state.paused||state.employees.some(e=>e.controlled&&e.task?.manual&&e.task.phase==='working'))&&this.context.state==='running'&&this.visible){
       const newPreparation=state.orders.find(o=>o.status==='preparing'&&this.priorOrders.has(o.id)&&this.priorOrders.get(o.id)!=='preparing');
       if(newPreparation){const kind=state.menu.find(m=>m.id===newPreparation.menuId)?.kind;if(kind==='drink')this.effect('brew',10);else if(kind==='food')this.effect('cook',16);}
       if(state.orders.some(o=>o.status==='completed'&&this.priorOrders.has(o.id)&&this.priorOrders.get(o.id)!=='completed'))this.effect('serve',4);
@@ -134,7 +150,18 @@ export class CafeSoundscape {
       const tempo=this.diagnostics.period==='morning'?70:this.diagnostics.period==='day'?76:64;
       this.nextNote+=60/tempo/2;this.step++;
     }
+    if(this.mix.nature&&now>=this.nextNature){this.natureSeed=(Math.imul(this.natureSeed,1664525)+1013904223)>>>0;this.nextNature=now+7+(this.natureSeed%100)/12;this.natureMoment(now);}
     this.publish();
+  }
+  private natureMoment(time:number){
+    const night=(this.latest?.minute??750)>=1080||(this.latest?.minute??750)<360;
+    if(this.latest?.weather.includes('rain'))this.noiseEffect(time,.35,1600,.045,'highpass',this.zones.awning);
+    else if(night){for(let i=0;i<3;i++)this.tone(101,time+i*.16,.08,.025,'pluck',this.zones.garden);}
+    else {
+      for(let i=0;i<3;i++){const osc=this.track(this.context.createOscillator()),gain=this.context.createGain();osc.type='sine';osc.frequency.setValueAtTime(2100+i*170,time+i*.19);osc.frequency.exponentialRampToValueAtTime(3400-i*120,time+i*.19+.12);gain.gain.setValueAtTime(.00001,time+i*.19);gain.gain.exponentialRampToValueAtTime(.035,time+i*.19+.025);gain.gain.exponentialRampToValueAtTime(.00001,time+i*.19+.16);osc.connect(gain);gain.connect(this.zones.garden);osc.start(time+i*.19);osc.stop(time+i*.19+.18);osc.addEventListener('ended',()=>gain.disconnect(),{once:true});}
+    }
+    this.noiseEffect(time,3,180,.08,'lowpass',this.zones.road);
+    this.noiseEffect(time+.5,2,800,.018,'bandpass',this.zones.garden);
   }
   private scheduleStep(step:number,time:number){
     const period=this.diagnostics.period,bar=Math.floor(step/8),beat=step%8,phrase=bar%8,variation=Math.floor(bar/8)%4;
@@ -157,21 +184,21 @@ export class CafeSoundscape {
       if(beat===6&&bar%2===0)this.tone(chord[1],time,2.4,.035,'pluck');
     }
   }
-  private noiseEffect(time:number,duration:number,frequency:number,level:number,kind:BiquadFilterType='bandpass'){
+  private noiseEffect(time:number,duration:number,frequency:number,level:number,kind:BiquadFilterType='bandpass',destination:AudioNode=this.effectsBus){
     const src=this.track(this.context.createBufferSource()),filter=this.context.createBiquadFilter(),gain=this.context.createGain();
     src.buffer=this.noise;filter.type=kind;filter.frequency.setValueAtTime(frequency,time);filter.Q.value=.55;
     gain.gain.setValueAtTime(.00001,time);gain.gain.exponentialRampToValueAtTime(level,time+.08);gain.gain.exponentialRampToValueAtTime(.00001,time+duration);
-    src.connect(filter);filter.connect(gain);gain.connect(this.effectsBus);src.start(time,.5);src.stop(time+duration+.03);
+    src.connect(filter);filter.connect(gain);gain.connect(destination);src.start(time,.5);src.stop(time+duration+.03);
     src.addEventListener('ended',()=>{filter.disconnect();gain.disconnect()},{once:true});
   }
   private effect(kind:'brew'|'cook'|'serve'|'arrival',minimumGap:number){
     const time=this.context.currentTime;
     if(time-(this.lastSfx.get(kind)??-100)<minimumGap)return;
     this.lastSfx.set(kind,time);this.diagnostics.effects++;
-    if(kind==='brew'){this.noiseEffect(time,1.2,800,.065);this.noiseEffect(time+.6,.8,1900,.035,'highpass');}
-    else if(kind==='cook')this.noiseEffect(time,1.25,2400,.035,'highpass');
+    if(kind==='brew'){this.noiseEffect(time,1.2,800,.2,'bandpass',this.zones.bar);this.noiseEffect(time+.6,.8,1900,.1,'highpass',this.zones.bar);}
+    else if(kind==='cook')this.noiseEffect(time,1.25,2400,.1,'highpass',this.zones.kitchen);
     else if(kind==='serve'){
-      this.tone(91,time,.19,.04,'pluck',this.effectsBus);this.tone(98,time+.065,.12,.025,'pluck',this.effectsBus);
+      this.tone(91,time,.19,.04,'pluck',this.zones.bar);this.tone(98,time+.065,.12,.025,'pluck',this.zones.bar);
     }else{
       // Muted wooden footfalls at the open-front entrance, not a repeated shop bell.
       this.noiseEffect(time,.16,160,.1,'lowpass');this.noiseEffect(time+.23,.13,180,.08,'lowpass');
