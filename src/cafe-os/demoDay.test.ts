@@ -35,6 +35,30 @@ describe('shared demo day projections', () => {
     expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(day);
   });
 
+  it('keeps kitchen and service UI projections detached from canonical simulation state', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'view-isolation', tableId: 't3',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    const orderId = day.store.orders[0].id;
+    const kitchen = demoDayViews(day).kitchen[0];
+    kitchen.status = 'cancelled';
+    kitchen.recipeSnapshot!.chicken = 999;
+    expect(day.store.orders[0].status).toBe('queued');
+    expect(day.store.orders[0].recipeSnapshot!.chicken).toBe(1);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 },
+    });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Na', type: 'ready', orderId });
+    const service = demoDayViews(day).service[0];
+    service.status = 'cancelled';
+    service.recipeSnapshot!.chicken = 999;
+    expect(day.store.orders[0].status).toBe('ready');
+    expect(day.store.orders[0].recipeSnapshot!.chicken).toBe(1);
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing', 'ready']);
+  });
+
   it('does not emit a kitchen event or consume stock when an ingredient is missing', () => {
     let day = startDemoDay({ ...createDemoStock(), chicken: 0 });
     day = applyDemoAction(day, DEMO_HALAL_MENU, {
