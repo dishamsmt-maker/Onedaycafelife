@@ -34,6 +34,9 @@ export default function CafeOsDemo() {
   <label>โต๊ะ <select aria-label="โต๊ะ" value={table} onChange={e=>setTable(e.target.value)}>{DEMO_TABLE_IDS.map(t=><option key={t} value={t}>{t.toUpperCase()}</option>)}</select></label>
   <label>เมนู <select aria-label="เมนู" value={item} onChange={e=>setItem(e.target.value)}>{DEMO_HALAL_MENU.map(m=><option key={m.id} value={m.id}>{m.nameTh} ฿{baht(m.priceSatang)}</option>)}</select></label>
   <button className="button primary" onClick={order}>จำลองสั่งผ่าน QR</button><p role="status">{message}</p>
+  <h3>ลูกค้า · ติดตามออร์เดอร์</h3>
+  {views.customer.filter(o=>o.tableId===table).map(o=><p key={o.id}>#{o.id} · {o.status}</p>)}
+  {!views.customer.some(o=>o.tableId===table)&&<p>โต๊ะนี้ยังไม่มีออร์เดอร์</p>}
   <h3>Na · คิวครัว ({views.kitchen.length})</h3>
   {views.kitchen.map(o=><article key={o.id}><strong>{o.tableId.toUpperCase()} · {DEMO_HALAL_MENU.find(m=>m.id===o.itemId)?.nameTh}</strong> · {o.status} {' '}
    {o.status==='queued'?<button onClick={()=>act(o.id,'prepare')}>Na เริ่มทำ</button>:<button onClick={()=>act(o.id,'ready')}>Na ทำเสร็จ</button>}</article>)}
@@ -45,6 +48,10 @@ export default function CafeOsDemo() {
   </article>)}
   <p>เงินสด ฿{baht(views.manager.cashSatang)} · ต้นทุน ฿{baht(views.manager.close.ingredientCostSatang)}</p>
   <p>ยอดตรง: {views.manager.close.cashBalanced?'ใช่':'ไม่ตรง'} · ปิดยอดได้: {views.manager.close.readyToClose?'ใช่':'ไม่'}</p>
+  <details><summary>ตรวจสต็อกจำลอง ({Object.keys(views.manager.stock).length} วัตถุดิบ)</summary>
+   <ul>{Object.entries(views.manager.stock).sort(([a],[b])=>a.localeCompare(b)).map(([name,qty])=><li key={name}>{name}: {qty} หน่วยจำลอง</li>)}</ul>
+  </details>
+  <p>ต้นทุนวัตถุดิบใน Demo ใช้ราคาอ้างอิงสมมติ 1 บาทต่อหน่วย ไม่ใช่ต้นทุนจริง</p>
   <h3>Event log</h3><ol>{day.events.map(e=><li key={e.sequence}>#{e.sequence} {e.actor} · {e.action} · {e.orderId}</li>)}</ol>
   <button className="button secondary" onClick={()=>{setDay(startDemoDay(createDemoStock()));setSerial(1);setMessage('เริ่มวันใหม่');}}>เริ่มวันทดลองใหม่</button>
  </section>;
