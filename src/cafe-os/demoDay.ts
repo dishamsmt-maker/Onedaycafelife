@@ -73,6 +73,10 @@ export function applyDemoAction(
       next = refundAndCancelCafeOrder(next, orderId);
       eventAction = 'cancelled';
     } else {
+      // The demo is pay-after-service: never record cash for unserved food.
+      // The lower-level Café OS core also supports prepaid channels, but this
+      // shared day journey must not expose that behavior accidentally.
+      if (!next.orders.some(o => o.id === orderId && o.status === 'served')) return day;
       next = payCafeOrder(next, orderId);
       eventAction = 'paid';
     }
