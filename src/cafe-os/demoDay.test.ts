@@ -108,6 +108,35 @@ describe('shared demo day projections', () => {
     expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing', 'ready', 'served', 'paid']);
   });
 
+  it('rejects missing or invalid ingredient costs atomically before preparation', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'bad-costs',
+      tableId: 't3', itemId: 'congee-chicken', quantity: 1,
+    });
+    const orderId = day.store.orders[0].id;
+    const invalidCosts = [
+      { congee: 500 },
+      { congee: 500, chicken: -1 },
+      { congee: 500, chicken: Number.NaN },
+      { congee: 500, chicken: Number.POSITIVE_INFINITY },
+      { congee: 500, chicken: 1.5 },
+    ];
+    for (const costs of invalidCosts) {
+      const unchanged = applyDemoAction(day, DEMO_HALAL_MENU, {
+        actor: 'Na', type: 'prepare', orderId, costs,
+      });
+      expect(unchanged).toBe(day);
+      expect(unchanged.store.orders[0].status).toBe('queued');
+      expect(unchanged.events.map(e => e.action)).toEqual(['ordered']);
+    }
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 },
+    });
+    expect(day.store.orders[0].status).toBe('preparing');
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing']);
+  });
+
   it('closes only after payment and rejects further mutations or repeated close', () => {
     let day = startDemoDay(createDemoStock());
     day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'customer', type: 'order', requestId: 'close-day', tableId: 't3', itemId: 'congee-chicken', quantity: 1 });
