@@ -81,4 +81,21 @@ describe('shared demo day projections', () => {
     expect(day.store.cashSatang).toBe(0);
     expect(demoDayViews(day).manager.close.readyToClose).toBe(true);
   });
+  it('closes only after payment and rejects further mutations or repeated close', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'customer', type: 'order', requestId: 'close-day', tableId: 't3', itemId: 'congee-chicken', quantity: 1 });
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' })).toBe(day);
+    const orderId = day.store.orders[0].id;
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 } });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Na', type: 'ready', orderId });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Ken', type: 'serve', orderId });
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' })).toBe(day);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId });
+    const closed = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' });
+    expect(closed.closed).toBe(true);
+    expect(closed.events.at(-1)?.action).toBe('closed');
+    expect(applyDemoAction(closed, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' })).toBe(closed);
+    expect(applyDemoAction(closed, DEMO_HALAL_MENU, { actor: 'customer', type: 'order', requestId: 'late', tableId: 't1', itemId: 'congee-chicken', quantity: 1 })).toBe(closed);
+    expect(closed.store.cashSatang).toBe(4500);
+  });
 });
