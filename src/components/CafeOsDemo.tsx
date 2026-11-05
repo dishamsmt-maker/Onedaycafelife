@@ -16,7 +16,7 @@ export default function CafeOsDemo() {
   if(next!==day){setDay(next);setSerial(n=>n+1);}
   setMessage(next===day?'สั่งไม่สำเร็จ: ตรวจสอบเมนูหรือสต็อก':'ลูกค้าสั่งแล้ว → คิวครัว');
  }
- function act(orderId:string,type:'prepare'|'ready'|'serve'|'pay'){
+ function act(orderId:string,type:'prepare'|'ready'|'serve'|'pay'|'cancel'){
   const recipe=day.store.orders.find(o=>o.id===orderId)?.recipeSnapshot ?? {};
   const costs=Object.fromEntries(Object.keys(recipe).map(k=>[k,100]));
   const action=type==='prepare'?{actor:'Na' as const,type,orderId,costs}
@@ -45,6 +45,7 @@ export default function CafeOsDemo() {
   <h3>ผู้จัดการ · POS / ปิดยอด</h3>
   {day.store.orders.map(o=><article key={o.id}>{o.tableId.toUpperCase()} · {o.status} · ฿{baht(o.unitPriceSatang*o.quantity)}
    {o.paymentRecorded?' · ชำระแล้ว':o.status==='served'?<button onClick={()=>act(o.id,'pay')}>POS รับเงิน</button>:' · รอเสิร์ฟ'}
+   {o.status!=='served'&&o.status!=='cancelled'&&<button onClick={()=>act(o.id,'cancel')}>ยกเลิกออร์เดอร์</button>}
   </article>)}
   <p>เงินสด ฿{baht(views.manager.cashSatang)} · ต้นทุน ฿{baht(views.manager.close.ingredientCostSatang)}</p>
   <p>ยอดตรง: {views.manager.close.cashBalanced?'ใช่':'ไม่ตรง'} · ปิดยอดได้: {views.manager.close.readyToClose?'ใช่':'ไม่'}</p>
