@@ -80,7 +80,14 @@ export function submitCafeOrder(
     const required = perItem * request.quantity;
     const committed = store.orders
       .filter(o => o.status === 'queued' && !o.stockConsumed)
-      .reduce((sum, o) => sum + (o.recipeSnapshot?.[ingredient] ?? 0) * o.quantity, 0);
+      .reduce((sum, o) => {
+        // Legacy queued orders may predate recipe snapshots. Never silently
+        // treat their reservations as zero and oversell physical inventory.
+        const reservedRecipe = o.recipeSnapshot ?? catalog.find(i => i.id === o.itemId)?.recipe;
+        if (!reservedRecipe || !Number.isSafeInteger(o.quantity) || o.quantity <= 0) return NaN;
+        const reserved = (reservedRecipe[ingredient] ?? 0) * o.quantity;
+        return Number.isFinite(reserved) && reserved >= 0 ? sum + reserved : NaN;
+      }, 0);
     const onHand = store.stock[ingredient];
     return Number.isFinite(onHand) && Number.isFinite(committed) &&
       Number.isFinite(required) && onHand >= 0 && onHand - committed >= required;
