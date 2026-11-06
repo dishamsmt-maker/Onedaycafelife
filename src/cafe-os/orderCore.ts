@@ -242,13 +242,15 @@ export function closeCafeDay(store: CafeStore) {
     .filter(([id, quantity]) => !validId(id) || !Number.isFinite(quantity) || quantity < 0)
     .map(([id]) => id);
   const netSalesSatang = paymentsSatang - refundsSatang;
-  const validNumbers = [paymentsSatang, refundsSatang, ingredientCostSatang, wasteCostSatang, netSalesSatang]
+  const grossMarginSatang = netSalesSatang - ingredientCostSatang;
+  // A balanced cash journal alone does not guarantee a safely representable margin.
+  const validNumbers = [paymentsSatang, refundsSatang, ingredientCostSatang, wasteCostSatang, netSalesSatang, grossMarginSatang]
     .every(Number.isSafeInteger);
   return {
     orderCount: store.orders.length,
     cancelledCount: store.orders.filter(o => o.status === 'cancelled').length,
     paymentsSatang, refundsSatang, netSalesSatang, ingredientCostSatang,
-    wasteCostSatang, grossMarginSatang: missingCostOrders.length ? null : netSalesSatang - ingredientCostSatang,
+    wasteCostSatang, grossMarginSatang: missingCostOrders.length || !Number.isSafeInteger(grossMarginSatang) ? null : grossMarginSatang,
     missingCostOrders, openOrderIds, unpaidServedOrderIds, invalidStockIds,
     cashBalanced: reconciliation.balanced,
     readyToClose: reconciliation.balanced && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 && invalidStockIds.length === 0 &&
