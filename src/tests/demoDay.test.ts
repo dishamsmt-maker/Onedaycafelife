@@ -3,16 +3,16 @@ import { applyDemoAction, demoDayViews, startDemoDay } from '../cafe-os/demoDay'
 
 const catalog = [{ id: 'halal-porridge', priceSatang: 4500, recipe: { rice: 2 }, enabled: true }];
 describe('one-day isolated shared event stream', () => {
-  it('customer T3 → Na kitchen → Ken serve → manager cash and stock', () => {
+  it('customer t3 → Na kitchen → Ken serve → manager cash and stock', () => {
     const start = startDemoDay({ rice: 10 });
     const ordered = applyDemoAction(start, catalog, {
       actor: 'customer', type: 'order', requestId: 'qr-t3-1',
-      tableId: 'T3', itemId: 'halal-porridge', quantity: 2,
+      tableId: 't3', itemId: 'halal-porridge', quantity: 2,
     });
     expect(demoDayViews(ordered).kitchen).toHaveLength(1);
     const retry = applyDemoAction(ordered, catalog, {
       actor: 'customer', type: 'order', requestId: 'qr-t3-1',
-      tableId: 'T3', itemId: 'halal-porridge', quantity: 2,
+      tableId: 't3', itemId: 'halal-porridge', quantity: 2,
     });
     expect(retry).toBe(ordered);
     const id = ordered.store.orders[0].id;
@@ -31,14 +31,14 @@ describe('one-day isolated shared event stream', () => {
   it('does not emit an event or consume stock for sold-out or missing-cost preparation', () => {
     const ordered = applyDemoAction(startDemoDay({ rice: 1 }), catalog, {
       actor: 'customer', type: 'order', requestId: 'qr-2',
-      tableId: 'T3', itemId: 'halal-porridge', quantity: 2,
+      tableId: 't3', itemId: 'halal-porridge', quantity: 2,
     });
     expect(ordered.store.orders).toHaveLength(0);
     expect(ordered.events).toHaveLength(0);
     expect(ordered.store.stock.rice).toBe(1);
     const accepted = applyDemoAction(startDemoDay({ rice: 10 }), catalog, {
       actor: 'customer', type: 'order', requestId: 'qr-3',
-      tableId: 'T3', itemId: 'halal-porridge', quantity: 2,
+      tableId: 't3', itemId: 'halal-porridge', quantity: 2,
     });
     const id = accepted.store.orders[0].id;
     expect(applyDemoAction(accepted, catalog, { actor: 'Na', type: 'prepare', orderId: id, costs: {} })).toBe(accepted);
