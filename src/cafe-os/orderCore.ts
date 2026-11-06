@@ -188,7 +188,7 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
 export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
   const events = store.cashEvents ?? [];
   const ids = new Set(events.map(e => e.id));
-  const valid = ids.size === events.length && events.every(e => {
+  const valid = Array.isArray(store.cashEvents) && ids.size === events.length && events.every(e => {
     const order = store.orders.find(o => o.id === e.orderId);
     if (!order || !Number.isSafeInteger(e.amountSatang) || e.amountSatang < 0 ||
       e.id !== e.type + '-' + e.orderId) return false;
@@ -249,8 +249,10 @@ export function recordCafeOrderCost(
  */
 export function closeCafeDay(store: CafeStore) {
   const reconciliation = reconcileCafeCash(store);
-  const paymentsSatang = store.cashEvents.filter(e => e.type === 'payment').reduce((n, e) => n + e.amountSatang, 0);
-  const refundsSatang = store.cashEvents.filter(e => e.type === 'refund').reduce((n, e) => n + e.amountSatang, 0);
+  // Closing must fail safely on an incomplete/legacy cash journal rather than crash.
+  const events = Array.isArray(store.cashEvents) ? store.cashEvents : [];
+  const paymentsSatang = events.filter(e => e.type === 'payment').reduce((n, e) => n + e.amountSatang, 0);
+  const refundsSatang = events.filter(e => e.type === 'refund').reduce((n, e) => n + e.amountSatang, 0);
   const produced = store.orders.filter(o => o.stockConsumed);
   const missingCostOrders = produced.filter(o => o.consumedCostSatang === undefined).map(o => o.id);
   const ingredientCostSatang = produced.reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
