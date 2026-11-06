@@ -180,6 +180,8 @@ export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; b
     const paymentCount = events.filter(e => e.orderId === o.id && e.type === 'payment').length;
     const refundCount = events.filter(e => e.orderId === o.id && e.type === 'refund').length;
     return paymentCount === (o.paymentRecorded ? 1 : 0) &&
+      // A cancelled paid order must have a matching refund, including zero-value payments.
+      (o.status !== 'cancelled' || !o.paymentRecorded || o.refundedSatang !== undefined) &&
       refundCount === (o.refundedSatang === undefined ? 0 : 1) &&
       (!o.paymentRecorded || o.paidSatang === o.quantity * o.unitPriceSatang);
   });
