@@ -73,6 +73,19 @@ export function submitCafeOrder(
     Object.entries(item.recipe).some(([id, amount]) => !validId(id) || !Number.isFinite(amount) || amount < 0 || !Number.isFinite(amount * request.quantity))) {
     return { store, order: undefined as never, accepted: false, reason: 'invalid-order' };
   }
+  // Unknown legacy reservations cannot be safely evaluated, even when the
+  // incoming recipe has no ingredients (which would skip the checks below).
+  const unresolvableReservation = store.orders.some(o => {
+    if (o.status !== 'queued' || o.stockConsumed) return false;
+    const reservedRecipe = o.recipeSnapshot ?? catalog.find(i => i.id === o.itemId)?.recipe;
+    return !reservedRecipe || !Number.isSafeInteger(o.quantity) || o.quantity <= 0 ||
+      Object.entries(reservedRecipe).some(([id, amount]) =>
+        !validId(id) || !Number.isFinite(amount) || amount < 0 ||
+        !Number.isFinite(amount * o.quantity));
+  });
+  if (unresolvableReservation) {
+    return { store, order: undefined as never, accepted: false, reason: 'out-of-stock' };
+  }
   // Reserve availability for queued orders without deducting physical stock
   // until preparation. This rejects sold-out QR requests and overselling.
   const recipe = item.recipe;
