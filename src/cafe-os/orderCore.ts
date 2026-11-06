@@ -186,6 +186,9 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
 
 /** Reconcile the cash balance against immutable-in-intent journal entries. */
 export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
+  // Imported/corrupted journals and order collections must fail closed.
+  if (!Array.isArray(store.orders) || store.orders.some(o => !o || typeof o !== 'object' || typeof o.id !== 'string'))
+    return { expectedSatang: 0, balanced: false };
   // Imported/corrupted journals must fail closed, never throw or fabricate balance.
   if (!Array.isArray(store.cashEvents) || store.cashEvents.some(e =>
     !e || typeof e !== 'object' || typeof e.id !== 'string' ||
@@ -254,6 +257,17 @@ export function recordCafeOrderCost(
  * not a tax invoice or a substitute for verified payment settlement.
  */
 export function closeCafeDay(store: CafeStore) {
+  // Do not report a closable day when an imported snapshot is structurally corrupt.
+  if (!Array.isArray(store.orders) || store.orders.some(o => !o || typeof o !== 'object' || typeof o.id !== 'string') ||
+      !store.stock || typeof store.stock !== 'object' || Array.isArray(store.stock)) {
+    return {
+      orderCount: 0, cancelledCount: 0, paymentsSatang: 0, refundsSatang: 0,
+      netSalesSatang: 0, ingredientCostSatang: 0, wasteCostSatang: 0,
+      grossMarginSatang: null, missingCostOrders: [], openOrderIds: [],
+      unpaidServedOrderIds: [], invalidStockIds: [], cashBalanced: false,
+      readyToClose: false,
+    };
+  }
   const reconciliation = reconcileCafeCash(store);
   // Closing must fail safely on an incomplete/legacy cash journal rather than crash.
   const events = Array.isArray(store.cashEvents) ? store.cashEvents : [];
