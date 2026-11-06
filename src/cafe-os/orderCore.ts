@@ -257,8 +257,8 @@ export function closeCafeDay(store: CafeStore) {
   const reconciliation = reconcileCafeCash(store);
   // Closing must fail safely on an incomplete/legacy cash journal rather than crash.
   const events = Array.isArray(store.cashEvents) ? store.cashEvents : [];
-  const paymentsSatang = events.filter(e => e.type === 'payment').reduce((n, e) => n + e.amountSatang, 0);
-  const refundsSatang = events.filter(e => e.type === 'refund').reduce((n, e) => n + e.amountSatang, 0);
+  const paymentsSatang = events.filter(e => e?.type === 'payment' && Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0).reduce((n, e) => n + e.amountSatang, 0);
+  const refundsSatang = events.filter(e => e?.type === 'refund' && Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0).reduce((n, e) => n + e.amountSatang, 0);
   const produced = store.orders.filter(o => o.stockConsumed);
   const missingCostOrders = produced.filter(o => o.consumedCostSatang === undefined).map(o => o.id);
   const ingredientCostSatang = produced.reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
