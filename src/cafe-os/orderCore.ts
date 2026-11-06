@@ -277,6 +277,13 @@ export function closeCafeDay(store: CafeStore) {
   const events = Array.isArray(store.cashEvents) ? store.cashEvents : [];
   const paymentsSatang = events.filter(e => e?.type === 'payment' && Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0).reduce((n, e) => n + e.amountSatang, 0);
   const refundsSatang = events.filter(e => e?.type === 'refund' && Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0).reduce((n, e) => n + e.amountSatang, 0);
+  // Imported cost fields must never turn losses into fictitious profit.
+  // Validate every recorded cost, including on orders that were not produced.
+  const validCostLedger = Number.isSafeInteger(store.wasteCostSatang) &&
+    store.wasteCostSatang >= 0 &&
+    store.orders.every(o => o.consumedCostSatang === undefined ||
+      (o.stockConsumed && Number.isSafeInteger(o.consumedCostSatang) &&
+        o.consumedCostSatang >= 0));
   const produced = store.orders.filter(o => o.stockConsumed);
   const missingCostOrders = produced.filter(o => o.consumedCostSatang === undefined).map(o => o.id);
   const ingredientCostSatang = produced.reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
@@ -301,7 +308,7 @@ export function closeCafeDay(store: CafeStore) {
     wasteCostSatang, grossMarginSatang: missingCostOrders.length || !Number.isSafeInteger(grossMarginSatang) ? null : grossMarginSatang,
     missingCostOrders, openOrderIds, unpaidServedOrderIds, invalidStockIds,
     cashBalanced: reconciliation.balanced,
-    readyToClose: reconciliation.balanced && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 && invalidStockIds.length === 0 &&
+    readyToClose: reconciliation.balanced && validCostLedger && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 && invalidStockIds.length === 0 &&
       wasteCostSatang === store.wasteCostSatang,
   };
 }
