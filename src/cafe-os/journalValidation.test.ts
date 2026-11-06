@@ -11,6 +11,6 @@ describe('corrupted imported cash journal', () => {
   ])('rejects invalid journal %j without throwing', (cashEvents) => {
     const store = { ...createCafeStore({}), cashEvents } as unknown as ReturnType<typeof createCafeStore>;
     expect(reconcileCafeCash(store).balanced).toBe(false);
-    expect(closeCafeDay(store).balanced).toBe(false);
+    expect(closeCafeDay(store).readyToClose).toBe(false);
   });
 });
