@@ -9,7 +9,10 @@ export const CUSTOMER_COUNTER_POINTS:Vec2[]=[STATIONS.pickup,[-1.0,8.65]];
 export const nearCustomerCounter=(p:Vec2)=>CUSTOMER_COUNTER_POINTS.some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<1.15);
 export const TABLE_LAYOUT = [14.2,16.6,19,21.4,23.8].map((z,i)=>({id:`t${i+1}`,name:`T${i+1}`,position:[.8,z] as Vec2,capacity:4}));
 export interface Obstacle {x:number;z:number;w:number;d:number;}
+export const REAR_PAVILION = {x:.8,z:32.8,width:3,depth:3.4,postXs:[-.55,2.15],postZs:[31.25,34.35]};
+export const PAVILION_POSTS:Obstacle[]=REAR_PAVILION.postXs.flatMap(x=>REAR_PAVILION.postZs.map(z=>({x,z,w:.14,d:.14})));
 export const OBSTACLES:Obstacle[]=[
+ ...PAVILION_POSTS,
  {x:.8,z:7.425,w:2.8,d:.65},
  {x:-.375,z:9.65,w:.65,d:3.4},{x:1.875,z:10.1,w:.65,d:4.3},
  {x:.8,z:12.575,w:2.8,d:.65},
