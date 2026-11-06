@@ -186,8 +186,10 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
 
 /** Reconcile the cash balance against immutable-in-intent journal entries. */
 export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
-  // Imported/corrupted journals and order collections must fail closed.
-  if (!Array.isArray(store.orders) || store.orders.some(o => !o || typeof o !== 'object' || typeof o.id !== 'string'))
+  // Duplicate IDs make a journal ambiguous: one payment can appear to cover multiple orders.
+  // Refuse imported snapshots rather than allowing an apparently balanced closeout.
+  if (!Array.isArray(store.orders) || new Set(store.orders.map(o => o?.id)).size !== store.orders.length ||
+      store.orders.some(o => !o || typeof o !== 'object' || typeof o.id !== 'string' || !validId(o.id)))
     return { expectedSatang: 0, balanced: false };
   // Imported/corrupted journals must fail closed, never throw or fabricate balance.
   if (!Array.isArray(store.cashEvents) || store.cashEvents.some(e =>
