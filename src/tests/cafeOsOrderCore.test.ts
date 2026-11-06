@@ -34,7 +34,10 @@ describe('Café OS isolated order pipeline', () => {
 
   it('rejects sold-out production without mutating stock or status', () => {
     const accepted = submitCafeOrder(createCafeStore({ rice: 3 }), catalog, request);
-    expect(advanceCafeOrder(accepted.store, catalog, accepted.order.id, 'preparing')).toBe(accepted.store);
+    expect(accepted.accepted).toBe(false);
+    expect(accepted.reason).toBe('out-of-stock');
+    expect(accepted.store.orders).toHaveLength(0);
+    expect(accepted.store.stock.rice).toBe(3);
   });
 
   it('rejects invalid QR and prevents cancelled order payment', () => {

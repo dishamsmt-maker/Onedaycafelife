@@ -1,3 +1,4 @@
+import { DEMO_TABLE_IDS } from './demoCatalog';
 import {
   advanceCafeOrder, closeCafeDay, createCafeStore, payCafeOrder,
   recordCafeOrderCost, refundAndCancelCafeOrder, submitCafeOrder,
@@ -46,6 +47,9 @@ export function applyDemoAction(
   let orderId = '';
   let eventAction: DemoEvent['action'];
   if (action.type === 'order') {
+    // Game tables are fixed to the five demo seats; the real Café OS retains
+    // its own independent table configuration and order namespace.
+    if (!(DEMO_TABLE_IDS as readonly string[]).includes(action.tableId)) return day;
     const result = submitCafeOrder(next, catalog, action);
     if (!result.accepted || result.reason === 'duplicate-retry') return day;
     next = result.store;
@@ -73,6 +77,10 @@ export function applyDemoAction(
       next = refundAndCancelCafeOrder(next, orderId);
       eventAction = 'cancelled';
     } else {
+      // The demo is pay-after-service: never record cash for unserved food.
+      // The lower-level Café OS core also supports prepaid channels, but this
+      // shared day journey must not expose that behavior accidentally.
+      if (!next.orders.some(o => o.id === orderId && o.status === 'served')) return day;
       next = payCafeOrder(next, orderId);
       eventAction = 'paid';
     }
@@ -80,14 +88,16 @@ export function applyDemoAction(
   }
   return {
     store: next,
+    closed: day.closed,
     events: [...day.events, { sequence: day.events.length + 1, actor: action.actor, action: eventAction, orderId }],
   };
 }
 export function demoDayViews(day: DemoDay) {
   return {
     customer: day.store.orders.map(o => ({ id: o.id, tableId: o.tableId, status: o.status })),
-    kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing'),
-    service: day.store.orders.filter(o => o.status === 'ready'),
-    manager: { cashSatang: day.store.cashSatang, stock: { ...day.store.stock }, close: closeCafeDay(day.store) },
+    // Return detached projections: UI consumers must never mutate the canonical day state.
+    kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing').map(o => ({ ...o, recipeSnapshot: o.recipeSnapshot ? { ...o.recipeSnapshot } : undefined })),
+    service: day.store.orders.filter(o => o.status === 'ready').map(o => ({ ...o, recipeSnapshot: o.recipeSnapshot ? { ...o.recipeSnapshot } : undefined })),
+    manager: { cashSatang: day.store.cashSatang, stock: { ...day.store.stock }, closed: day.closed, close: closeCafeDay(day.store) },
   };
 }

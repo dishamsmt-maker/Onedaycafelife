@@ -48,7 +48,7 @@ const copy = (store: CafeStore): CafeStore => ({
 });
 const validId = (s: string) => typeof s === 'string' && s.trim().length > 0;
 export function createCafeStore(stock: Record<string, number>): CafeStore {
-  if (Object.values(stock).some(n => !Number.isFinite(n) || n < 0)) throw new Error('invalid stock');
+  if (Object.entries(stock).some(([id, n]) => !validId(id) || !Number.isFinite(n) || n < 0)) throw new Error('invalid stock');
   return { orders: [], stock: { ...stock }, cashEvents: [], cashSatang: 0, wasteCostSatang: 0 };
 }
 export function submitCafeOrder(
@@ -73,6 +73,39 @@ export function submitCafeOrder(
     Object.entries(item.recipe).some(([id, amount]) => !validId(id) || !Number.isFinite(amount) || amount < 0 || !Number.isFinite(amount * request.quantity))) {
     return { store, order: undefined as never, accepted: false, reason: 'invalid-order' };
   }
+  // Unknown legacy reservations cannot be safely evaluated, even when the
+  // incoming recipe has no ingredients (which would skip the checks below).
+  const unresolvableReservation = store.orders.some(o => {
+    if (o.status !== 'queued' || o.stockConsumed) return false;
+    const reservedRecipe = o.recipeSnapshot ?? catalog.find(i => i.id === o.itemId)?.recipe;
+    return !reservedRecipe || !Number.isSafeInteger(o.quantity) || o.quantity <= 0 ||
+      Object.entries(reservedRecipe).some(([id, amount]) =>
+        !validId(id) || !Number.isFinite(amount) || amount < 0 ||
+        !Number.isFinite(amount * o.quantity));
+  });
+  if (unresolvableReservation) {
+    return { store, order: undefined as never, accepted: false, reason: 'out-of-stock' };
+  }
+  // Reserve availability for queued orders without deducting physical stock
+  // until preparation. This rejects sold-out QR requests and overselling.
+  const recipe = item.recipe;
+  const available = Object.entries(recipe).every(([ingredient, perItem]) => {
+    const required = perItem * request.quantity;
+    const committed = store.orders
+      .filter(o => o.status === 'queued' && !o.stockConsumed)
+      .reduce((sum, o) => {
+        // Legacy queued orders may predate recipe snapshots. Never silently
+        // treat their reservations as zero and oversell physical inventory.
+        const reservedRecipe = o.recipeSnapshot ?? catalog.find(i => i.id === o.itemId)?.recipe;
+        if (!reservedRecipe || !Number.isSafeInteger(o.quantity) || o.quantity <= 0) return NaN;
+        const reserved = (reservedRecipe[ingredient] ?? 0) * o.quantity;
+        return Number.isFinite(reserved) && reserved >= 0 ? sum + reserved : NaN;
+      }, 0);
+    const onHand = store.stock[ingredient];
+    return Number.isFinite(onHand) && Number.isFinite(committed) &&
+      Number.isFinite(required) && onHand >= 0 && onHand - committed >= required;
+  });
+  if (!available) return { store, order: undefined as never, accepted: false, reason: 'out-of-stock' };
   const next = copy(store);
   const order: CafeOrder = { id: 'cafe-' + request.requestId, ...request,
     unitPriceSatang: item.priceSatang, recipeSnapshot: { ...item.recipe }, status: 'queued', paidSatang: 0, paymentRecorded: false, stockConsumed: false };
@@ -99,11 +132,15 @@ export function advanceCafeOrder(
     const item = catalog.find(i => i.id === order.itemId);
     if (!item && !order.recipeSnapshot) return store;
     const needs = Object.entries(order.recipeSnapshot ?? item!.recipe).map(([id, n]) => [id, n * order.quantity] as const);
-    if (needs.some(([id, n]) => !Number.isFinite(n) || n < 0 || !Number.isFinite(next.stock[id] ?? 0) || (next.stock[id] ?? 0) < n || !Number.isFinite((next.stock[id] ?? 0) - n))) return store;
+    if (needs.some(([id, n]) => !Number.isFinite(n) || n < 0 || !Number.isFinite(next.stock[id]) || next.stock[id] < n || !Number.isFinite(next.stock[id] - n))) return store;
     for (const [id, n] of needs) next.stock[id] -= n;
     order.stockConsumed = true;
   }
-  if (nextStatus === 'cancelled' && order.stockConsumed) next.wasteCostSatang += order.consumedCostSatang ?? 0;
+  if (nextStatus === 'cancelled' && order.stockConsumed) {
+    const waste = next.wasteCostSatang + (order.consumedCostSatang ?? 0);
+    if (!Number.isSafeInteger(waste)) return store;
+    next.wasteCostSatang = waste;
+  }
   order.status = nextStatus;
   return next;
 }
@@ -136,7 +173,11 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
   const amount = order.paidSatang;
   if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(next.cashSatang - amount)) return store;
   order.refundedSatang = amount;
-  if (order.stockConsumed) next.wasteCostSatang += order.consumedCostSatang ?? 0;
+  if (order.stockConsumed) {
+    const waste = next.wasteCostSatang + (order.consumedCostSatang ?? 0);
+    if (!Number.isSafeInteger(waste)) return store;
+    next.wasteCostSatang = waste;
+  }
   order.status = 'cancelled';
   next.cashSatang -= amount;
   next.cashEvents.push({ id: 'refund-' + orderId, orderId, type: 'refund', amountSatang: amount });
@@ -159,6 +200,8 @@ export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; b
     const paymentCount = events.filter(e => e.orderId === o.id && e.type === 'payment').length;
     const refundCount = events.filter(e => e.orderId === o.id && e.type === 'refund').length;
     return paymentCount === (o.paymentRecorded ? 1 : 0) &&
+      // A cancelled paid order must have a matching refund, including zero-value payments.
+      (o.status !== 'cancelled' || !o.paymentRecorded || o.refundedSatang !== undefined) &&
       refundCount === (o.refundedSatang === undefined ? 0 : 1) &&
       (!o.paymentRecorded || o.paidSatang === o.quantity * o.unitPriceSatang);
   });
@@ -170,15 +213,15 @@ export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; b
 /**
  * Record ingredient cost at production time. Prices are satang per stock unit;
  * returns the unchanged state if an ingredient cost is missing or invalid.
- * This can be called only once, before or after preparation, and never on
- * cancelled orders. Actual ingredient deduction remains in advanceCafeOrder.
+ * This can be called only once after preparation, including on cancelled
+ * orders for late cost reconciliation. Actual ingredient deduction remains in advanceCafeOrder.
  */
 export function recordCafeOrderCost(
   store: CafeStore, catalog: readonly CafeCatalogItem[], orderId: string,
   unitCostSatang: Readonly<Record<string, number>>,
 ): CafeStore {
   const old = store.orders.find(o => o.id === orderId);
-  if (!old || !old.stockConsumed || old.status === 'cancelled' || old.consumedCostSatang !== undefined) return store;
+  if (!old || !old.stockConsumed || old.consumedCostSatang !== undefined) return store;
   const item = catalog.find(i => i.id === old.itemId);
   if (!item && !old.recipeSnapshot) return store;
   let cost = 0;
@@ -190,6 +233,12 @@ export function recordCafeOrderCost(
   if (!Number.isSafeInteger(cost) || cost < 0) return store;
   const next = copy(store);
   next.orders.find(o => o.id === orderId)!.consumedCostSatang = cost;
+  // A cancelled produced order is waste even when its cost arrives later.
+  // The once-only cost guard prevents double counting on retries.
+  if (old.status === 'cancelled') {
+    if (!Number.isSafeInteger(next.wasteCostSatang + cost)) return store;
+    next.wasteCostSatang += cost;
+  }
   return next;
 }
 
@@ -215,13 +264,15 @@ export function closeCafeDay(store: CafeStore) {
     .filter(([id, quantity]) => !validId(id) || !Number.isFinite(quantity) || quantity < 0)
     .map(([id]) => id);
   const netSalesSatang = paymentsSatang - refundsSatang;
-  const validNumbers = [paymentsSatang, refundsSatang, ingredientCostSatang, wasteCostSatang, netSalesSatang]
+  const grossMarginSatang = netSalesSatang - ingredientCostSatang;
+  // A balanced cash journal alone does not guarantee a safely representable margin.
+  const validNumbers = [paymentsSatang, refundsSatang, ingredientCostSatang, wasteCostSatang, netSalesSatang, grossMarginSatang]
     .every(Number.isSafeInteger);
   return {
     orderCount: store.orders.length,
     cancelledCount: store.orders.filter(o => o.status === 'cancelled').length,
     paymentsSatang, refundsSatang, netSalesSatang, ingredientCostSatang,
-    wasteCostSatang, grossMarginSatang: missingCostOrders.length ? null : netSalesSatang - ingredientCostSatang,
+    wasteCostSatang, grossMarginSatang: missingCostOrders.length || !Number.isSafeInteger(grossMarginSatang) ? null : grossMarginSatang,
     missingCostOrders, openOrderIds, unpaidServedOrderIds, invalidStockIds,
     cashBalanced: reconciliation.balanced,
     readyToClose: reconciliation.balanced && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 && invalidStockIds.length === 0 &&

@@ -10,6 +10,8 @@ describe('shared demo day projections', () => {
       actor: 'customer', type: 'order', requestId: 't3-first', tableId: 't3',
       itemId: 'congee-chicken', quantity: 1,
     });
+    expect(day.closed).toBe(false);
+    expect(demoDayViews(day).manager.closed).toBe(false);
     expect(demoDayViews(day).kitchen).toHaveLength(1);
     const retry = applyDemoAction(day, DEMO_HALAL_MENU, {
       actor: 'customer', type: 'order', requestId: 't3-first', tableId: 't3',
@@ -29,7 +31,32 @@ describe('shared demo day projections', () => {
     expect(demoDayViews(day).manager.cashSatang).toBe(4500);
     expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing', 'ready', 'served', 'paid']);
     expect(day.events.map(e => e.sequence)).toEqual([1, 2, 3, 4, 5]);
+    expect(day.closed).toBe(false);
     expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(day);
+  });
+
+  it('keeps kitchen and service UI projections detached from canonical simulation state', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'view-isolation', tableId: 't3',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    const orderId = day.store.orders[0].id;
+    const kitchen = demoDayViews(day).kitchen[0];
+    kitchen.status = 'cancelled';
+    kitchen.recipeSnapshot!.chicken = 999;
+    expect(day.store.orders[0].status).toBe('queued');
+    expect(day.store.orders[0].recipeSnapshot!.chicken).toBe(1);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 },
+    });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Na', type: 'ready', orderId });
+    const service = demoDayViews(day).service[0];
+    service.status = 'cancelled';
+    service.recipeSnapshot!.chicken = 999;
+    expect(day.store.orders[0].status).toBe('ready');
+    expect(day.store.orders[0].recipeSnapshot!.chicken).toBe(1);
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing', 'ready']);
   });
 
   it('does not emit a kitchen event or consume stock when an ingredient is missing', () => {
@@ -38,15 +65,42 @@ describe('shared demo day projections', () => {
       actor: 'customer', type: 'order', requestId: 'sold-out', tableId: 't3',
       itemId: 'congee-chicken', quantity: 1,
     });
+    // A sold-out QR request is rejected before an order is created.
+    expect(day.store.orders).toHaveLength(0);
+    expect(day.events).toHaveLength(0);
+    expect(day.store.stock.chicken).toBe(0);
     const before = day;
     day = applyDemoAction(day, DEMO_HALAL_MENU, {
-      actor: 'Na', type: 'prepare', orderId: day.store.orders[0].id,
+      actor: 'Na', type: 'prepare', orderId: 'cafe-sold-out',
       costs: { congee: 500, chicken: 1000 },
     });
     expect(day).toBe(before);
-    expect(day.events).toHaveLength(1);
-    expect(day.store.stock.chicken).toBe(0);
   });
+  it('reserves queued demand and accepts a new order after cancellation', () => {
+    let day = startDemoDay({ ...createDemoStock(), chicken: 1 });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'reserve-one', tableId: 't1',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    expect(day.store.orders).toHaveLength(1);
+    const queued = day;
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'reserve-two', tableId: 't2',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    expect(day).toBe(queued);
+    expect(day.store.stock.chicken).toBe(1);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'manager', type: 'cancel', orderId: day.store.orders[0].id,
+    });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'reserve-two', tableId: 't2',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    expect(day.store.orders).toHaveLength(2);
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'cancelled', 'ordered']);
+  });
+
   it('cancels a queued order once without payment or stock deduction', () => {
     let day = startDemoDay(createDemoStock());
     day = applyDemoAction(day, DEMO_HALAL_MENU, {
@@ -81,6 +135,60 @@ describe('shared demo day projections', () => {
     expect(day.store.cashSatang).toBe(0);
     expect(demoDayViews(day).manager.close.readyToClose).toBe(true);
   });
+  it('rejects payment before service without changing cash or event log', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'pay-guard', tableId: 't3',
+      itemId: 'congee-chicken', quantity: 1,
+    });
+    const orderId = day.store.orders[0].id;
+    const before = day;
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(before);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 },
+    });
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(day);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Na', type: 'ready', orderId });
+    expect(applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId })).toBe(day);
+    expect(day.store.cashSatang).toBe(0);
+    expect(day.store.cashEvents).toHaveLength(0);
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'Ken', type: 'serve', orderId });
+    day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId });
+    expect(day.store.cashSatang).toBe(4500);
+    expect(day.store.cashEvents).toHaveLength(1);
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing', 'ready', 'served', 'paid']);
+  });
+
+  it('rejects missing or invalid ingredient costs atomically before preparation', () => {
+    let day = startDemoDay(createDemoStock());
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'customer', type: 'order', requestId: 'bad-costs',
+      tableId: 't3', itemId: 'congee-chicken', quantity: 1,
+    });
+    const orderId = day.store.orders[0].id;
+    const invalidCosts: ReadonlyArray<Readonly<Record<string, number>>> = [
+      { congee: 500 },
+      { congee: 500, chicken: -1 },
+      { congee: 500, chicken: Number.NaN },
+      { congee: 500, chicken: Number.POSITIVE_INFINITY },
+      { congee: 500, chicken: 1.5 },
+      { congee: Number.MAX_SAFE_INTEGER, chicken: Number.MAX_SAFE_INTEGER },
+    ];
+    for (const costs of invalidCosts) {
+      const unchanged = applyDemoAction(day, DEMO_HALAL_MENU, {
+        actor: 'Na', type: 'prepare', orderId, costs,
+      });
+      expect(unchanged).toBe(day);
+      expect(unchanged.store.orders[0].status).toBe('queued');
+      expect(unchanged.events.map(e => e.action)).toEqual(['ordered']);
+    }
+    day = applyDemoAction(day, DEMO_HALAL_MENU, {
+      actor: 'Na', type: 'prepare', orderId, costs: { congee: 500, chicken: 1000 },
+    });
+    expect(day.store.orders[0].status).toBe('preparing');
+    expect(day.events.map(e => e.action)).toEqual(['ordered', 'preparing']);
+  });
+
   it('closes only after payment and rejects further mutations or repeated close', () => {
     let day = startDemoDay(createDemoStock());
     day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'customer', type: 'order', requestId: 'close-day', tableId: 't3', itemId: 'congee-chicken', quantity: 1 });
@@ -93,6 +201,7 @@ describe('shared demo day projections', () => {
     day = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'pay', orderId });
     const closed = applyDemoAction(day, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' });
     expect(closed.closed).toBe(true);
+    expect(demoDayViews(closed).manager.closed).toBe(true);
     expect(closed.events.at(-1)?.action).toBe('closed');
     expect(applyDemoAction(closed, DEMO_HALAL_MENU, { actor: 'manager', type: 'close' })).toBe(closed);
     expect(applyDemoAction(closed, DEMO_HALAL_MENU, { actor: 'customer', type: 'order', requestId: 'late', tableId: 't1', itemId: 'congee-chicken', quantity: 1 })).toBe(closed);
