@@ -188,7 +188,7 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
 export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
   const events = store.cashEvents ?? [];
   const ids = new Set(events.map(e => e.id));
-  const valid = ids.size === events.length && events.every(e => {
+  const valid = Array.isArray(store.cashEvents) && ids.size === events.length && events.every(e => {
     const order = store.orders.find(o => o.id === e.orderId);
     if (!order || !Number.isSafeInteger(e.amountSatang) || e.amountSatang < 0 ||
       e.id !== e.type + '-' + e.orderId) return false;
