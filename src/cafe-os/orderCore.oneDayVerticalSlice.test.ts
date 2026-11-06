@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceCafeOrder, closeCafeDay, createCafeStore, payCafeOrder,
   recordCafeOrderCost, reconcileCafeCash, refundAndCancelCafeOrder, submitCafeOrder,
+  type CafeCatalogItem,
 } from './orderCore';
 
-const catalog = [
+const catalog: readonly CafeCatalogItem[] = [
   { id: 'congee', priceSatang: 4500, enabled: true, recipe: { rice: 2 } },
   { id: 'tea', priceSatang: 3000, enabled: true, recipe: { tea: 1 } },
 ];
