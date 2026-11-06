@@ -186,7 +186,13 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
 
 /** Reconcile the cash balance against immutable-in-intent journal entries. */
 export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
-  const events = store.cashEvents ?? [];
+  // Imported/corrupted journals must fail closed, never throw or fabricate balance.
+  if (!Array.isArray(store.cashEvents) || store.cashEvents.some(e =>
+    !e || typeof e !== 'object' || typeof e.id !== 'string' ||
+    typeof e.orderId !== 'string' || (e.type !== 'payment' && e.type !== 'refund') ||
+    !Number.isSafeInteger(e.amountSatang) || e.amountSatang < 0
+  )) return { expectedSatang: 0, balanced: false };
+  const events = store.cashEvents;
   const ids = new Set(events.map(e => e.id));
   const valid = Array.isArray(store.cashEvents) && ids.size === events.length && events.every(e => {
     const order = store.orders.find(o => o.id === e.orderId);
@@ -251,8 +257,8 @@ export function closeCafeDay(store: CafeStore) {
   const reconciliation = reconcileCafeCash(store);
   // Closing must fail safely on an incomplete/legacy cash journal rather than crash.
   const events = Array.isArray(store.cashEvents) ? store.cashEvents : [];
-  const paymentsSatang = events.filter(e => e.type === 'payment').reduce((n, e) => n + e.amountSatang, 0);
-  const refundsSatang = events.filter(e => e.type === 'refund').reduce((n, e) => n + e.amountSatang, 0);
+  const paymentsSatang = events.filter(e => e?.type === 'payment' && Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0).reduce((n, e) => n + e.amountSatang, 0);
+  const refundsSatang = events.filter(e => e?.type === 'refund' && Number.isSafeInteger(e.amountSatang) && e.amountSatang >= 0).reduce((n, e) => n + e.amountSatang, 0);
   const produced = store.orders.filter(o => o.stockConsumed);
   const missingCostOrders = produced.filter(o => o.consumedCostSatang === undefined).map(o => o.id);
   const ingredientCostSatang = produced.reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
