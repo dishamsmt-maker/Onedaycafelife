@@ -184,14 +184,14 @@ export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; b
  * Record ingredient cost at production time. Prices are satang per stock unit;
  * returns the unchanged state if an ingredient cost is missing or invalid.
  * This can be called only once, before or after preparation, and never on
- * cancelled orders. Actual ingredient deduction remains in advanceCafeOrder.
+ * cancelled orders are permitted for late cost reconciliation. Actual ingredient deduction remains in advanceCafeOrder.
  */
 export function recordCafeOrderCost(
   store: CafeStore, catalog: readonly CafeCatalogItem[], orderId: string,
   unitCostSatang: Readonly<Record<string, number>>,
 ): CafeStore {
   const old = store.orders.find(o => o.id === orderId);
-  if (!old || !old.stockConsumed || old.status === 'cancelled' || old.consumedCostSatang !== undefined) return store;
+  if (!old || !old.stockConsumed || old.consumedCostSatang !== undefined) return store;
   const item = catalog.find(i => i.id === old.itemId);
   if (!item && !old.recipeSnapshot) return store;
   let cost = 0;
@@ -203,6 +203,12 @@ export function recordCafeOrderCost(
   if (!Number.isSafeInteger(cost) || cost < 0) return store;
   const next = copy(store);
   next.orders.find(o => o.id === orderId)!.consumedCostSatang = cost;
+  // A cancelled produced order is waste even when its cost arrives later.
+  // The once-only cost guard prevents double counting on retries.
+  if (old.status === 'cancelled') {
+    if (!Number.isSafeInteger(next.wasteCostSatang + cost)) return store;
+    next.wasteCostSatang += cost;
+  }
   return next;
 }
 
