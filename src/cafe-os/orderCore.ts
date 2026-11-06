@@ -116,7 +116,11 @@ export function advanceCafeOrder(
     for (const [id, n] of needs) next.stock[id] -= n;
     order.stockConsumed = true;
   }
-  if (nextStatus === 'cancelled' && order.stockConsumed) next.wasteCostSatang += order.consumedCostSatang ?? 0;
+  if (nextStatus === 'cancelled' && order.stockConsumed) {
+    const waste = next.wasteCostSatang + (order.consumedCostSatang ?? 0);
+    if (!Number.isSafeInteger(waste)) return store;
+    next.wasteCostSatang = waste;
+  }
   order.status = nextStatus;
   return next;
 }
@@ -149,7 +153,11 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
   const amount = order.paidSatang;
   if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(next.cashSatang - amount)) return store;
   order.refundedSatang = amount;
-  if (order.stockConsumed) next.wasteCostSatang += order.consumedCostSatang ?? 0;
+  if (order.stockConsumed) {
+    const waste = next.wasteCostSatang + (order.consumedCostSatang ?? 0);
+    if (!Number.isSafeInteger(waste)) return store;
+    next.wasteCostSatang = waste;
+  }
   order.status = 'cancelled';
   next.cashSatang -= amount;
   next.cashEvents.push({ id: 'refund-' + orderId, orderId, type: 'refund', amountSatang: amount });
@@ -183,8 +191,8 @@ export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; b
 /**
  * Record ingredient cost at production time. Prices are satang per stock unit;
  * returns the unchanged state if an ingredient cost is missing or invalid.
- * This can be called only once, before or after preparation, and never on
- * cancelled orders are permitted for late cost reconciliation. Actual ingredient deduction remains in advanceCafeOrder.
+ * This can be called only once after preparation, including on cancelled
+ * orders for late cost reconciliation. Actual ingredient deduction remains in advanceCafeOrder.
  */
 export function recordCafeOrderCost(
   store: CafeStore, catalog: readonly CafeCatalogItem[], orderId: string,
