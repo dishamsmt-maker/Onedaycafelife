@@ -186,7 +186,13 @@ export function refundAndCancelCafeOrder(store: CafeStore, orderId: string): Caf
 
 /** Reconcile the cash balance against immutable-in-intent journal entries. */
 export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; balanced: boolean } {
-  const events = store.cashEvents ?? [];
+  // Imported/corrupted journals must fail closed, never throw or fabricate balance.
+  if (!Array.isArray(store.cashEvents) || store.cashEvents.some(e =>
+    !e || typeof e !== 'object' || typeof e.id !== 'string' ||
+    typeof e.orderId !== 'string' || (e.type !== 'payment' && e.type !== 'refund') ||
+    !Number.isSafeInteger(e.amountSatang) || e.amountSatang < 0
+  )) return { expectedSatang: 0, balanced: false };
+  const events = store.cashEvents;
   const ids = new Set(events.map(e => e.id));
   const valid = Array.isArray(store.cashEvents) && ids.size === events.length && events.every(e => {
     const order = store.orders.find(o => o.id === e.orderId);
