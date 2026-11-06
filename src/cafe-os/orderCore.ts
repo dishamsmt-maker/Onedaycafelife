@@ -268,7 +268,7 @@ export function closeCafeDay(store: CafeStore) {
       orderCount: 0, cancelledCount: 0, paymentsSatang: 0, refundsSatang: 0,
       netSalesSatang: 0, ingredientCostSatang: 0, wasteCostSatang: 0,
       grossMarginSatang: null, missingCostOrders: [], openOrderIds: [],
-      unpaidServedOrderIds: [], invalidStockIds: [], cashBalanced: false,
+      unpaidServedOrderIds: [], unpreparedServedOrderIds: [], invalidStockIds: [], cashBalanced: false,
       readyToClose: false,
     };
   }
@@ -291,6 +291,7 @@ export function closeCafeDay(store: CafeStore) {
     .reduce((n, o) => n + (o.consumedCostSatang ?? 0), 0);
   const openOrderIds = store.orders.filter(o => o.status !== 'served' && o.status !== 'cancelled').map(o => o.id);
   const unpaidServedOrderIds = store.orders.filter(o => o.status === 'served' && !o.paymentRecorded).map(o => o.id);
+  const unpreparedServedOrderIds = store.orders.filter(o => o.status === 'served' && !o.stockConsumed).map(o => o.id);
   // Closing must reject corrupted inventory, even if the cash journal balances.
   // Fractional stock is valid for ingredients measured by weight or volume.
   const invalidStockIds = Object.entries(store.stock)
@@ -306,9 +307,9 @@ export function closeCafeDay(store: CafeStore) {
     cancelledCount: store.orders.filter(o => o.status === 'cancelled').length,
     paymentsSatang, refundsSatang, netSalesSatang, ingredientCostSatang,
     wasteCostSatang, grossMarginSatang: missingCostOrders.length || !Number.isSafeInteger(grossMarginSatang) ? null : grossMarginSatang,
-    missingCostOrders, openOrderIds, unpaidServedOrderIds, invalidStockIds,
+    missingCostOrders, openOrderIds, unpaidServedOrderIds, unpreparedServedOrderIds, invalidStockIds,
     cashBalanced: reconciliation.balanced,
-    readyToClose: reconciliation.balanced && validCostLedger && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && missingCostOrders.length === 0 && invalidStockIds.length === 0 &&
+    readyToClose: reconciliation.balanced && validCostLedger && validNumbers && openOrderIds.length === 0 && unpaidServedOrderIds.length === 0 && unpreparedServedOrderIds.length === 0 && missingCostOrders.length === 0 && invalidStockIds.length === 0 &&
       wasteCostSatang === store.wasteCostSatang,
   };
 }
