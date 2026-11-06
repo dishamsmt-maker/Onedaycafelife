@@ -1,3 +1,4 @@
+import { DEMO_TABLE_IDS } from './demoCatalog';
 import {
   advanceCafeOrder, closeCafeDay, createCafeStore, payCafeOrder,
   recordCafeOrderCost, refundAndCancelCafeOrder, submitCafeOrder,
@@ -46,6 +47,9 @@ export function applyDemoAction(
   let orderId = '';
   let eventAction: DemoEvent['action'];
   if (action.type === 'order') {
+    // Game tables are fixed to the five demo seats; the real Café OS retains
+    // its own independent table configuration and order namespace.
+    if (!(DEMO_TABLE_IDS as readonly string[]).includes(action.tableId)) return day;
     const result = submitCafeOrder(next, catalog, action);
     if (!result.accepted || result.reason === 'duplicate-retry') return day;
     next = result.store;
