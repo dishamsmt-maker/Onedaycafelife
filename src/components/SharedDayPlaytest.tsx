@@ -9,6 +9,8 @@ const recipes = { 'halal-tea': { teaLeaves: 10, milkMl: 100 } };
 /** Isolated interactive game-day vertical slice; never connects to real POS or inventory. */
 export default function SharedDayPlaytest() {
   const [events, setEvents] = useState<DayEvent[]>([]);
+  // Synchronous event snapshot prevents two taps in one React render from opening two orders.
+  const eventsRef = useRef<DayEvent[]>([]);
   const [closed, setClosed] = useState(false);
   const stock = replayGameDayWithStock(events, initialStock, recipes);
   const day = stock.day;
@@ -22,10 +24,12 @@ export default function SharedDayPlaytest() {
   const emit = (event: { type: DayEvent['type']; orderId: string; tableId?: string; itemId?: string; totalSatang?: number }) => {
     if (closed) return;
     const id = 'playtest-' + (++eventCounter.current);
-    setEvents(previous => [...previous, { ...event, id } as DayEvent]);
+    eventsRef.current = [...eventsRef.current, { ...event, id } as DayEvent];
+    setEvents(eventsRef.current);
   };
   const order = () => {
-    if (active) return;
+    const latest = replayGameDayWithStock(eventsRef.current, initialStock, recipes).day;
+    if (latest.orders.some(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled')) return;
     emit({ type: 'ordered', orderId: 'demo-' + (eventCounter.current + 1), tableId: table, itemId: 'halal-tea', totalSatang: 4500 });
   };
   const transition = (type: 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled', orderId: string) =>
@@ -61,7 +65,7 @@ export default function SharedDayPlaytest() {
       <p>เหตุการณ์ถูกปฏิเสธ {report.rejectedEvents} · กระทบยอด {report.balanced ? 'ตรง' : 'ไม่ตรง — ต้องตรวจสอบ'}</p>
       {report.outstandingOrders > 0 && <p>ยังมีออร์เดอร์ค้าง: รายงานนี้เป็นยอดชั่วคราวของวันจำลอง</p>}
     </div>}
-    <button className="text-button" onClick={() => { setEvents([]); eventCounter.current = 0; setClosed(false); }}>เริ่มวันจำลองใหม่</button>
+    <button className="text-button" onClick={() => { eventsRef.current = []; setEvents([]); eventCounter.current = 0; setClosed(false); }}>เริ่มวันจำลองใหม่</button>
     <small>นี่เป็น UI ทดสอบเหตุการณ์และสต็อกเกม ไม่ใช่การเชื่อม NPC/FPV หรือระบบจ่ายเงินจริง</small>
   </section>;
 }
