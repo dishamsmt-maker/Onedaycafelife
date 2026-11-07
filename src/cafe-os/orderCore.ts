@@ -191,7 +191,11 @@ export function reconcileCafeCash(store: CafeStore): { expectedSatang: number; b
   if (!Array.isArray(store.orders) || new Set(store.orders.map(o => o?.id)).size !== store.orders.length ||
       new Set(store.orders.map(o => o?.requestId)).size !== store.orders.length ||
       store.orders.some(o => !o || typeof o !== 'object' || typeof o.id !== 'string' || !validId(o.id) ||
-        typeof o.requestId !== 'string' || !validId(o.requestId)))
+        typeof o.requestId !== 'string' || !validId(o.requestId) ||
+        !validId(o.tableId) || !validId(o.itemId) ||
+        !Number.isSafeInteger(o.quantity) || o.quantity <= 0 ||
+        !Number.isSafeInteger(o.unitPriceSatang) || o.unitPriceSatang < 0 ||
+        !Number.isSafeInteger(o.quantity * o.unitPriceSatang)))
     return { expectedSatang: 0, balanced: false };
   // Imported/corrupted journals must fail closed, never throw or fabricate balance.
   if (!Array.isArray(store.cashEvents) || store.cashEvents.some(e =>
