@@ -22,7 +22,7 @@ export function replayGameDayWithStock(
   events: readonly DayEvent[], initialStock: GameStock, recipes: GameRecipes,
 ): StockReplay {
   if (!validQuantities(initialStock) ||
-      !Object.values(recipes).every(recipe => validQuantities(recipe) && Object.keys(recipe).length > 0)) {
+      !Object.values(recipes).every(recipe => validQuantities(recipe) && Object.values(recipe).some(quantity => quantity > 0))) {
     throw new Error('Invalid game stock or recipe');
   }
   let day = emptyGameDay();
