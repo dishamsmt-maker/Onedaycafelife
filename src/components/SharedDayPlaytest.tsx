@@ -8,7 +8,7 @@ export default function SharedDayPlaytest() {
   const [sequence, setSequence] = useState(0);
   const views = projectGameDay(day);
   const active = [...day.orders].reverse().find(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled');
-  const emit = (event: Omit<DayEvent, 'id'>) => {
+  const emit = (event: { type: DayEvent['type']; orderId: string; tableId?: string; itemId?: string; totalSatang?: number }) => {
     const id = 'playtest-' + (sequence + 1);
     setDay(previous => applyGameDayEvent(previous, { ...event, id } as DayEvent));
     setSequence(n => n + 1);
