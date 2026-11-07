@@ -33,4 +33,18 @@ describe('three-role shared game day (never touches real Café OS)', () => {
     expect(projectGameDay(cancelled).manager).toEqual({ revenueSatang: 0, openOrders: 0 });
     expect(applyGameDayEvent(cancelled, { id: 'e', type: 'preparing', orderId: 'o1' })).toBe(cancelled);
   });
+  it('accepts only five demo tables and one active order per table', () => {
+    const initial = emptyGameDay();
+    const first = applyGameDayEvent(initial, { id: 'a1', type: 'ordered', orderId: 'first', tableId: 'T3', itemId: 'tea', totalSatang: 4500 });
+    expect(applyGameDayEvent(first, { id: 'a2', type: 'ordered', orderId: 'second', tableId: 'T3', itemId: 'tea', totalSatang: 4500 })).toBe(first);
+    expect(applyGameDayEvent(first, { id: 'a3', type: 'ordered', orderId: 'third', tableId: 'T6', itemId: 'tea', totalSatang: 4500 })).toBe(first);
+    expect(applyGameDayEvent(first, { id: 'a4', type: 'ordered', orderId: 'fourth', tableId: 'T0', itemId: 'tea', totalSatang: 4500 })).toBe(first);
+    const other = applyGameDayEvent(first, { id: 'a5', type: 'ordered', orderId: 'other', tableId: 'T4', itemId: 'tea', totalSatang: 4500 });
+    expect(other.orders).toHaveLength(2);
+    const cancelled = applyGameDayEvent(other, { id: 'a6', type: 'cancelled', orderId: 'first' });
+    const replacement = applyGameDayEvent(cancelled, { id: 'a7', type: 'ordered', orderId: 'replacement', tableId: 'T3', itemId: 'tea', totalSatang: 4500 });
+    expect(replacement.orders).toHaveLength(3);
+    expect(projectGameDay(replacement).manager.openOrders).toBe(2);
+  });
+
 });

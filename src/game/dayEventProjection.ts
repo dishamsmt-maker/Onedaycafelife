@@ -24,9 +24,9 @@ const nextStatus: Record<GameOrderStatus, readonly GameOrderStatus[]> = {
 export function applyGameDayEvent(day: GameDay, event: DayEvent): GameDay {
   if (!event.id.trim() || day.seenEventIds.includes(event.id) || !event.orderId.trim()) return day;
   if (event.type === 'ordered') {
-    if (!event.tableId.trim() || !event.itemId.trim() ||
+    if (!/^T[1-5]$/.test(event.tableId) || !event.itemId.trim() ||
       !Number.isSafeInteger(event.totalSatang) || event.totalSatang < 0 ||
-      day.orders.some(o => o.id === event.orderId)) return day;
+      day.orders.some(o => o.id === event.orderId || (o.tableId === event.tableId && o.status !== 'paid' && o.status !== 'cancelled'))) return day;
     return { ...day, seenEventIds: [...day.seenEventIds, event.id],
       orders: [...day.orders, { id: event.orderId, tableId: event.tableId,
         itemId: event.itemId, totalSatang: event.totalSatang, status: 'queued' }] };
