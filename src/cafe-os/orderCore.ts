@@ -131,8 +131,13 @@ export function advanceCafeOrder(
   if (nextStatus === 'preparing' && !order.stockConsumed) {
     const item = catalog.find(i => i.id === order.itemId);
     if (!item && !order.recipeSnapshot) return store;
+    // Imported orders must not bypass inventory validation with zero/invalid
+    // quantities or malformed recipe entries. Fail closed before any deduction.
+    if (!Number.isSafeInteger(order.quantity) || order.quantity <= 0) return store;
     const needs = Object.entries(order.recipeSnapshot ?? item!.recipe).map(([id, n]) => [id, n * order.quantity] as const);
-    if (needs.some(([id, n]) => !Number.isFinite(n) || n < 0 || !Number.isFinite(next.stock[id]) || next.stock[id] < n || !Number.isFinite(next.stock[id] - n))) return store;
+    if (needs.some(([id, n]) => !validId(id) || !Number.isFinite(n) || n < 0 ||
+      !Number.isFinite(next.stock[id]) || next.stock[id] < n ||
+      !Number.isFinite(next.stock[id] - n))) return store;
     for (const [id, n] of needs) next.stock[id] -= n;
     order.stockConsumed = true;
   }
