@@ -41,7 +41,8 @@ export function replayGameDayWithStock(
     if (event.type === 'preparing') {
       const recipe = before && recipes[before.itemId];
       if (!recipe || Object.entries(recipe).some(([ingredient, quantity]) =>
-        !Number.isSafeInteger(remaining[ingredient]) || remaining[ingredient] < quantity)) {
+        !Number.isSafeInteger(remaining[ingredient]) || remaining[ingredient] < quantity ||
+        !Number.isSafeInteger((consumed[ingredient] ?? 0) + quantity))) {
         rejectedEventIds.push(event.id); continue;
       }
       for (const [ingredient, quantity] of Object.entries(recipe)) {
@@ -50,6 +51,10 @@ export function replayGameDayWithStock(
       }
     }
     if (event.type === 'cancelled' && before && before.status !== 'queued') {
+      if (Object.entries(recipes[before.itemId]).some(([ingredient, quantity]) =>
+        !Number.isSafeInteger((waste[ingredient] ?? 0) + quantity))) {
+        rejectedEventIds.push(event.id); continue;
+      }
       for (const [ingredient, quantity] of Object.entries(recipes[before.itemId])) {
         waste[ingredient] = (waste[ingredient] ?? 0) + quantity;
       }
