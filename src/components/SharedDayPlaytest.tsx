@@ -13,6 +13,7 @@ export default function SharedDayPlaytest() {
   const stock = replayGameDayWithStock(events, initialStock, recipes);
   const day = stock.day;
   const report = closed ? closeGameDay(stock) : null;
+  const outstandingOrders = day.orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled').length;
   const [table, setTable] = useState('T3');
   const [sequence, setSequence] = useState(0);
   const views = projectGameDay(day);
@@ -46,12 +47,13 @@ export default function SharedDayPlaytest() {
       </button></div>)}
     <h4>Ken · รอเสิร์ฟ</h4>
     {views.waiter.map(o => <div className="row" key={o.orderId}><span>{o.tableId} · {o.orderId}</span>
-      <button className="button secondary" onClick={() => transition('served', o.orderId)}>เสิร์ฟ</button></div>)}
+      <button className="button secondary" disabled={closed} onClick={() => transition('served', o.orderId)}>เสิร์ฟ</button></div>)}
     <h4>ผู้จัดการ</h4>
     <p>รายได้จำลอง ฿{(views.manager.revenueSatang / 100).toFixed(2)} · ออร์เดอร์ค้าง {views.manager.openOrders}</p>
-    {day.orders.filter(o => o.status === 'served').map(o => <button className="button secondary" key={o.id} onClick={() => transition('paid', o.id)}>รับเงิน {o.tableId} ฿{(o.totalSatang / 100).toFixed(2)}</button>)}
-    {active && ['queued','preparing','ready'].includes(active.status) && <button className="button secondary" onClick={() => transition('cancelled', active.id)}>ยกเลิก {active.id}</button>}
-    {!closed && <button className="button secondary" onClick={() => setClosed(true)}>ปิดยอดวันจำลอง</button>}
+    {day.orders.filter(o => o.status === 'served').map(o => <button className="button secondary" key={o.id} disabled={closed} onClick={() => transition('paid', o.id)}>รับเงิน {o.tableId} ฿{(o.totalSatang / 100).toFixed(2)}</button>)}
+    {active && ['queued','preparing','ready'].includes(active.status) && <button className="button secondary" disabled={closed} onClick={() => transition('cancelled', active.id)}>ยกเลิก {active.id}</button>}
+    {!closed && <button className="button secondary" disabled={outstandingOrders > 0} onClick={() => setClosed(true)}>ปิดยอดวันจำลอง</button>}
+    {!closed && outstandingOrders > 0 && <p role="status">ยังมีออร์เดอร์ค้าง {outstandingOrders} รายการ ต้องเสิร์ฟและรับเงินหรือยกเลิกก่อนปิดยอด</p>}
     {report && <div role="status" aria-live="polite">
       <h4>รายงานปิดยอด · เกมเท่านั้น</h4>
       <p>รายรับ ฿{(report.revenueSatang / 100).toFixed(2)} · ชำระแล้ว {report.paidOrders} · ยกเลิก {report.cancelledOrders} · ค้าง {report.outstandingOrders}</p>
