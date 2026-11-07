@@ -2,9 +2,12 @@ import { useRef, useState } from 'react';
 import { projectGameDay, type DayEvent } from '../game/dayEventProjection';
 import { replayGameDayWithStock } from '../game/dayStockReplay';
 import { closeGameDay } from '../game/dayCloseReport';
+import { summarizeGameIngredientCosts } from '../game/dayIngredientCosts';
 
 const initialStock = { teaLeaves: 100, milkMl: 500 };
 const recipes = { 'halal-tea': { teaLeaves: 10, milkMl: 100 } };
+// Illustrative game-only satang/unit costs, NOT verified café purchase prices.
+const demoUnitCostsSatang = { teaLeaves: 10, milkMl: 2 };
 
 /** Isolated interactive game-day vertical slice; never connects to real POS or inventory. */
 export default function SharedDayPlaytest() {
@@ -14,6 +17,7 @@ export default function SharedDayPlaytest() {
   const [closed, setClosed] = useState(false);
   const stock = replayGameDayWithStock(events, initialStock, recipes);
   const day = stock.day;
+  const costs = summarizeGameIngredientCosts(stock, demoUnitCostsSatang);
   const report = closed ? closeGameDay(stock) : null;
   const outstandingOrders = day.orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled').length;
   const [table, setTable] = useState('T3');
@@ -54,6 +58,8 @@ export default function SharedDayPlaytest() {
       <button className="button secondary" disabled={closed} onClick={() => transition('served', o.orderId)}>เสิร์ฟ</button></div>)}
     <h4>ผู้จัดการ</h4>
     <p>รายได้จำลอง ฿{(views.manager.revenueSatang / 100).toFixed(2)} · ออร์เดอร์ค้าง {views.manager.openOrders}</p>
+    <p>ต้นทุนวัตถุดิบเกม ฿{(costs.ingredientCostSatang / 100).toFixed(2)} · ของเสีย (รวมในต้นทุน) ฿{(costs.wasteCostSatang / 100).toFixed(2)} · กำไรขั้นต้นก่อนค่าใช้จ่ายอื่น ฿{(costs.grossMarginSatang / 100).toFixed(2)}</p>
+    <small>ต้นทุนต่อหน่วยเป็นตัวเลขสมมติสำหรับเกม ไม่ใช่ราคาซื้อจริง และกำไรขั้นต้นไม่ใช่กำไรสุทธิ{!costs.complete ? ` · ขาดต้นทุน: ${costs.missingCostIngredients.join(', ')}` : ''}</small>
     {day.orders.filter(o => o.status === 'served').map(o => <button className="button secondary" key={o.id} disabled={closed} onClick={() => transition('paid', o.id)}>รับเงิน {o.tableId} ฿{(o.totalSatang / 100).toFixed(2)}</button>)}
     {active && ['queued','preparing','ready'].includes(active.status) && <button className="button secondary" disabled={closed} onClick={() => transition('cancelled', active.id)}>ยกเลิก {active.id}</button>}
     {!closed && <button className="button secondary" disabled={outstandingOrders > 0} onClick={() => setClosed(true)}>ปิดยอดวันจำลอง</button>}
@@ -61,6 +67,7 @@ export default function SharedDayPlaytest() {
     {report && <div role="status" aria-live="polite">
       <h4>รายงานปิดยอด · เกมเท่านั้น</h4>
       <p>รายรับ ฿{(report.revenueSatang / 100).toFixed(2)} · ชำระแล้ว {report.paidOrders} · ยกเลิก {report.cancelledOrders} · ค้าง {report.outstandingOrders}</p>
+      <p>ต้นทุนวัตถุดิบ ฿{(costs.ingredientCostSatang / 100).toFixed(2)} · ต้นทุนของเสีย (รวมแล้ว) ฿{(costs.wasteCostSatang / 100).toFixed(2)} · กำไรขั้นต้น ฿{(costs.grossMarginSatang / 100).toFixed(2)}</p>
       <p>ใบชาใช้ {report.consumed.teaLeaves ?? 0} กรัม · ของเสีย {report.waste.teaLeaves ?? 0} กรัม · คงเหลือ {report.remaining.teaLeaves ?? 0} กรัม</p>
       <p>เหตุการณ์ถูกปฏิเสธ {report.rejectedEvents} · กระทบยอด {report.balanced ? 'ตรง' : 'ไม่ตรง — ต้องตรวจสอบ'}</p>
       {report.outstandingOrders > 0 && <p>ยังมีออร์เดอร์ค้าง: รายงานนี้เป็นยอดชั่วคราวของวันจำลอง</p>}
