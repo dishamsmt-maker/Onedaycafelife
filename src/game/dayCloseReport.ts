@@ -19,7 +19,10 @@ export function closeGameDay(replay: StockReplay): GameDayClose {
   const cancelled = orders.filter(order => order.status === 'cancelled');
   const outstanding = orders.length - paid.length - cancelled.length;
   const expectedRevenue = paid.reduce((sum, order) => sum + order.totalSatang, 0);
-  const balanced = Number.isSafeInteger(expectedRevenue) &&
+  const stockConsistent = Object.entries(replay.consumed).every(([key, used]) =>
+    key in replay.remaining && Number.isSafeInteger(used) && used >= 0 &&
+    Number.isSafeInteger(replay.remaining[key] + used));
+  const balanced = stockConsistent && Number.isSafeInteger(expectedRevenue) &&
     expectedRevenue === replay.day.revenueSatang &&
     Object.values(replay.remaining).every(v => Number.isSafeInteger(v) && v >= 0) &&
     Object.entries(replay.waste).every(([key, value]) =>
