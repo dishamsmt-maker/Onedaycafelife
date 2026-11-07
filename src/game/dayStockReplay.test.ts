@@ -42,5 +42,8 @@ describe('isolated game day stock replay', () => {
     expect(replayGameDayWithStock([{ ...order('o1'), itemId: 'unknown' }],
       { waterMl: 200, teaG: 10 }, recipes).rejectedEventIds).toEqual(['order-o1']);
     expect(() => replayGameDayWithStock([], { waterMl: -1 }, recipes)).toThrow();
+    expect(() => replayGameDayWithStock([], { waterMl: 100 }, { free: { waterMl: 0 } })).toThrow();
+    expect(() => replayGameDayWithStock([], { waterMl: 100 }, { free: {} })).toThrow();
+    expect(() => replayGameDayWithStock([], { waterMl: 100 }, { tea: { waterMl: 1 } })).not.toThrow();
   });
 });
