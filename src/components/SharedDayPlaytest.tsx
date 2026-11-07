@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { projectGameDay, type DayEvent } from '../game/dayEventProjection';
 import { replayGameDayWithStock } from '../game/dayStockReplay';
 import { closeGameDay } from '../game/dayCloseReport';
@@ -15,18 +15,18 @@ export default function SharedDayPlaytest() {
   const report = closed ? closeGameDay(stock) : null;
   const outstandingOrders = day.orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled').length;
   const [table, setTable] = useState('T3');
-  const [sequence, setSequence] = useState(0);
+  // Synchronous counter avoids duplicate IDs when taps happen before React re-renders.
+  const eventCounter = useRef(0);
   const views = projectGameDay(day);
   const active = [...day.orders].reverse().find(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled');
   const emit = (event: { type: DayEvent['type']; orderId: string; tableId?: string; itemId?: string; totalSatang?: number }) => {
-    const id = 'playtest-' + (sequence + 1);
     if (closed) return;
+    const id = 'playtest-' + (++eventCounter.current);
     setEvents(previous => [...previous, { ...event, id } as DayEvent]);
-    setSequence(n => n + 1);
   };
   const order = () => {
     if (active) return;
-    emit({ type: 'ordered', orderId: 'demo-' + (sequence + 1), tableId: table, itemId: 'halal-tea', totalSatang: 4500 });
+    emit({ type: 'ordered', orderId: 'demo-' + (eventCounter.current + 1), tableId: table, itemId: 'halal-tea', totalSatang: 4500 });
   };
   const transition = (type: 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled', orderId: string) =>
     emit({ type, orderId });
@@ -61,7 +61,7 @@ export default function SharedDayPlaytest() {
       <p>เหตุการณ์ถูกปฏิเสธ {report.rejectedEvents} · กระทบยอด {report.balanced ? 'ตรง' : 'ไม่ตรง — ต้องตรวจสอบ'}</p>
       {report.outstandingOrders > 0 && <p>ยังมีออร์เดอร์ค้าง: รายงานนี้เป็นยอดชั่วคราวของวันจำลอง</p>}
     </div>}
-    <button className="text-button" onClick={() => { setEvents([]); setSequence(0); setClosed(false); }}>เริ่มวันจำลองใหม่</button>
+    <button className="text-button" onClick={() => { setEvents([]); eventCounter.current = 0; setClosed(false); }}>เริ่มวันจำลองใหม่</button>
     <small>นี่เป็น UI ทดสอบเหตุการณ์และสต็อกเกม ไม่ใช่การเชื่อม NPC/FPV หรือระบบจ่ายเงินจริง</small>
   </section>;
 }
