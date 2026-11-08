@@ -36,6 +36,7 @@ export function summarizeGameIngredientCosts(
   let wasteCostSatang = 0;
   const missingCostIngredients: string[] = [];
   for (const [ingredient, quantity] of Object.entries(replay.consumed)) {
+    if (quantity === 0) continue;
     const unitCost = Object.prototype.hasOwnProperty.call(unitCostsSatang, ingredient)
       ? unitCostsSatang[ingredient] : undefined;
     if (unitCost === undefined) {
