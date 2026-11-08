@@ -40,6 +40,26 @@ describe('simulated closing combines sales and stock audits', () => {
     expect(result.closingStock.rice).toBe(4);
   });
 
+  it('rejects return before consumption even if end-of-day net stock is valid', () => {
+    const events = [
+      { id: 'early-return', saleId: 'T3', ingredientId: 'rice', units: 1 },
+      { id: 'later-use', saleId: 'T3', ingredientId: 'rice', units: -2 },
+    ];
+    const result = auditSimulatedClosing(sales, ledger, events, { rice: 5 });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain('stock return before consumption: early-return');
+  });
+
+  it('allows consumption followed by a legitimate return', () => {
+    const events = [
+      { id: 'use-first', saleId: 'T3', ingredientId: 'rice', units: -2 },
+      { id: 'return-later', saleId: 'T3', ingredientId: 'rice', units: 2 },
+    ];
+    const result = auditSimulatedClosing(sales, ledger, events, { rice: 5 });
+    expect(result.ok).toBe(true);
+    expect(result.closingStock.rice).toBe(5);
+  });
+
   it('does not let consumption by another sale justify an unrelated return', () => {
     const events = [...stock, { id: 'return-T4', saleId: 'T4', ingredientId: 'rice', units: 1 }];
     const otherSale = { id: 'T4', status: 'cancelled' as const, chargedSatang: 0, refundedSatang: 0, cogsSatang: 0 };
