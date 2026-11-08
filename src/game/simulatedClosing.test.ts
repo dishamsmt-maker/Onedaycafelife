@@ -26,4 +26,26 @@ describe('simulated closing combines sales and stock audits', () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toContain('charge mismatch: T3');
   });
+  it('rejects a return that creates stock without consumption for that sale', () => {
+    const returned = [{ id: 'return-T3', saleId: 'T3', ingredientId: 'rice', units: 1 }];
+    const result = auditSimulatedClosing(sales, ledger, returned, { rice: 5 });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain('stock return exceeds consumption: T3/rice');
+  });
+
+  it('allows a partial return only up to units consumed for the same sale', () => {
+    const events = [...stock, { id: 'return-T3', saleId: 'T3', ingredientId: 'rice', units: 1 }];
+    const result = auditSimulatedClosing(sales, ledger, events, { rice: 5 });
+    expect(result.ok).toBe(true);
+    expect(result.closingStock.rice).toBe(4);
+  });
+
+  it('does not let consumption by another sale justify an unrelated return', () => {
+    const events = [...stock, { id: 'return-T4', saleId: 'T4', ingredientId: 'rice', units: 1 }];
+    const otherSale = { id: 'T4', status: 'cancelled' as const, chargedSatang: 0, refundedSatang: 0, cogsSatang: 0 };
+    const result = auditSimulatedClosing([...sales, otherSale], ledger, events, { rice: 5 });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain('stock return exceeds consumption: T4/rice');
+  });
+
 });
