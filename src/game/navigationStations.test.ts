@@ -10,6 +10,8 @@ describe('five-table navigation regression', () => {
     expect(canVisitorWalk(0, 0, -1)).toBe(false);
     expect(segmentWalkable([0, 0], [NaN, 1])).toBe(false);
     expect(segmentWalkable([0, 0], [1, 1], Infinity)).toBe(false);
+    expect(segmentWalkable([0, 0], [1e308, 1e308])).toBe(false);
+    expect(segmentWalkable([-1e308, 0], [1e308, 0])).toBe(false);
     expect(findPath([0, 0], [Infinity, 1])).toEqual([]);
   });
 
