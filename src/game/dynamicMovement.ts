@@ -61,3 +61,35 @@ export function resolveNpcSteps(
   }
   return positions;
 }
+
+/** Track blocked movement without moving an NPC through another actor.
+ * The caller may request a fresh route after a sustained stall. A fresh
+ * route must still pass the same swept-collision checks on later ticks.
+ */
+export function resolveNpcStepsWithStalls(
+  actors: ReadonlyArray<MovingActor>,
+  proposed: ReadonlyArray<Vec2>,
+  previousStalls: ReadonlyArray<number>,
+  tick = 0,
+  repathAfter = 8,
+): { positions: Vec2[]; stalledTicks: number[]; needsRepath: boolean[] } {
+  if (previousStalls.length !== actors.length ||
+      !Number.isSafeInteger(repathAfter) || repathAfter < 1 ||
+      previousStalls.some(n => !Number.isSafeInteger(n) || n < 0)) {
+    throw new Error('Invalid NPC stall tracking state');
+  }
+  const positions = resolveNpcSteps(actors, proposed, tick);
+  const stalledTicks = positions.map((position, i) => {
+    const requestedMove = proposed[i][0] !== actors[i].position[0] ||
+      proposed[i][1] !== actors[i].position[1];
+    const blocked = requestedMove &&
+      position[0] === actors[i].position[0] &&
+      position[1] === actors[i].position[1];
+    return blocked ? Math.min(Number.MAX_SAFE_INTEGER, previousStalls[i] + 1) : 0;
+  });
+  return {
+    positions,
+    stalledTicks,
+    needsRepath: stalledTicks.map(n => n >= repathAfter),
+  };
+}
