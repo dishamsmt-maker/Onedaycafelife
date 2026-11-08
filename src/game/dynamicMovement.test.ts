@@ -19,6 +19,13 @@ describe('swept NPC movement clearance', () => {
 });
 
 describe('NPC tick resolution', () => {
+  it('rotates priority for competing NPCs without overlapping them', () => {
+    const actors = [{position: [-1, 1] as const, radius: .16}, {position: [1, 1] as const, radius: .16}];
+    const proposals: [number, number][] = [[0, 1], [0, 1]];
+    expect(resolveNpcSteps(actors, proposals, 0)).toEqual([[0, 1], [1, 1]]);
+    expect(resolveNpcSteps(actors, proposals, 1)).toEqual([[-1, 1], [0, 1]]);
+    expect(() => resolveNpcSteps(actors, proposals, -1)).toThrow();
+  });
   it('rejects mismatched movement proposals', () => {
     expect(() => resolveNpcSteps([{position: [-1, 1], radius: .16}], [])).toThrow();
   });

@@ -34,17 +34,24 @@ export function canMovePastActors(
 /** Resolve one simulation tick in stable actor order.
  * A blocked actor stays put; later actors must respect both the initial
  * positions and accepted destinations. This prevents overlapping moves
- * and head-on swaps without silently teleporting anyone.
+ * and head-on swaps without silently teleporting anyone. Rotate tick
+ * priority to prevent permanent index-based preference in shared aisles.
  */
 export function resolveNpcSteps(
   actors: ReadonlyArray<MovingActor>,
   proposed: ReadonlyArray<Vec2>,
+  tick = 0,
 ): Vec2[] {
   if (actors.length !== proposed.length) {
     throw new Error('Each NPC needs exactly one proposed destination');
   }
+  if (!Number.isSafeInteger(tick) || tick < 0) {
+    throw new Error('Simulation tick must be a non-negative safe integer');
+  }
   const positions: Vec2[] = actors.map(actor => [...actor.position] as Vec2);
-  for (let i = 0; i < actors.length; i++) {
+  // Rotate priority each tick so the lowest actor index cannot always win.
+  for (let offset = 0; offset < actors.length; offset++) {
+    const i = (tick + offset) % actors.length;
     const others: MovingActor[] = actors.flatMap((actor, j) =>
       j === i ? [] : [{position: positions[j], radius: actor.radius}]);
     const destination = proposed[i];
