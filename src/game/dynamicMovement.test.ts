@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canMovePastActors, resolveNpcSteps } from './dynamicMovement';
+import { canMovePastActors, resolveNpcSteps, resolveNpcStepsWithStalls } from './dynamicMovement';
 
 describe('swept NPC movement clearance', () => {
   it('rejects crossing an actor even when both endpoints are clear', () => {
@@ -49,5 +49,34 @@ describe('NPC tick resolution', () => {
       [[-.8, 1], [1.2, 1]],
     );
     expect(positions).toEqual([[-.8, 1], [1.2, 1]]);
+  });
+});
+
+describe('NPC stall and reroute signals', () => {
+  const actors = [
+    { position: [-1, 1] as [number, number], radius: .16 },
+    { position: [0, 1] as [number, number], radius: .16 },
+  ];
+  it('increments only blocked movement and flags sustained stalls', () => {
+    const first = resolveNpcStepsWithStalls(actors, [[.5, 1], [0, 1]], [6, 0], 0, 8);
+    expect(first.positions).toEqual([[-1, 1], [0, 1]]);
+    expect(first.stalledTicks).toEqual([7, 0]);
+    expect(first.needsRepath).toEqual([false, false]);
+    const second = resolveNpcStepsWithStalls(actors, [[.5, 1], [0, 1]], first.stalledTicks, 1, 8);
+    expect(second.stalledTicks).toEqual([8, 0]);
+    expect(second.needsRepath).toEqual([true, false]);
+  });
+  it('resets stall count when actor moves or intentionally waits', () => {
+    const moving = resolveNpcStepsWithStalls(
+      [{ position: [-1, 1], radius: .16 }], [[-.8, 1]], [7], 0, 8);
+    expect(moving.stalledTicks).toEqual([0]);
+    const waiting = resolveNpcStepsWithStalls(
+      [{ position: [-1, 1], radius: .16 }], [[-1, 1]], [7], 0, 8);
+    expect(waiting.stalledTicks).toEqual([0]);
+  });
+  it('rejects invalid tracking state', () => {
+    expect(() => resolveNpcStepsWithStalls(actors, [[0, 1], [0, 1]], [0])).toThrow();
+    expect(() => resolveNpcStepsWithStalls(actors, [[0, 1], [0, 1]], [0, -1])).toThrow();
+    expect(() => resolveNpcStepsWithStalls(actors, [[0, 1], [0, 1]], [0, 0], 0, 0)).toThrow();
   });
 });
