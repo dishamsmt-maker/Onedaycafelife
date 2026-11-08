@@ -7,7 +7,7 @@ export const TABLE_LAYOUT = [
  {id:'t2',name:'T2',position:[1.15,7.15] as Vec2,capacity:4},
  {id:'t3',name:'T3',position:[-1.25,8.35] as Vec2,capacity:4},
  {id:'t4',name:'T4',position:[-1.25,4.45] as Vec2,capacity:4},
- {id:'t5',name:'T5',position:[1.15,8.85] as Vec2,capacity:4},
+ {id:'t5',name:'T5',position:[-1.25,2.35] as Vec2,capacity:4},
 ];
 export interface Obstacle {x:number;z:number;w:number;d:number;}
 export const OBSTACLES:Obstacle[]=[{x:1.4,z:.75,w:2,d:.4},{x:.55,z:2.1,w:.45,d:2.4},{x:2.05,z:2.15,w:.8,d:2.7},{x:1.95,z:4.65,w:.72,d:2.0},{x:1.95,z:5.85,w:.8,d:.7},...TABLE_LAYOUT.map(t=>({x:t.position[0],z:t.position[1],w:1.25,d:1.2})),{x:1.85,z:9.3,w:1.1,d:1.0}];
