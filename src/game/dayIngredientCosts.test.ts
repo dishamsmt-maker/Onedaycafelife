@@ -32,6 +32,23 @@ describe('game-only ingredient costing', () => {
       complete: false, missingCostIngredients: ['teaG'],
     });
   });
+  it('rejects corrupt replay quantities, waste, and revenue before computing margins', () => {
+    expect(() => summarizeGameIngredientCosts({
+      ...replay, consumed: { teaG: -1 },
+    }, { teaG: 30 })).toThrow('Invalid game ingredient quantity');
+    expect(() => summarizeGameIngredientCosts({
+      ...replay, waste: { teaG: Number.NaN },
+    }, { teaG: 30 })).toThrow('Invalid game ingredient quantity');
+    expect(() => summarizeGameIngredientCosts({
+      ...replay, waste: { teaG: 21 },
+    }, { teaG: 30 })).toThrow('Game waste exceeds consumed stock');
+    expect(() => summarizeGameIngredientCosts({
+      ...replay, waste: { other: 1 },
+    }, { teaG: 30 })).toThrow('Game waste exceeds consumed stock');
+    expect(() => summarizeGameIngredientCosts({
+      ...replay, day: { ...replay.day, revenueSatang: -1 },
+    }, { teaG: 30 })).toThrow('Invalid game revenue');
+  });
   it('rejects invalid or overflowing costs', () => {
     expect(() => summarizeGameIngredientCosts(replay, { teaG: -1 })).toThrow();
     expect(() => summarizeGameIngredientCosts(replay, { teaG: Number.MAX_SAFE_INTEGER })).toThrow();
