@@ -11,9 +11,10 @@ export const TABLE_LAYOUT = [
 ];
 export interface Obstacle {x:number;z:number;w:number;d:number;}
 export const OBSTACLES:Obstacle[]=[{x:1.4,z:.75,w:2,d:.4},{x:.55,z:2.1,w:.45,d:2.4},{x:2.05,z:2.15,w:.8,d:2.7},{x:1.95,z:4.65,w:.72,d:2.0},{x:1.95,z:5.85,w:.8,d:.7},...TABLE_LAYOUT.map(t=>({x:t.position[0],z:t.position[1],w:1.25,d:1.2})),{x:1.85,z:9.3,w:1.1,d:1.0}];
-export function canWalk(x:number,z:number, radius=.16){return x>-2.32&&x<2.32&&z>-.95&&z<9.82&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);}
+export function canWalk(x:number,z:number, radius=.16){return Number.isFinite(x)&&Number.isFinite(z)&&Number.isFinite(radius)&&radius>=0&&x>-2.32&&x<2.32&&z>-.95&&z<9.82&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);}
 /** Sample a complete movement segment so NPCs cannot clip through counter corners. */
 export function segmentWalkable(from:Vec2,to:Vec2,radius=.16):boolean{
+ if(![...from,...to,radius].every(Number.isFinite)||radius<0)return false;
  const distance=Math.hypot(to[0]-from[0],to[1]-from[1]);
  const samples=Math.max(1,Math.ceil(distance/.05));
  for(let i=0;i<=samples;i++){
@@ -25,6 +26,7 @@ export function segmentWalkable(from:Vec2,to:Vec2,radius=.16):boolean{
 /** Grid routing selects the nearest reachable walkable endpoint, even when a station
  * or table centre is blocked by its own collision box. */
 export function findPath(from:Vec2,to:Vec2):Vec2[]{
+ if(![...from,...to].every(Number.isFinite))return [];
  const step=.25;
  const key=(x:number,z:number)=>`${x},${z}`;
  const snap=(p:Vec2):Vec2=>[Math.round(p[0]/step),Math.round(p[1]/step)];
@@ -75,6 +77,7 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
 
 /** Public circulation stays left of the counter/kitchen. Staff use canWalk instead. */
 export function canVisitorWalk(x:number,z:number,radius=.18){
+ if(![x,z,radius].every(Number.isFinite)||radius<0)return false;
  if(z<=.27)return z>-7+radius&&x>-3.6+radius&&x<3.6-radius&&!OBSTACLES.some(o=>Math.abs(x-o.x)<o.w/2+radius&&Math.abs(z-o.z)<o.d/2+radius);
  if(!canWalk(x,z,radius))return false;
  if(z>.45-radius&&z<6.55+radius&&x>.25-radius)return false;
