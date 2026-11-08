@@ -62,7 +62,7 @@ describe('ONE DAY controlled business simulation', () => {
   });
   it('a 20-person rush respects seats and creates individual customers with real queued orders', () => {
     let s = game(); s = act(s, { type: 'rush', size: 20 });
-    expect(s.customers).toHaveLength(20); expect(s.tables.reduce((n, t) => n + t.customerIds.length, 0)).toBeLessThanOrEqual(12);
+    expect(s.customers).toHaveLength(20); expect(s.tables.reduce((n, t) => n + t.customerIds.length, 0)).toBeLessThanOrEqual(s.tables.reduce((n, t) => n + t.capacity, 0));
     expect(s.customers.some(c => c.takeaway)).toBe(true); expect(s.customers.every(c => c.reason && c.budget > 0)).toBe(true);
     expect(s.ledger).toHaveLength(0);
     s = advance(s, 20);
