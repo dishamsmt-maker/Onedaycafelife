@@ -15,6 +15,9 @@ export function canWalk(x:number,z:number, radius=.16){return Number.isFinite(x)
 /** Sample a complete movement segment so NPCs cannot clip through counter corners. */
 export function segmentWalkable(from:Vec2,to:Vec2,radius=.16):boolean{
  if(![...from,...to,radius].every(Number.isFinite)||radius<0)return false;
+ // Reject impossible endpoints before calculating sample counts; extremely large finite
+ // coordinates can overflow hypot() and otherwise create a non-terminating loop.
+ if(!canWalk(...from,radius)||!canWalk(...to,radius))return false;
  const distance=Math.hypot(to[0]-from[0],to[1]-from[1]);
  const samples=Math.max(1,Math.ceil(distance/.05));
  for(let i=0;i<=samples;i++){
