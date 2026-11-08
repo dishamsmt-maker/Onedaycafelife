@@ -87,3 +87,21 @@ export function canVisitorWalk(x:number,z:number,radius=.18){
  if(z>9.0-radius&&x>.55-radius)return false;
  return true;
 }
+
+/** Dynamic actor clearance, separate from static furniture navigation.
+ * Call this before applying an NPC movement step; it does not plan detours.
+ * The caller excludes the moving actor from `others`.
+ */
+export function canOccupyWithActors(
+ position:Vec2,
+ others:ReadonlyArray<{position:Vec2;radius:number}>,
+ radius=.16,
+):boolean {
+ if(!Number.isFinite(radius)||radius<0||!canWalk(...position,radius))return false;
+ return others.every(actor=>{
+  const [x,z]=actor.position;
+  if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(actor.radius)||actor.radius<0)return false;
+  const separation=radius+actor.radius;
+  return Math.hypot(position[0]-x,position[1]-z)>=separation;
+ });
+}
