@@ -26,6 +26,10 @@ export default function SharedDayPlaytest() {
   // Synchronous counter avoids duplicate IDs when taps happen before React re-renders.
   const eventCounter = useRef(0);
   const views = projectGameDay(day);
+  const canPrepare = (itemId: string) => Object.entries(recipes[itemId as keyof typeof recipes] ?? {}).every(
+    ([ingredient, quantity]) => quantity === 0 ||
+      (Number.isSafeInteger(stock.remaining[ingredient]) && stock.remaining[ingredient] >= quantity),
+  );
   const active = [...day.orders].reverse().find(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled');
   const emit = (event: { type: DayEvent['type']; orderId: string; tableId?: string; itemId?: string; totalSatang?: number }) => {
     if (closedRef.current) return;
@@ -59,10 +63,17 @@ export default function SharedDayPlaytest() {
     <h4>Na · คิวครัว</h4>
     <p aria-live="polite">สต็อกเกม: ใบชา {stock.remaining.teaLeaves} กรัม · นม {stock.remaining.milkMl} มล. · ใช้ใบชา {stock.consumed.teaLeaves ?? 0} กรัม · ของเสียใบชา {stock.waste.teaLeaves ?? 0} กรัม</p>
     {stock.rejectedEventIds.length > 0 && <p role="status">เหตุการณ์ถูกปฏิเสธ {stock.rejectedEventIds.length} ครั้ง (อาจเกิดจากวัตถุดิบหมดหรือขั้นตอนผิดลำดับ)</p>}
-    {views.kitchen.map(o => <div className="row" key={o.orderId}><span>{o.orderId} · {o.status}</span>
-      <button className="button secondary" disabled={closed} onClick={() => transition(o.status === 'queued' ? 'preparing' : 'ready', o.orderId)}>
-        {o.status === 'queued' ? 'เริ่มเตรียม' : 'ทำเสร็จ'}
-      </button></div>)}
+    {views.kitchen.map(o => {
+      const queued = o.status === 'queued';
+      const itemId = day.orders.find(order => order.id === o.orderId)?.itemId ?? '';
+      const outOfStock = queued && !canPrepare(itemId);
+      return <div className="row" key={o.orderId}><span>{o.orderId} · {o.status}{outOfStock ? ' · วัตถุดิบไม่พอ' : ''}</span>
+        <button className="button secondary" disabled={closed || outOfStock}
+          title={outOfStock ? 'วัตถุดิบเกมไม่พอสำหรับรายการนี้' : undefined}
+          onClick={() => transition(queued ? 'preparing' : 'ready', o.orderId)}>
+          {queued ? 'เริ่มเตรียม' : 'ทำเสร็จ'}
+        </button></div>;
+    })}
     <h4>Ken · รอเสิร์ฟ</h4>
     {views.waiter.map(o => <div className="row" key={o.orderId}><span>{o.tableId} · {o.orderId}</span>
       <button className="button secondary" disabled={closed} onClick={() => transition('served', o.orderId)}>เสิร์ฟ</button></div>)}
