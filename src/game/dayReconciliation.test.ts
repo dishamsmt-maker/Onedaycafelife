@@ -45,4 +45,14 @@ describe('simulated day ledger reconciliation', () => {
     expect(result.issues).toContain('invalid sale amounts: T3-1');
     expect(result.issues).toContain('invalid stock event: s1');
   });
+  it('fails closed for unknown sale statuses and ledger event kinds', () => {
+    const badStatus = { ...paid, status: 'pending' as DaySale['status'] };
+    const badKind = { ...charge, kind: 'void' as MoneyEntry['kind'] };
+    const result = auditSimulatedDay([badStatus], [badKind], []);
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain('invalid sale status: T3-1');
+    expect(result.issues).toContain('invalid ledger entry: p1');
+    expect(result.issues).toContain('charge mismatch: T3-1');
+  });
+
 });

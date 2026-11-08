@@ -45,7 +45,8 @@ export function auditSimulatedDay(
   const known = new Set(sales.map(s => s.id));
   for (const entry of ledger) {
     if (!known.has(entry.saleId)) issues.push('orphan ledger: ' + entry.id);
-    if (!money(entry.amountSatang)) issues.push('invalid ledger amount: ' + entry.id);
+    if (!money(entry.amountSatang) || (entry.kind !== 'charge' && entry.kind !== 'refund'))
+      issues.push('invalid ledger entry: ' + entry.id);
   }
   for (const entry of stock) {
     if (!known.has(entry.saleId)) issues.push('orphan stock event: ' + entry.id);
@@ -54,6 +55,8 @@ export function auditSimulatedDay(
   }
   let netSalesSatang = 0, netCogsSatang = 0;
   for (const sale of sales) {
+    if (sale.status !== 'paid' && sale.status !== 'refunded' && sale.status !== 'cancelled')
+      issues.push('invalid sale status: ' + sale.id);
     if (!money(sale.chargedSatang) || !money(sale.refundedSatang) ||
         !money(sale.cogsSatang) || sale.refundedSatang > sale.chargedSatang) {
       issues.push('invalid sale amounts: ' + sale.id);
