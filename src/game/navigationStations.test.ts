@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { STATIONS, TABLE_LAYOUT, canWalk, findPath, segmentWalkable } from './world';
+import { STATIONS, TABLE_LAYOUT, canVisitorWalk, canWalk, findPath, segmentWalkable } from './world';
 
 describe('five-table navigation regression', () => {
+  it('rejects non-finite coordinates and invalid actor radii instead of allowing collision bypass', () => {
+    expect(canWalk(NaN, 1)).toBe(false);
+    expect(canWalk(0, Infinity)).toBe(false);
+    expect(canWalk(0, 1, -0.1)).toBe(false);
+    expect(canVisitorWalk(NaN, 0)).toBe(false);
+    expect(canVisitorWalk(0, 0, -1)).toBe(false);
+    expect(segmentWalkable([0, 0], [NaN, 1])).toBe(false);
+    expect(segmentWalkable([0, 0], [1, 1], Infinity)).toBe(false);
+    expect(findPath([0, 0], [Infinity, 1])).toEqual([]);
+  });
+
   it('keeps all work stations clear of furniture collision boxes', () => {
     for (const [name, [x, z]] of Object.entries(STATIONS)) {
       if (name === 'entrance' || name === 'rest' || name === 'manager') continue; // Entrance is outside; rest is inside its modeled structure.
