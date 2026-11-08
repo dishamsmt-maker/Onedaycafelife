@@ -30,3 +30,27 @@ export function canMovePastActors(
     return Math.hypot(x - nearestX, z - nearestZ) >= radius + otherRadius;
   });
 }
+
+/** Resolve one simulation tick in stable actor order.
+ * A blocked actor stays put; later actors must respect both the initial
+ * positions and accepted destinations. This prevents overlapping moves
+ * and head-on swaps without silently teleporting anyone.
+ */
+export function resolveNpcSteps(
+  actors: ReadonlyArray<MovingActor>,
+  proposed: ReadonlyArray<Vec2>,
+): Vec2[] {
+  if (actors.length !== proposed.length) {
+    throw new Error('Each NPC needs exactly one proposed destination');
+  }
+  const positions: Vec2[] = actors.map(actor => [...actor.position] as Vec2);
+  for (let i = 0; i < actors.length; i++) {
+    const others: MovingActor[] = actors.flatMap((actor, j) =>
+      j === i ? [] : [{position: positions[j], radius: actor.radius}]);
+    const destination = proposed[i];
+    if (canMovePastActors(positions[i], destination, others, actors[i].radius)) {
+      positions[i] = [...destination] as Vec2;
+    }
+  }
+  return positions;
+}
