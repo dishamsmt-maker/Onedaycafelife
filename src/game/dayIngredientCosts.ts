@@ -19,6 +19,19 @@ export function summarizeGameIngredientCosts(
   if (Object.values(unitCostsSatang).some(cost => !Number.isSafeInteger(cost) || cost < 0)) {
     throw new Error('Invalid game ingredient unit cost');
   }
+  if (!Number.isSafeInteger(replay.day.revenueSatang) || replay.day.revenueSatang < 0) {
+    throw new Error('Invalid game revenue');
+  }
+  for (const quantity of [...Object.values(replay.consumed), ...Object.values(replay.waste)]) {
+    if (!Number.isSafeInteger(quantity) || quantity < 0) {
+      throw new Error('Invalid game ingredient quantity');
+    }
+  }
+  for (const [ingredient, wasted] of Object.entries(replay.waste)) {
+    if (wasted > (replay.consumed[ingredient] ?? 0)) {
+      throw new Error('Game waste exceeds consumed stock');
+    }
+  }
   let ingredientCostSatang = 0;
   let wasteCostSatang = 0;
   const missingCostIngredients: string[] = [];
