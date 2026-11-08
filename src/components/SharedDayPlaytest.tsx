@@ -15,6 +15,8 @@ export default function SharedDayPlaytest() {
   // Synchronous event snapshot prevents two taps in one React render from opening two orders.
   const eventsRef = useRef<DayEvent[]>([]);
   const [closed, setClosed] = useState(false);
+  // A ref closes the day immediately, even before React renders the disabled controls.
+  const closedRef = useRef(false);
   const stock = replayGameDayWithStock(events, initialStock, recipes);
   const day = stock.day;
   const costs = summarizeGameIngredientCosts(stock, demoUnitCostsSatang);
@@ -26,7 +28,7 @@ export default function SharedDayPlaytest() {
   const views = projectGameDay(day);
   const active = [...day.orders].reverse().find(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled');
   const emit = (event: { type: DayEvent['type']; orderId: string; tableId?: string; itemId?: string; totalSatang?: number }) => {
-    if (closed) return;
+    if (closedRef.current) return;
     const id = 'playtest-' + (++eventCounter.current);
     eventsRef.current = [...eventsRef.current, { ...event, id } as DayEvent];
     setEvents(eventsRef.current);
@@ -35,6 +37,14 @@ export default function SharedDayPlaytest() {
     const latest = replayGameDayWithStock(eventsRef.current, initialStock, recipes).day;
     if (latest.orders.some(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled')) return;
     emit({ type: 'ordered', orderId: 'demo-' + (eventCounter.current + 1), tableId: table, itemId: 'halal-tea', totalSatang: 4500 });
+  };
+  const closeDay = () => {
+    if (closedRef.current) return;
+    const latest = replayGameDayWithStock(eventsRef.current, initialStock, recipes);
+    if (latest.day.orders.some(o => o.status !== 'paid' && o.status !== 'cancelled')) return;
+    if (!closeGameDay(latest).balanced) return;
+    closedRef.current = true;
+    setClosed(true);
   };
   const transition = (type: 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled', orderId: string) =>
     emit({ type, orderId });
@@ -62,7 +72,7 @@ export default function SharedDayPlaytest() {
     <small>ต้นทุนต่อหน่วยเป็นตัวเลขสมมติสำหรับเกม ไม่ใช่ราคาซื้อจริง และกำไรขั้นต้นไม่ใช่กำไรสุทธิ{!costs.complete ? ` · ขาดต้นทุน: ${costs.missingCostIngredients.join(', ')}` : ''}</small>
     {day.orders.filter(o => o.status === 'served').map(o => <button className="button secondary" key={o.id} disabled={closed} onClick={() => transition('paid', o.id)}>รับเงิน {o.tableId} ฿{(o.totalSatang / 100).toFixed(2)}</button>)}
     {active && ['queued','preparing','ready'].includes(active.status) && <button className="button secondary" disabled={closed} onClick={() => transition('cancelled', active.id)}>ยกเลิก {active.id}</button>}
-    {!closed && <button className="button secondary" disabled={outstandingOrders > 0} onClick={() => setClosed(true)}>ปิดยอดวันจำลอง</button>}
+    {!closed && <button className="button secondary" disabled={outstandingOrders > 0} onClick={closeDay}>ปิดยอดวันจำลอง</button>}
     {!closed && outstandingOrders > 0 && <p role="status">ยังมีออร์เดอร์ค้าง {outstandingOrders} รายการ ต้องเสิร์ฟและรับเงินหรือยกเลิกก่อนปิดยอด</p>}
     {report && <div role="status" aria-live="polite">
       <h4>รายงานปิดยอด · เกมเท่านั้น</h4>
@@ -72,7 +82,7 @@ export default function SharedDayPlaytest() {
       <p>เหตุการณ์ถูกปฏิเสธ {report.rejectedEvents} · กระทบยอด {report.balanced ? 'ตรง' : 'ไม่ตรง — ต้องตรวจสอบ'}</p>
       {report.outstandingOrders > 0 && <p>ยังมีออร์เดอร์ค้าง: รายงานนี้เป็นยอดชั่วคราวของวันจำลอง</p>}
     </div>}
-    <button className="text-button" onClick={() => { eventsRef.current = []; setEvents([]); eventCounter.current = 0; setClosed(false); }}>เริ่มวันจำลองใหม่</button>
+    <button className="text-button" onClick={() => { eventsRef.current = []; setEvents([]); eventCounter.current = 0; closedRef.current = false; setClosed(false); }}>เริ่มวันจำลองใหม่</button>
     <small>นี่เป็น UI ทดสอบเหตุการณ์และสต็อกเกม ไม่ใช่การเชื่อม NPC/FPV หรือระบบจ่ายเงินจริง</small>
   </section>;
 }
