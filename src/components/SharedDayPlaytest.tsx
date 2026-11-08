@@ -30,6 +30,7 @@ export default function SharedDayPlaytest() {
     ([ingredient, quantity]) => quantity === 0 ||
       (Number.isSafeInteger(stock.remaining[ingredient]) && stock.remaining[ingredient] >= quantity),
   );
+  const demoItemAvailable = canPrepare('halal-tea');
   const active = [...day.orders].reverse().find(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled');
   const emit = (event: { type: DayEvent['type']; orderId: string; tableId?: string; itemId?: string; totalSatang?: number }) => {
     if (closedRef.current) return;
@@ -40,6 +41,10 @@ export default function SharedDayPlaytest() {
   const order = () => {
     const latest = replayGameDayWithStock(eventsRef.current, initialStock, recipes).day;
     if (latest.orders.some(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled')) return;
+    // Recheck against the synchronous event snapshot: another rapid tap may have consumed the last serving.
+    const latestStock = replayGameDayWithStock(eventsRef.current, initialStock, recipes).remaining;
+    if (Object.entries(recipes['halal-tea']).some(([ingredient, quantity]) =>
+      quantity > 0 && (!Number.isSafeInteger(latestStock[ingredient]) || latestStock[ingredient] < quantity))) return;
     emit({ type: 'ordered', orderId: 'demo-' + (eventCounter.current + 1), tableId: table, itemId: 'halal-tea', totalSatang: 4500 });
   };
   const closeDay = () => {
@@ -58,7 +63,8 @@ export default function SharedDayPlaytest() {
     <label>โต๊ะ <select aria-label="เลือกโต๊ะจำลอง" value={table} onChange={e => setTable(e.target.value)}>
       {['T1','T2','T3','T4','T5'].map(id => <option key={id} value={id}>{id}</option>)}
     </select></label>
-    <div className="row"><strong>ลูกค้า</strong><button className="button secondary" disabled={closed || !!active} onClick={order}>สั่งชาโต๊ะ {table}</button></div>
+    <div className="row"><strong>ลูกค้า</strong><button className="button secondary" disabled={closed || !!active || !demoItemAvailable} onClick={order}>สั่งชาโต๊ะ {table}</button></div>
+    {!demoItemAvailable && <p role="status">ชาฮาลาลหมดชั่วคราว · ไม่สามารถรับออร์เดอร์ใหม่จนกว่าจะเติมสต็อกเกม</p>}
     <p aria-live="polite">สถานะโต๊ะ: {active?.status ?? 'ไม่มีออร์เดอร์ค้าง'}</p>
     <h4>Na · คิวครัว</h4>
     <p aria-live="polite">สต็อกเกม: ใบชา {stock.remaining.teaLeaves} กรัม · นม {stock.remaining.milkMl} มล. · ใช้ใบชา {stock.consumed.teaLeaves ?? 0} กรัม · ของเสียใบชา {stock.waste.teaLeaves ?? 0} กรัม</p>
