@@ -11,6 +11,10 @@ export default function CafeOsDemo() {
  const [serial,setSerial]=useState(1);
  const [message,setMessage]=useState('สาธิตเท่านั้น ไม่ใช่ POS ร้านจริง');
  const views=demoDayViews(day);
+ const pendingOrders=day.store.orders.filter(o=>o.status!=='cancelled' && !o.paymentRecorded);
+ const pendingKitchen=pendingOrders.filter(o=>o.status==='queued' || o.status==='preparing').length;
+ const pendingService=pendingOrders.filter(o=>o.status==='ready').length;
+ const pendingPayment=pendingOrders.filter(o=>o.status==='served').length;
  const baht=(n:number)=>(n/100).toFixed(2);
  // Stock availability is a UI hint only; orderCore remains authoritative.
  const canOrder=(menuItem:typeof DEMO_HALAL_MENU[number])=>demoMenuAvailable(day.store, DEMO_HALAL_MENU, menuItem);
@@ -54,6 +58,7 @@ export default function CafeOsDemo() {
   </article>)}
   <p>เงินสด ฿{baht(views.manager.cashSatang)} · ต้นทุน ฿{baht(views.manager.close.ingredientCostSatang)}</p>
   <p>ยอดตรง: {views.manager.close.cashBalanced?'ใช่':'ไม่ตรง'} · ปิดยอดได้: {views.manager.close.readyToClose?'ใช่':'ไม่'}</p>
+  {!day.closed && !views.manager.close.readyToClose && <p role="status">รายการค้างก่อนปิดยอด: ครัว {pendingKitchen} · รอเสิร์ฟ {pendingService} · รอรับเงิน {pendingPayment}{!views.manager.close.cashBalanced?' · ยอดเงินไม่ตรง ต้องตรวจสอบ':''}</p>}
   <button className="button primary" disabled={day.closed || !views.manager.close.readyToClose} onClick={()=>{const next=applyDemoAction(day,DEMO_HALAL_MENU,{actor:'manager',type:'close'});setDay(next);setMessage(next.closed?'ปิดยอดวันทดลองแล้ว · ไม่สามารถรับออร์เดอร์เพิ่ม':'ยังปิดยอดไม่ได้');}}>ปิดยอดวันทดลอง</button>
   {day.closed&&<p role="status">ปิดวันแล้ว · ยอดสุทธิ ฿{baht(views.manager.close.netSalesSatang)} · ต้นทุน ฿{baht(views.manager.close.ingredientCostSatang)} · ของเสีย ฿{baht(views.manager.close.wasteCostSatang)}</p>}
   <details><summary>ตรวจสต็อกจำลอง ({Object.keys(views.manager.stock).length} วัตถุดิบ)</summary>
