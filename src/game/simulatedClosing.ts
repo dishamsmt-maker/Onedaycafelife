@@ -23,7 +23,12 @@ export function auditSimulatedClosing(
       issues.push('sale stock total overflow: ' + event.saleId + '/' + event.ingredientId);
       continue;
     }
-    // Event order matters: a return must be backed by consumption already recorded.\n    // A later consumption cannot retroactively authorize an earlier return.\n    if (next > 0) {\n      issues.push('stock return before consumption: ' + event.id);\n    }\n    netBySaleIngredient.set(key, next);
+    // Event order matters: a return must be backed by consumption already recorded.
+    // A later consumption cannot retroactively authorize an earlier return.
+    if (next > 0) {
+      issues.push('stock return before consumption: ' + event.id);
+    }
+    netBySaleIngredient.set(key, next);
   }
   for (const [key, net] of netBySaleIngredient) {
     if (net > 0) {
