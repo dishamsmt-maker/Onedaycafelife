@@ -11,6 +11,10 @@ export default function CafeOsDemo() {
  const [message,setMessage]=useState('สาธิตเท่านั้น ไม่ใช่ POS ร้านจริง');
  const views=demoDayViews(day);
  const baht=(n:number)=>(n/100).toFixed(2);
+ // Stock availability is a UI hint only; orderCore remains authoritative.
+ const canOrder=(menuItem:typeof DEMO_HALAL_MENU[number])=>menuItem.enabled && Object.entries(menuItem.recipe).every(([ingredient,units])=> (views.manager.stock[ingredient] ?? 0)>=units);
+ const selectedMenu=DEMO_HALAL_MENU.find(m=>m.id===item);
+ const selectedAvailable=!!selectedMenu && canOrder(selectedMenu);
  function order(){
   const next=applyDemoAction(day,DEMO_HALAL_MENU,{actor:'customer',type:'order',requestId:'demo-'+serial,tableId:table,itemId:item,quantity:1});
   if(next!==day){setDay(next);setSerial(n=>n+1);}
@@ -32,8 +36,8 @@ export default function CafeOsDemo() {
   <p>ข้อมูลสมมติ แยกจากร้านจริงและเกมหลัก ไม่รับเงินจริง</p>
   <h3>ลูกค้า · QR</h3>
   <label>โต๊ะ <select aria-label="โต๊ะ" value={table} onChange={e=>setTable(e.target.value)}>{DEMO_TABLE_IDS.map(t=><option key={t} value={t}>{t.toUpperCase()}</option>)}</select></label>
-  <label>เมนู <select aria-label="เมนู" value={item} onChange={e=>setItem(e.target.value)}>{DEMO_HALAL_MENU.map(m=><option key={m.id} value={m.id}>{m.nameTh} ฿{baht(m.priceSatang)}</option>)}</select></label>
-  <button className="button primary" disabled={day.closed} onClick={order}>จำลองสั่งผ่าน QR</button><p role="status">{message}</p>
+  <label>เมนู <select aria-label="เมนู" value={item} onChange={e=>setItem(e.target.value)}>{DEMO_HALAL_MENU.map(m=><option key={m.id} value={m.id}>{m.nameTh} ฿{baht(m.priceSatang)}{canOrder(m)?'':' · ของหมด'}</option>)}</select></label>
+  <button className="button primary" disabled={day.closed || !selectedAvailable} onClick={order}>จำลองสั่งผ่าน QR</button><p role="status">{message}</p>
   <h3>ลูกค้า · ติดตามออร์เดอร์</h3>
   {views.customer.filter(o=>o.tableId===table).map(o=><p key={o.id}>#{o.id} · {o.status}</p>)}
   {!views.customer.some(o=>o.tableId===table)&&<p>โต๊ะนี้ยังไม่มีออร์เดอร์</p>}
