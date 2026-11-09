@@ -106,7 +106,7 @@ export function demoDayViews(day: DemoDay) {
       id: o.id, status: o.status,
     })),
   }));
-  const staffTasks = day.store.orders.flatMap(order => {
+  const staffTasks = day.store.orders.flatMap<{ orderId: string; tableId: string; assignee: 'Na' | 'Ken'; action: 'prepare' | 'ready' | 'serve' }>(order => {
     if (order.status === 'queued') return [{ orderId: order.id, tableId: order.tableId, assignee: 'Na' as const, action: 'prepare' as const }];
     if (order.status === 'preparing') return [{ orderId: order.id, tableId: order.tableId, assignee: 'Na' as const, action: 'ready' as const }];
     if (order.status === 'ready') return [{ orderId: order.id, tableId: order.tableId, assignee: 'Ken' as const, action: 'serve' as const }];
