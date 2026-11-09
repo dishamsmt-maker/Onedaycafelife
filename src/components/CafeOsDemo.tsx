@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DEMO_HALAL_MENU, DEMO_TABLE_IDS, createDemoStock } from '../cafe-os/demoCatalog';
 import { applyDemoAction, demoDayViews, startDemoDay } from '../cafe-os/demoDay';
+import { demoMenuAvailable } from '../cafe-os/demoAvailability';
 
 /** All three role panels project the same game-only event stream. */
 export default function CafeOsDemo() {
@@ -12,7 +13,7 @@ export default function CafeOsDemo() {
  const views=demoDayViews(day);
  const baht=(n:number)=>(n/100).toFixed(2);
  // Stock availability is a UI hint only; orderCore remains authoritative.
- const canOrder=(menuItem:typeof DEMO_HALAL_MENU[number])=>menuItem.enabled && Object.entries(menuItem.recipe).every(([ingredient,units])=> (views.manager.stock[ingredient] ?? 0)>=units);
+ const canOrder=(menuItem:typeof DEMO_HALAL_MENU[number])=>demoMenuAvailable(day.store, DEMO_HALAL_MENU, menuItem);
  const selectedMenu=DEMO_HALAL_MENU.find(m=>m.id===item);
  const selectedAvailable=!!selectedMenu && canOrder(selectedMenu);
  function order(){
