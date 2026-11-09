@@ -40,9 +40,14 @@ export function auditDemoDay(day: DemoDay) {
   }
   if (day.closed !== (closeCount === 1)) issues.push('closed flag disagrees with event log');
   if (closeCount > 1) issues.push('duplicate close');
-  const statuses = Object.fromEntries(day.store.orders.map(order => [order.id, order.status]));
+  const statuses = new Map<string, string>();
+  for (const order of day.store.orders) {
+    if (statuses.has(order.id)) issues.push(`duplicate store order ${order.id}`);
+    statuses.set(order.id, order.status);
+    if (!seen.has(order.id)) issues.push(`order missing event history ${order.id}`);
+  }
   for (const [id, last] of seen) {
-    const status = statuses[id];
+    const status = statuses.get(id);
     if (!status) issues.push(`event references missing order ${id}`);
     else if (last !== status && !(last === 'paid' && status === 'paid')) {
       issues.push(`order status mismatch for ${id}`);
