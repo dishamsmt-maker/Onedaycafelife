@@ -2,7 +2,9 @@ import type { CafeCatalogItem, CafeStore } from './orderCore';
 
 /** Read-only QR availability hint; submitCafeOrder remains the final authority. */
 export function demoMenuAvailable(store: CafeStore, catalog: readonly CafeCatalogItem[], item: CafeCatalogItem, quantity = 1): boolean {
-  if (!item.enabled || !Number.isSafeInteger(quantity) || quantity <= 0) return false;
+  if (!item.enabled || !Number.isSafeInteger(quantity) || quantity <= 0 ||
+    !Number.isSafeInteger(item.priceSatang) || item.priceSatang < 0 ||
+    !Number.isSafeInteger(item.priceSatang * quantity)) return false;
   const queued = store.orders.filter(o => o.status === 'queued' && !o.stockConsumed);
   // Fail closed for legacy queued orders whose reservations cannot be resolved.
   const reservations = queued.map(o => ({
