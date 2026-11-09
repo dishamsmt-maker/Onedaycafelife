@@ -45,7 +45,7 @@ export default function CafeOsDemo() {
   <h3>ผู้จัดการ · POS / ปิดยอด</h3>
   {day.store.orders.map(o=><article key={o.id}>{o.tableId.toUpperCase()} · {o.status} · ฿{baht(o.unitPriceSatang*o.quantity)}
    {o.paymentRecorded?' · ชำระแล้ว':o.status==='served'?<button disabled={day.closed} onClick={()=>act(o.id,'pay')}>POS รับเงิน</button>:' · รอเสิร์ฟ'}
-   {o.status!=='served'&&o.status!=='cancelled'&&<button disabled={day.closed} onClick={()=>act(o.id,'cancel')}>ยกเลิกออร์เดอร์</button>}
+   {!o.paymentRecorded && o.status!=='served' && o.status!=='cancelled'&&<button disabled={day.closed} onClick={()=>act(o.id,'cancel')}>ยกเลิกออร์เดอร์</button>}
   </article>)}
   <p>เงินสด ฿{baht(views.manager.cashSatang)} · ต้นทุน ฿{baht(views.manager.close.ingredientCostSatang)}</p>
   <p>ยอดตรง: {views.manager.close.cashBalanced?'ใช่':'ไม่ตรง'} · ปิดยอดได้: {views.manager.close.readyToClose?'ใช่':'ไม่'}</p>
