@@ -1,4 +1,5 @@
 import { DEMO_TABLE_IDS } from './demoCatalog';
+import { auditDemoDay } from './demoDayAudit';
 import {
   advanceCafeOrder, closeCafeDay, createCafeStore, payCafeOrder,
   recordCafeOrderCost, refundAndCancelCafeOrder, submitCafeOrder,
@@ -38,7 +39,9 @@ export function applyDemoAction(
 ): DemoDay {
   if (day.closed) return day;
   if (action.type === 'close') {
-    if (!closeCafeDay(day.store).readyToClose) return day;
+    // Never finalize a corrupted simulation, even if its order statuses look settled.
+    // The audit reads only game state and does not mutate the real Café OS.
+    if (!auditDemoDay(day).valid || !closeCafeDay(day.store).readyToClose) return day;
     return { ...day, closed: true, events: [...day.events, {
       sequence: day.events.length + 1, actor: 'manager', action: 'closed', orderId: '',
     }] };
