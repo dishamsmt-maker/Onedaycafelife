@@ -27,6 +27,30 @@ describe('demo QR availability matches queued reservations', () => {
     expect(preparing.stock.chicken).toBe(1);
     expect(demoMenuAvailable(preparing, DEMO_HALAL_MENU, chicken)).toBe(true);
   });
+  it('keeps QR availability aligned with the core for invalid prices', () => {
+    const store = createCafeStore(createDemoStock());
+    for (const priceSatang of [-1, 1.5, Number.MAX_SAFE_INTEGER]) {
+      const invalid = { ...chicken, priceSatang };
+      expect(demoMenuAvailable(store, [invalid], invalid, 2)).toBe(false);
+      expect(submitCafeOrder(store, [invalid], {
+        requestId: 'bad-price-' + priceSatang, tableId: 't3', itemId: invalid.id, quantity: 2,
+      }).accepted).toBe(false);
+    }
+  });
+  it('reserves shared ingredients across different menu items', () => {
+    const stock = createDemoStock();
+    stock.chicken = 1;
+    const initial = createCafeStore(stock);
+    const accepted = submitCafeOrder(initial, DEMO_HALAL_MENU, {
+      requestId: 'cross-menu', tableId: 't3', itemId: chicken.id, quantity: 1,
+    });
+    expect(accepted.accepted).toBe(true);
+    const porridge = DEMO_HALAL_MENU.find(m => m.id === 'rice-porridge-chicken')!;
+    expect(demoMenuAvailable(accepted.store, DEMO_HALAL_MENU, porridge)).toBe(false);
+    expect(submitCafeOrder(accepted.store, DEMO_HALAL_MENU, {
+      requestId: 'cross-menu-2', tableId: 't4', itemId: porridge.id, quantity: 1,
+    }).accepted).toBe(false);
+  });
   it('fails closed on unknown queued legacy recipes', () => {
     const store = createCafeStore(createDemoStock());
     store.orders.push({ id: 'legacy', requestId: 'legacy', tableId: 't2', itemId: 'missing-menu',
