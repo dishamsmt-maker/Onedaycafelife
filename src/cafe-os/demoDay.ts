@@ -93,11 +93,24 @@ export function applyDemoAction(
   };
 }
 export function demoDayViews(day: DemoDay) {
+  // Derived solely from the canonical simulation orders; no parallel queue state
+  // that could drift between the customer, kitchen and manager screens.
+  const queueCounts = {
+    kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing').length,
+    service: day.store.orders.filter(o => o.status === 'ready').length,
+    payment: day.store.orders.filter(o => o.status === 'served').length,
+  };
+  const tables = DEMO_TABLE_IDS.map(tableId => ({
+    tableId,
+    orders: day.store.orders.filter(o => o.tableId === tableId).map(o => ({
+      id: o.id, status: o.status,
+    })),
+  }));
   return {
     customer: day.store.orders.map(o => ({ id: o.id, tableId: o.tableId, status: o.status })),
     // Return detached projections: UI consumers must never mutate the canonical day state.
     kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing').map(o => ({ ...o, recipeSnapshot: o.recipeSnapshot ? { ...o.recipeSnapshot } : undefined })),
     service: day.store.orders.filter(o => o.status === 'ready').map(o => ({ ...o, recipeSnapshot: o.recipeSnapshot ? { ...o.recipeSnapshot } : undefined })),
-    manager: { cashSatang: day.store.cashSatang, stock: { ...day.store.stock }, closed: day.closed, close: closeCafeDay(day.store) },
+    manager: { cashSatang: day.store.cashSatang, stock: { ...day.store.stock }, closed: day.closed, queueCounts, tables, close: closeCafeDay(day.store) },
   };
 }
