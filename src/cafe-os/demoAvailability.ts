@@ -2,6 +2,9 @@ import type { CafeCatalogItem, CafeStore } from './orderCore';
 
 /** Read-only QR availability hint; submitCafeOrder remains the final authority. */
 export function demoMenuAvailable(store: CafeStore, catalog: readonly CafeCatalogItem[], item: CafeCatalogItem, quantity = 1): boolean {
+  // Match the canonical catalog entry that submitCafeOrder actually uses.
+  // A stale or fabricated menu object must not advertise an orderable item.
+  if (catalog.find(entry => entry.id === item.id) !== item) return false;
   if (!item.enabled || !Number.isSafeInteger(quantity) || quantity <= 0 ||
     !Number.isSafeInteger(item.priceSatang) || item.priceSatang < 0 ||
     !Number.isSafeInteger(item.priceSatang * quantity)) return false;
