@@ -20,6 +20,29 @@ export default function CafeOsDemo() {
  const canOrder=(menuItem:typeof DEMO_HALAL_MENU[number])=>demoMenuAvailable(day.store, DEMO_HALAL_MENU, menuItem);
  const selectedMenu=DEMO_HALAL_MENU.find(m=>m.id===item);
  const selectedAvailable=!!selectedMenu && canOrder(selectedMenu);
+ function runTable3Journey(){
+  // An isolated, deterministic smoke journey; never reuse real café transactions.
+  let next=startDemoDay(createDemoStock());
+  const first=DEMO_HALAL_MENU[0];
+  next=applyDemoAction(next,DEMO_HALAL_MENU,{actor:'customer',type:'order',requestId:'journey-t3-1',tableId:'t3',itemId:first.id,quantity:1});
+  const order=next.store.orders[0];
+  if(!order){setMessage('ทดลองไม่สำเร็จ: ไม่มีสต็อกสำหรับเมนูแรก');return;}
+  const costs=Object.fromEntries(Object.keys(order.recipeSnapshot ?? {}).map(k=>[k,100]));
+  const actions=[
+    {actor:'Na' as const,type:'prepare' as const,orderId:order.id,costs},
+    {actor:'Na' as const,type:'ready' as const,orderId:order.id},
+    {actor:'Ken' as const,type:'serve' as const,orderId:order.id},
+    {actor:'manager' as const,type:'pay' as const,orderId:order.id},
+    {actor:'manager' as const,type:'close' as const},
+  ];
+  for(const action of actions){
+    const updated=applyDemoAction(next,DEMO_HALAL_MENU,action);
+    if(updated===next){setDay(next);setTable('t3');setMessage('ทดลองหยุด: ขั้นตอน '+action.type+' ไม่ผ่านเงื่อนไข');return;}
+    next=updated;
+  }
+  setDay(next);setTable('t3');setSerial(1);
+  setMessage('T3 → Na → Ken → POS → ปิดยอดสำเร็จ (จำลองเท่านั้น)');
+ }
  function order(){
   const next=applyDemoAction(day,DEMO_HALAL_MENU,{actor:'customer',type:'order',requestId:'demo-'+serial,tableId:table,itemId:item,quantity:1});
   if(next!==day){setDay(next);setSerial(n=>n+1);}
@@ -39,6 +62,7 @@ export default function CafeOsDemo() {
  return <section aria-label="Café OS demo" style={{display:'grid',gap:12}}>
   <h2>Café OS · ทดลองหนึ่งวัน (สถานะร่วม)</h2>
   <p>ข้อมูลสมมติ แยกจากร้านจริงและเกมหลัก ไม่รับเงินจริง</p>
+  <button className="button secondary" onClick={runTable3Journey}>ทดลองครบวัน T3 → Na → Ken → POS → ปิดยอด</button>
   <h3>ลูกค้า · QR</h3>
   <label>โต๊ะ <select aria-label="โต๊ะ" value={table} onChange={e=>setTable(e.target.value)}>{DEMO_TABLE_IDS.map(t=><option key={t} value={t}>{t.toUpperCase()}</option>)}</select></label>
   <label>เมนู <select aria-label="เมนู" value={item} onChange={e=>setItem(e.target.value)}>{DEMO_HALAL_MENU.map(m=><option key={m.id} value={m.id}>{m.nameTh} ฿{baht(m.priceSatang)}{canOrder(m)?'':' · ของหมด'}</option>)}</select></label>
