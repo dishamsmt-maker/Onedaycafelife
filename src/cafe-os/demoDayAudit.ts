@@ -1,4 +1,5 @@
 import type { DemoDay, DemoEvent } from './demoDay';
+import { reconcileCafeCash } from './orderCore';
 
 /**
  * Audits a simulation day without modifying canonical state.
@@ -40,6 +41,9 @@ export function auditDemoDay(day: DemoDay) {
   }
   if (day.closed !== (closeCount === 1)) issues.push('closed flag disagrees with event log');
   if (closeCount > 1) issues.push('duplicate close');
+  // An event history can be internally consistent while the cash journal is corrupted.
+  // Refuse to mark such a simulated day as valid or ready for closeout.
+  if (!reconcileCafeCash(day.store).balanced) issues.push('cash ledger mismatch');
   const statuses = new Map<string, string>();
   for (const order of day.store.orders) {
     if (statuses.has(order.id)) issues.push(`duplicate store order ${order.id}`);
