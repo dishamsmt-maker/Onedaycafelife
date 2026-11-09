@@ -106,7 +106,14 @@ export function demoDayViews(day: DemoDay) {
       id: o.id, status: o.status,
     })),
   }));
+  const staffTasks = day.store.orders.flatMap(order => {
+    if (order.status === 'queued') return [{ orderId: order.id, tableId: order.tableId, assignee: 'Na' as const, action: 'prepare' as const }];
+    if (order.status === 'preparing') return [{ orderId: order.id, tableId: order.tableId, assignee: 'Na' as const, action: 'ready' as const }];
+    if (order.status === 'ready') return [{ orderId: order.id, tableId: order.tableId, assignee: 'Ken' as const, action: 'serve' as const }];
+    return [];
+  });
   return {
+    staff: { tasks: staffTasks },
     customer: day.store.orders.map(o => ({ id: o.id, tableId: o.tableId, status: o.status })),
     // Return detached projections: UI consumers must never mutate the canonical day state.
     kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing').map(o => ({ ...o, recipeSnapshot: o.recipeSnapshot ? { ...o.recipeSnapshot } : undefined })),
