@@ -15,7 +15,12 @@ export function auditSimulatedClosing(
   // A refund/return can restore consumed recipe units, but must never create
   // inventory from nothing. Check per sale AND ingredient, not only day totals.
   const netBySaleIngredient = new Map<string, number>();
+  const seenStockIds = new Set<string>();
   for (const event of stock) {
+    // Duplicate IDs are already flagged by both audits. Never replay their
+    // quantities in this independent per-sale consistency check.
+    if (seenStockIds.has(event.id)) continue;
+    seenStockIds.add(event.id);
     if (!event.saleId || !event.ingredientId || !Number.isSafeInteger(event.units) || event.units === 0) continue;
     const key = JSON.stringify([event.saleId, event.ingredientId]);
     const next = (netBySaleIngredient.get(key) ?? 0) + event.units;

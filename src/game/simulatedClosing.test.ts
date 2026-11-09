@@ -68,4 +68,16 @@ describe('simulated closing combines sales and stock audits', () => {
     expect(result.issues).toContain('stock return exceeds consumption: T4/rice');
   });
 
+  it('does not replay a duplicate stock event while checking return chronology', () => {
+    const events = [
+      { id: 'use-T3', saleId: 'T3', ingredientId: 'rice', units: -2 },
+      { id: 'return-T3', saleId: 'T3', ingredientId: 'rice', units: 2 },
+      { id: 'return-T3', saleId: 'T3', ingredientId: 'rice', units: 2 },
+    ];
+    const result = auditSimulatedClosing(sales, ledger, events, { rice: 5 });
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain('duplicate or blank stock event ID');
+    expect(result.issues).not.toContain('stock return before consumption: return-T3');
+    expect(result.closingStock.rice).toBe(5);
+  });
 });
