@@ -58,6 +58,19 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
       <button className="button secondary" key={'cancel-'+o.id} onClick={() => act({ mode: 'manager', type: 'cancel', orderId: o.id })}>ยกเลิก {o.id}</button>)}
     <button className="button secondary" disabled={snapshot.manager.closed || !snapshot.manager.close.readyToClose}
       onClick={() => act({ mode: 'manager', type: 'close' })}>ปิดยอดเกม</button>
+    <div aria-label="สรุปบัญชีเกมทดลอง" className="soft-card">
+      <h4>สรุปยอดประจำวัน · เกมทดลองเท่านั้น</h4>
+      <p>ออร์เดอร์ {snapshot.manager.close.orderCount} · ยกเลิก {snapshot.manager.close.cancelledCount} ·
+        ยอดรับสุทธิ ฿{(snapshot.manager.close.netSalesSatang / 100).toFixed(2)} ·
+        ต้นทุนวัตถุดิบ ฿{(snapshot.manager.close.ingredientCostSatang / 100).toFixed(2)} ·
+        ของเสีย ฿{(snapshot.manager.close.wasteCostSatang / 100).toFixed(2)}</p>
+      <p>กำไรขั้นต้นโดยประมาณ {snapshot.manager.close.grossMarginSatang === null
+        ? 'ยังคำนวณไม่ได้ (ต้นทุนไม่ครบ)'
+        : '฿' + (snapshot.manager.close.grossMarginSatang / 100).toFixed(2)}
+        {' · '}ตรวจยอดเงิน {snapshot.manager.close.cashBalanced ? 'ตรงกัน' : 'ไม่ตรงกัน'}
+        {' · '}ปิดยอด {snapshot.manager.close.readyToClose ? 'พร้อม' : 'ยังไม่พร้อม'}</p>
+      <p>เป็นตัวเลขจำลอง ไม่รวมค่าแรง ค่าเช่า ค่าไฟ และไม่ใช่รายรับร้านจริง</p>
+    </div>
     <p role="status">{message} · เหตุการณ์ {snapshot.eventSequence} · {snapshot.manager.closed ? 'ปิดร้านแล้ว' : 'ร้านเปิด'}</p>
   </section>;
 }
