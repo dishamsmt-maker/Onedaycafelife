@@ -1,6 +1,7 @@
 import { useRef, useState, useSyncExternalStore } from 'react';
 import { createGameplayDemoSession } from '../cafe-os/gameplayDemoSession';
 import { DEMO_HALAL_MENU, DEMO_TABLE_IDS } from '../cafe-os/demoCatalog';
+import { demoRecipeUnitCosts } from '../cafe-os/demoIngredientCosts';
 
 /** Game-only shared three-role controls. The session is owned once per mounted panel. */
 export default function LiveThreeModeDemo() {
@@ -22,7 +23,7 @@ export default function LiveThreeModeDemo() {
   const available = Object.entries(selected.recipe).every(([key, qty]) => (stock[key] ?? 0) >= qty);
   return <section className="soft-card" aria-label="Live three mode simulation">
     <h3>สามโหมด · สถานะเดียวกัน (เกมทดลอง)</h3>
-    <p>แยกจาก POS และสต็อกร้านจริง · ราคากับต้นทุนเป็นสมมติฐาน · ยังไม่เชื่อม NPC 3D</p>
+    <p>แยกจาก POS และสต็อกร้านจริง · ราคาและต้นทุนต่อหน่วยเป็นสมมติฐาน ไม่ใช่ต้นทุนจัดซื้อจริง · ยังไม่เชื่อม NPC 3D</p>
     <label>โต๊ะ <select aria-label="โต๊ะเกม" value={table} onChange={e => setTable(e.target.value)}>
       {DEMO_TABLE_IDS.map(id => <option key={id} value={id}>{id.toUpperCase()}</option>)}
     </select></label>
@@ -41,8 +42,8 @@ export default function LiveThreeModeDemo() {
     {snapshot.staff.tasks.map(task => {
       const order = day.store.orders.find(o => o.id === task.orderId);
       const recipe = order?.recipeSnapshot ?? DEMO_HALAL_MENU.find(m => m.id === order?.itemId)?.recipe ?? {};
-      // Explicitly illustrative zero satang costs; replace with validated purchase costs before any real use.
-      const costs = Object.fromEntries(Object.keys(recipe).map(k => [k, 0]));
+      // Game-only illustrative unit costs; never use for real profitability reporting.
+      const costs = demoRecipeUnitCosts(recipe);
       return <div className="row" key={task.orderId}>
         <span>{task.assignee} · {task.tableId.toUpperCase()} · {task.action}</span>
         <button className="button secondary" onClick={() => act({
