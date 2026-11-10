@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import LiveThreeModeDemo from './LiveThreeModeDemo';
 import { projectGameDay, type DayEvent } from '../game/dayEventProjection';
 import { replayGameDayWithStock } from '../game/dayStockReplay';
 import { closeGameDay } from '../game/dayCloseReport';
@@ -57,7 +58,7 @@ export default function SharedDayPlaytest() {
   };
   const transition = (type: 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled', orderId: string) =>
     emit({ type, orderId });
-  return <section aria-label="Shared game day playtest" className="soft-card">
+  return <><LiveThreeModeDemo/><section aria-label="Shared game day playtest" className="soft-card">
     <h3>ทดลองเหตุการณ์ร่วม 3 โหมด · เกมเท่านั้น</h3>
     <p>ข้อมูลจำลองแยกจาก Café OS จริง ตัดเฉพาะสต็อกเกม ไม่รับเงินจริง · ตัวอย่างชาฮาลาล ฿45</p>
     <label>โต๊ะ <select aria-label="เลือกโต๊ะจำลอง" value={table} onChange={e => setTable(e.target.value)}>
@@ -101,5 +102,5 @@ export default function SharedDayPlaytest() {
     </div>}
     <button className="text-button" onClick={() => { eventsRef.current = []; setEvents([]); eventCounter.current = 0; closedRef.current = false; setClosed(false); }}>เริ่มวันจำลองใหม่</button>
     <small>นี่เป็น UI ทดสอบเหตุการณ์และสต็อกเกม ไม่ใช่การเชื่อม NPC/FPV หรือระบบจ่ายเงินจริง</small>
-  </section>;
+  </section></>;
 }
