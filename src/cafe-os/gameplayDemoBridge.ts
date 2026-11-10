@@ -1,6 +1,7 @@
 import { applyDemoAction, demoDayViews, type DemoDay } from './demoDay';
 import { dispatchDemoStaffTask } from './demoStaffDispatch';
 import type { CafeCatalogItem } from './orderCore';
+import { demoRecipeUnitCosts } from './demoIngredientCosts';
 
 /**
  * Game-only interaction boundary for Gameplay V2. The 3D scene can dispatch
@@ -24,9 +25,18 @@ export function applyGameplayDemoInteraction(
       itemId: interaction.itemId, quantity: interaction.quantity });
   }
   if (interaction.mode === 'staff') {
+    // 3D staff interactions do not carry supplier prices. Resolve game-only
+    // illustrative costs from the accepted order's frozen recipe instead.
+    let costs = interaction.costs;
+    if (interaction.action === 'prepare' && !costs) {
+      const order = day.store.orders.find(candidate => candidate.id === interaction.orderId);
+      if (!order?.recipeSnapshot) return day;
+      try { costs = demoRecipeUnitCosts(order.recipeSnapshot); }
+      catch { return day; } // unknown recipe must not be prepared at zero cost
+    }
     return dispatchDemoStaffTask(day, catalog, {
       orderId: interaction.orderId, assignee: interaction.assignee, action: interaction.action,
-    }, interaction.costs);
+    }, costs);
   }
   if (interaction.type === 'close') return applyDemoAction(day, catalog, { actor: 'manager', type: 'close' });
   return applyDemoAction(day, catalog, {
