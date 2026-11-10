@@ -27,8 +27,11 @@ export function applyGameplayDemoInteraction(
   if (interaction.mode === 'staff') {
     // 3D staff interactions do not carry supplier prices. Resolve game-only
     // illustrative costs from the accepted order's frozen recipe instead.
-    let costs = interaction.costs;
-    if (interaction.action === 'prepare' && !costs) {
+    // The scene is not a trusted source of ingredient prices. Always derive
+    // costs from the accepted order's frozen recipe, even if a caller supplies
+    // an override (including zero-valued costs).
+    let costs: Readonly<Record<string, number>> | undefined;
+    if (interaction.action === 'prepare') {
       const order = day.store.orders.find(candidate => candidate.id === interaction.orderId);
       if (!order?.recipeSnapshot) return day;
       try { costs = demoRecipeUnitCosts(order.recipeSnapshot); }
