@@ -1,7 +1,6 @@
 import { useRef, useState, useSyncExternalStore } from 'react';
 import { createGameplayDemoSession } from '../cafe-os/gameplayDemoSession';
 import { DEMO_HALAL_MENU, DEMO_TABLE_IDS } from '../cafe-os/demoCatalog';
-import { demoRecipeUnitCosts } from '../cafe-os/demoIngredientCosts';
 
 /** Game-only shared three-role controls. The session is owned once per mounted panel. */
 export default function LiveThreeModeDemo() {
@@ -40,15 +39,11 @@ export default function LiveThreeModeDemo() {
     <p>ออร์เดอร์โต๊ะนี้: {active.map(o => o.id + ' (' + o.status + ')').join(', ') || 'ไม่มีรายการค้าง'}</p>
     <h4>Na / Ken · งานจริงใน Simulation State</h4>
     {snapshot.staff.tasks.map(task => {
-      const order = day.store.orders.find(o => o.id === task.orderId);
-      const recipe = order?.recipeSnapshot ?? DEMO_HALAL_MENU.find(m => m.id === order?.itemId)?.recipe ?? {};
-      // Game-only illustrative unit costs; never use for real profitability reporting.
-      const costs = demoRecipeUnitCosts(recipe);
       return <div className="row" key={task.orderId}>
         <span>{task.assignee} · {task.tableId.toUpperCase()} · {task.action}</span>
         <button className="button secondary" onClick={() => act({
           mode: 'staff', type: 'task', orderId: task.orderId, assignee: task.assignee,
-          action: task.action, ...(task.action === 'prepare' ? { costs } : {}),
+          action: task.action,
         })}>ทำงาน</button>
       </div>;
     })}
