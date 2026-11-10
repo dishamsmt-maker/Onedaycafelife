@@ -16,7 +16,7 @@ export default function LiveThreeModeDemo() {
   const act = (action: Parameters<typeof session.dispatch>[0]) => {
     setMessage(session.dispatch(action) ? 'บันทึกเหตุการณ์เกมแล้ว' : 'คำสั่งไม่สำเร็จหรือถูกส่งซ้ำ');
   };
-  const active = snapshot.customer.filter(o => o.tableId === table && o.status !== 'paid' && o.status !== 'cancelled');
+  const active = snapshot.customer.filter(o => o.tableId === table && o.status !== 'cancelled');
   const stock = snapshot.manager.stock;
   const selected = DEMO_HALAL_MENU.find(m => m.id === item)!;
   const available = Object.entries(selected.recipe).every(([key, qty]) => (stock[key] ?? 0) >= qty);

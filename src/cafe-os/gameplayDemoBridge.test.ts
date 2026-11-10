@@ -11,7 +11,7 @@ describe('gameplay demo interaction bridge', () => {
     day = applyGameplayDemoInteraction(day, DEMO_HALAL_MENU, order);
     expect(day.store.orders).toHaveLength(1);
     expect(gameplayDemoSnapshot(day).staff.tasks).toHaveLength(1);
-    expect(gameplayDemoSnapshot(day).manager.tables.find(t => t.tableId === 'T3')?.orders).toHaveLength(1);
+    expect(gameplayDemoSnapshot(day).manager.tables.find(t => t.tableId === 't3')?.orders).toHaveLength(1);
     const same = applyGameplayDemoInteraction(day, DEMO_HALAL_MENU, order);
     expect(same).toBe(day);
     expect(gameplayDemoSnapshot(same).eventSequence).toBe(1);
