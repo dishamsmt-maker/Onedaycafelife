@@ -35,8 +35,11 @@ export function createLayoutBoundNpcArrivalController(
     ): boolean {
       const order = session.getDay().store.orders.find(o => o.id === orderId);
       if (!order) return false;
+      // The demo accepts uppercase table IDs (T3), while the core order
+      // model and layout use lowercase IDs (t3). Resolve both consistently.
+      const tableKey = order.tableId.toLowerCase();
       const target = action === 'prepare' ? layout.kitchen :
-        action === 'ready' ? layout.serviceCounter : layout.tables[order.tableId];
+        action === 'ready' ? layout.serviceCounter : layout.tables[tableKey];
       if (!target) return false;
       const expected = controller.requiredStation(action);
       if (target.station !== expected) return false;
