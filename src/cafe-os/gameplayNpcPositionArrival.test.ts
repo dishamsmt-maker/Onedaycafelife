@@ -4,7 +4,7 @@ import { createGameplayDemoSession } from './gameplayDemoSession';
 import { createGameplayNpcArrivalController, isWithinNpcStation } from './gameplayNpcArrivalController';
 
 describe('NPC physical arrival gate', () => {
-  const kitchen = { position: { x: 2, z: 3 }, radius: 0.6 };
+  const kitchen = { station: 'kitchen' as const, position: { x: 2, z: 3 }, radius: 0.6 };
 
   it('rejects far, invalid and nonfinite positions, including invalid radii', () => {
     expect(isWithinNpcStation({ x: 2.5, z: 3 }, kitchen)).toBe(true);
@@ -26,6 +26,8 @@ describe('NPC physical arrival gate', () => {
     const before = session.getDay();
     expect(npc.arriveAtPositionAndComplete('Na', orderId, 'prepare', { x: 20, z: 30 }, kitchen)).toBe(false);
     expect(npc.arriveAtPositionAndComplete('Ken', orderId, 'prepare', { x: 2, z: 3 }, kitchen)).toBe(false);
+    expect(session.getDay()).toBe(before);
+    expect(npc.arriveAtPositionAndComplete('Na', orderId, 'prepare', { x: 2, z: 3 }, { ...kitchen, station: 'customer-table' })).toBe(false);
     expect(session.getDay()).toBe(before);
     expect(npc.arriveAtPositionAndComplete('Na', orderId, 'prepare', { x: 2.2, z: 3 }, kitchen)).toBe(true);
     const prepared = session.getDay();
