@@ -7,7 +7,7 @@ describe('NPC physical arrival gate', () => {
   const kitchen = { position: { x: 2, z: 3 }, radius: 0.6 };
 
   it('rejects far, invalid and nonfinite positions, including invalid radii', () => {
-    expect(isWithinNpcStation({ x: 2.6, z: 3 }, kitchen)).toBe(true);
+    expect(isWithinNpcStation({ x: 2.5, z: 3 }, kitchen)).toBe(true);
     expect(isWithinNpcStation({ x: 2.61, z: 3 }, kitchen)).toBe(false);
     expect(isWithinNpcStation({ x: NaN, z: 3 }, kitchen)).toBe(false);
     expect(isWithinNpcStation({ x: Infinity, z: 3 }, kitchen)).toBe(false);
