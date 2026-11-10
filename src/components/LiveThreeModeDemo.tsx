@@ -7,10 +7,8 @@ export type GameplaySession = ReturnType<typeof createGameplayDemoSession>;
 export type LiveThreeModeDemoProps = { session?: GameplaySession };
 export default function LiveThreeModeDemo({ session: externalSession }: LiveThreeModeDemoProps = {}) {
   const sessionRef = useRef<GameplaySession | null>(null);
-  if (!sessionRef.current) sessionRef.current = createGameplayDemoSession();
-  // An injected session lets the 3D scene and this panel observe the same day.
-  // The fallback remains isolated and game-only for the standalone demo.
-  const session = externalSession ?? sessionRef.current;
+  // The fallback is created only for standalone demos, not for injected V2 sessions.
+  const session = externalSession ?? (sessionRef.current ??= createGameplayDemoSession());
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   const [table, setTable] = useState<string>('t3');
   const [item, setItem] = useState<string>(DEMO_HALAL_MENU[0].id);
