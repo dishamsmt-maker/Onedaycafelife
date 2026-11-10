@@ -2,11 +2,13 @@ import { useRef, useState, useSyncExternalStore } from 'react';
 import { createGameplayDemoSession } from '../cafe-os/gameplayDemoSession';
 import { DEMO_HALAL_MENU, DEMO_TABLE_IDS } from '../cafe-os/demoCatalog';
 
-/** Game-only shared three-role controls. The session is owned once per mounted panel. */
-export default function LiveThreeModeDemo() {
-  const sessionRef = useRef<ReturnType<typeof createGameplayDemoSession> | null>(null);
-  if (!sessionRef.current) sessionRef.current = createGameplayDemoSession();
-  const session = sessionRef.current;
+/** Game-only shared three-role controls. Gameplay V2 may inject its own session. */
+export type GameplaySession = ReturnType<typeof createGameplayDemoSession>;
+export type LiveThreeModeDemoProps = { session?: GameplaySession };
+export default function LiveThreeModeDemo({ session: externalSession }: LiveThreeModeDemoProps = {}) {
+  const sessionRef = useRef<GameplaySession | null>(null);
+  // The fallback is created only for standalone demos, not for injected V2 sessions.
+  const session = externalSession ?? (sessionRef.current ??= createGameplayDemoSession());
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   const [table, setTable] = useState<string>('t3');
   const [item, setItem] = useState<string>(DEMO_HALAL_MENU[0].id);
