@@ -3,7 +3,7 @@ import { createGameplayNpcTaskAdapter } from './gameplayNpcTaskAdapter';
 
 export type NpcWorkStation = 'kitchen' | 'service-counter' | 'customer-table';
 export type NpcGroundPosition = Readonly<{ x: number; z: number }>;
-export type NpcStationTarget = Readonly<{ position: NpcGroundPosition; radius: number }>;
+export type NpcStationTarget = Readonly<{ station: NpcWorkStation; position: NpcGroundPosition; radius: number }>;
 
 export function isWithinNpcStation(position: NpcGroundPosition, target: NpcStationTarget): boolean {
   const { x, z } = position;
@@ -39,7 +39,7 @@ export function createGameplayNpcArrivalController(session: GameplaySession) {
       position: NpcGroundPosition,
       target: NpcStationTarget,
     ) {
-      if (!isWithinNpcStation(position, target)) return false;
+      if (target.station !== stationFor(action) || !isWithinNpcStation(position, target)) return false;
       return tasks.complete(assignee, orderId, action);
     },
     arriveAndComplete(
