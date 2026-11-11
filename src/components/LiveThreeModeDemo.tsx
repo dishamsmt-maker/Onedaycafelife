@@ -43,7 +43,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     {snapshot.staff.tasks.map(task => {
       return <div className="row" key={task.orderId}>
         <span>{task.assignee} · {task.tableId.toUpperCase()} · {task.action}</span>
-        <button className="button secondary" onClick={() => act({
+        <button className="button secondary" disabled={snapshot.manager.closed} onClick={() => act({
           mode: 'staff', type: 'task', orderId: task.orderId, assignee: task.assignee,
           action: task.action,
         })}>ทำงาน</button>
@@ -52,6 +52,8 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     <h4>ผู้จัดการ · สถานะสด</h4>
     <p aria-live="polite">คิวครัว {snapshot.manager.queueCounts.kitchen} · รอเสิร์ฟ {snapshot.manager.queueCounts.service} · รอรับเงิน {snapshot.manager.queueCounts.payment} · เงินสดเกม ฿{(snapshot.manager.cashSatang / 100).toFixed(2)}</p>
     <p>สต็อกเกม: {Object.entries(stock).map(([k,v]) => k + ': ' + v).join(' · ')}</p>
+    {!snapshot.manager.close.cashBalanced && <p role="alert">ยอดเงินเกมไม่ตรงกัน — ตรวจสอบรายการรับเงินก่อนปิดยอด</p>}
+    {!snapshot.manager.close.readyToClose && !snapshot.manager.closed && <p role="status">ยังปิดยอดไม่ได้: ตรวจสอบคิวค้างและรายการที่ยังไม่ได้รับเงิน</p>}
     {day.store.orders.filter(o => o.status === 'served').map(o =>
       <button className="button secondary" key={'pay-'+o.id} onClick={() => act({ mode: 'manager', type: 'pay', orderId: o.id })}>รับเงิน {o.tableId.toUpperCase()}</button>)}
     {day.store.orders.filter(o => ['queued','preparing','ready'].includes(o.status)).map(o =>
@@ -69,6 +71,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
         : '฿' + (snapshot.manager.close.grossMarginSatang / 100).toFixed(2)}
         {' · '}ตรวจยอดเงิน {snapshot.manager.close.cashBalanced ? 'ตรงกัน' : 'ไม่ตรงกัน'}
         {' · '}ปิดยอด {snapshot.manager.close.readyToClose ? 'พร้อม' : 'ยังไม่พร้อม'}</p>
+      <p>{snapshot.manager.closed ? 'ปิดยอดเกมเรียบร้อยแล้ว · ไม่รับรายการใหม่' : 'บัญชีระหว่างวัน · ยังไม่ได้ปิดยอด'}</p>
       <p>เป็นตัวเลขจำลอง ไม่รวมค่าแรง ค่าเช่า ค่าไฟ และไม่ใช่รายรับร้านจริง</p>
     </div>
     <p role="status">{message} · เหตุการณ์ {snapshot.eventSequence} · {snapshot.manager.closed ? 'ปิดร้านแล้ว' : 'ร้านเปิด'}</p>
