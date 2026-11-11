@@ -59,6 +59,16 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     <h4>ผู้จัดการ · สถานะสด</h4>
     <p aria-live="polite">คิวครัว {snapshot.manager.queueCounts.kitchen} · รอเสิร์ฟ {snapshot.manager.queueCounts.service} · รอรับเงิน {snapshot.manager.queueCounts.payment} · เงินสดเกม ฿{(snapshot.manager.cashSatang / 100).toFixed(2)}</p>
     <p>สต็อกเกม: {Object.entries(stock).map(([k,v]) => k + ': ' + v).join(' · ')}</p>
+    <div aria-label="ภาพรวมออร์เดอร์ทุกโต๊ะในเกม">
+      <h4>ภาพรวมโต๊ะ · เกมทดลอง</h4>
+      {DEMO_TABLE_IDS.map(tableId => {
+        const orders = day.store.orders.filter(order => order.tableId === tableId && order.status !== 'cancelled');
+        const unpaid = orders.filter(order => !order.paymentRecorded);
+        const paid = orders.filter(order => order.paymentRecorded);
+        return <p key={tableId}>{tableId.toUpperCase()} · ค้างชำระ {unpaid.length} · ชำระแล้ว {paid.length} · รวม {orders.length} ออร์เดอร์</p>;
+      })}
+    </div>
+
     {!snapshot.manager.close.cashBalanced && <p role="alert">ยอดเงินเกมไม่ตรงกัน — ตรวจสอบรายการรับเงินก่อนปิดยอด</p>}
     {!snapshot.manager.close.readyToClose && !snapshot.manager.closed && <p role="status">ยังปิดยอดไม่ได้: ตรวจสอบคิวค้างและรายการที่ยังไม่ได้รับเงิน</p>}
     {day.store.orders.filter(o => o.status === 'served' && !o.paymentRecorded).map(o =>
