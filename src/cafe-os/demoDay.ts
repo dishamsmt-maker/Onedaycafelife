@@ -101,7 +101,7 @@ export function demoDayViews(day: DemoDay) {
   const queueCounts = {
     kitchen: day.store.orders.filter(o => o.status === 'queued' || o.status === 'preparing').length,
     service: day.store.orders.filter(o => o.status === 'ready').length,
-    payment: day.store.orders.filter(o => o.status === 'served').length,
+    payment: day.store.orders.filter(o => o.status === 'served' && !o.paymentRecorded && o.refundedSatang === undefined).length,
   };
   const tables = DEMO_TABLE_IDS.map(tableId => ({
     tableId,
