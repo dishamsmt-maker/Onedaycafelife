@@ -18,8 +18,8 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
   const act = (action: Parameters<typeof session.dispatch>[0]) => {
     setMessage(session.dispatch(action) ? 'บันทึกเหตุการณ์เกมแล้ว' : 'คำสั่งไม่สำเร็จหรือถูกส่งซ้ำ');
   };
-  const active = snapshot.customer.filter(o => o.tableId === table && !['cancelled', 'paid'].includes(o.status));
-  const completed = snapshot.customer.filter(o => o.tableId === table && o.status === 'paid');
+  const active = day.store.orders.filter(o => o.tableId === table && o.status !== 'cancelled' && !o.paymentRecorded);
+  const completed = day.store.orders.filter(o => o.tableId === table && o.paymentRecorded && o.refundedSatang === undefined);
   const stock = snapshot.manager.stock;
   const selected = DEMO_HALAL_MENU.find(m => m.id === item)!;
   const available = Object.entries(selected.recipe).every(([key, qty]) => (stock[key] ?? 0) >= qty);
@@ -56,7 +56,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     <p>สต็อกเกม: {Object.entries(stock).map(([k,v]) => k + ': ' + v).join(' · ')}</p>
     {!snapshot.manager.close.cashBalanced && <p role="alert">ยอดเงินเกมไม่ตรงกัน — ตรวจสอบรายการรับเงินก่อนปิดยอด</p>}
     {!snapshot.manager.close.readyToClose && !snapshot.manager.closed && <p role="status">ยังปิดยอดไม่ได้: ตรวจสอบคิวค้างและรายการที่ยังไม่ได้รับเงิน</p>}
-    {day.store.orders.filter(o => o.status === 'served').map(o =>
+    {day.store.orders.filter(o => o.status === 'served' && !o.paymentRecorded).map(o =>
       <button className="button secondary" key={'pay-'+o.id} disabled={snapshot.manager.closed} onClick={() => act({ mode: 'manager', type: 'pay', orderId: o.id })}>รับเงิน {o.tableId.toUpperCase()} · {o.id}</button>)}
     {day.store.orders.filter(o => ['queued','preparing','ready'].includes(o.status)).map(o =>
       <button className="button secondary" key={'cancel-'+o.id} disabled={snapshot.manager.closed} onClick={() => act({ mode: 'manager', type: 'cancel', orderId: o.id })}>ยกเลิก {o.id}</button>)}
