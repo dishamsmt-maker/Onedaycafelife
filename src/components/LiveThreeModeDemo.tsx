@@ -25,6 +25,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
   };
   const active = day.store.orders.filter(o => o.tableId === table && o.status !== 'cancelled' && !o.paymentRecorded);
   const completed = day.store.orders.filter(o => o.tableId === table && o.paymentRecorded && o.refundedSatang === undefined);
+  const refundedForTable = day.store.orders.filter(o => o.tableId === table && o.refundedSatang !== undefined);
   const stock = snapshot.manager.stock;
   const selected = DEMO_HALAL_MENU.find(m => m.id === item)!;
   const available = Object.entries(selected.recipe).every(([key, qty]) => (stock[key] ?? 0) >= qty);
@@ -46,6 +47,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     {!available && <p role="status">วัตถุดิบไม่เพียงพอสำหรับเมนูนี้</p>}
     <p>รายการที่ยังไม่ชำระโต๊ะนี้: {active.map(o => o.id + ' (' + o.status + ')').join(', ') || 'ไม่มีรายการค้าง'}</p>
     <p>ชำระแล้วโต๊ะนี้: {completed.map(o => o.id).join(', ') || 'ยังไม่มี'}</p>
+    <p>คืนเงินโต๊ะนี้: {refundedForTable.map(o => o.id).join(', ') || 'ไม่มีรายการคืนเงิน'}</p>
     <h4>Na / Ken · งานจริงใน Simulation State</h4>
     {snapshot.staff.tasks.map(task => {
       return <div className="row" key={task.orderId}>
