@@ -63,9 +63,10 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
       <h4>ภาพรวมโต๊ะ · เกมทดลอง</h4>
       {DEMO_TABLE_IDS.map(tableId => {
         const orders = day.store.orders.filter(order => order.tableId === tableId && order.status !== 'cancelled');
-        const unpaid = orders.filter(order => !order.paymentRecorded);
+        const unpaid = orders.filter(order => !order.paymentRecorded && order.refundedSatang === undefined);
         const refunded = orders.filter(order => order.refundedSatang !== undefined);
         const paid = orders.filter(order => order.paymentRecorded && order.refundedSatang === undefined);
+        // Refunds are a separate outcome, never also counted as unpaid or paid.
         return <p key={tableId}>{tableId.toUpperCase()} · ค้างชำระ {unpaid.length} · ชำระแล้ว {paid.length} · คืนเงิน {refunded.length} · รวม {orders.length} ออร์เดอร์</p>;
       })}
     </div>
