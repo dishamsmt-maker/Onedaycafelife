@@ -13,6 +13,11 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
   const [table, setTable] = useState<string>('t3');
   const [item, setItem] = useState<string>(DEMO_HALAL_MENU[0].id);
   const [message, setMessage] = useState('');
+  // Keep idempotency keys unique even when this UI remounts against the same game session.
+  const requestPrefix = useRef<string | null>(null);
+  if (requestPrefix.current === null) {
+    requestPrefix.current = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
   const counter = useRef(0);
   const day = session.getDay();
   const act = (action: Parameters<typeof session.dispatch>[0]) => {
@@ -35,7 +40,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     <div className="row"><strong>ลูกค้า</strong>
       <button className="button secondary" disabled={snapshot.manager.closed || !available} onClick={() => act({
         mode: 'customer', type: 'order', tableId: table.toUpperCase(), itemId: item, quantity: 1,
-        requestId: 'live-ui-' + (++counter.current),
+        requestId: 'live-ui-' + requestPrefix.current + '-' + (++counter.current),
       })}>สั่งอาหาร {table.toUpperCase()}</button>
     </div>
     {!available && <p role="status">วัตถุดิบไม่เพียงพอสำหรับเมนูนี้</p>}
