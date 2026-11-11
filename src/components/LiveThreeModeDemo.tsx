@@ -64,8 +64,9 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
       {DEMO_TABLE_IDS.map(tableId => {
         const orders = day.store.orders.filter(order => order.tableId === tableId && order.status !== 'cancelled');
         const unpaid = orders.filter(order => !order.paymentRecorded);
-        const paid = orders.filter(order => order.paymentRecorded);
-        return <p key={tableId}>{tableId.toUpperCase()} · ค้างชำระ {unpaid.length} · ชำระแล้ว {paid.length} · รวม {orders.length} ออร์เดอร์</p>;
+        const refunded = orders.filter(order => order.refundedSatang !== undefined);
+        const paid = orders.filter(order => order.paymentRecorded && order.refundedSatang === undefined);
+        return <p key={tableId}>{tableId.toUpperCase()} · ค้างชำระ {unpaid.length} · ชำระแล้ว {paid.length} · คืนเงิน {refunded.length} · รวม {orders.length} ออร์เดอร์</p>;
       })}
     </div>
 
