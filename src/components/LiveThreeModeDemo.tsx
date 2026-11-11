@@ -77,9 +77,9 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
 
     {!snapshot.manager.close.cashBalanced && <p role="alert">ยอดเงินเกมไม่ตรงกัน — ตรวจสอบรายการรับเงินก่อนปิดยอด</p>}
     {!snapshot.manager.close.readyToClose && !snapshot.manager.closed && <p role="status">ยังปิดยอดไม่ได้: ตรวจสอบคิวค้างและรายการที่ยังไม่ได้รับเงิน</p>}
-    {day.store.orders.filter(o => o.status === 'served' && !o.paymentRecorded).map(o =>
+    {day.store.orders.filter(o => o.status === 'served' && !o.paymentRecorded && o.refundedSatang === undefined).map(o =>
       <button className="button secondary" key={'pay-'+o.id} disabled={snapshot.manager.closed} onClick={() => act({ mode: 'manager', type: 'pay', orderId: o.id })}>รับเงิน {o.tableId.toUpperCase()} · {o.id}</button>)}
-    {day.store.orders.filter(o => ['queued','preparing','ready'].includes(o.status)).map(o =>
+    {day.store.orders.filter(o => ['queued','preparing','ready'].includes(o.status) && !o.paymentRecorded && o.refundedSatang === undefined).map(o =>
       <button className="button secondary" key={'cancel-'+o.id} disabled={snapshot.manager.closed} onClick={() => act({ mode: 'manager', type: 'cancel', orderId: o.id })}>ยกเลิก {o.id}</button>)}
     <button className="button secondary" disabled={snapshot.manager.closed || !snapshot.manager.close.readyToClose}
       onClick={() => act({ mode: 'manager', type: 'close' })}>ปิดยอดเกม</button>
