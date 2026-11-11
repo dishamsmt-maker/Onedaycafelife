@@ -18,7 +18,8 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
   const act = (action: Parameters<typeof session.dispatch>[0]) => {
     setMessage(session.dispatch(action) ? 'บันทึกเหตุการณ์เกมแล้ว' : 'คำสั่งไม่สำเร็จหรือถูกส่งซ้ำ');
   };
-  const active = snapshot.customer.filter(o => o.tableId === table && o.status !== 'cancelled');
+  const active = snapshot.customer.filter(o => o.tableId === table && !['cancelled', 'paid'].includes(o.status));
+  const completed = snapshot.customer.filter(o => o.tableId === table && o.status === 'paid');
   const stock = snapshot.manager.stock;
   const selected = DEMO_HALAL_MENU.find(m => m.id === item)!;
   const available = Object.entries(selected.recipe).every(([key, qty]) => (stock[key] ?? 0) >= qty);
@@ -38,7 +39,8 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
       })}>สั่งอาหาร {table.toUpperCase()}</button>
     </div>
     {!available && <p role="status">วัตถุดิบไม่เพียงพอสำหรับเมนูนี้</p>}
-    <p>ออร์เดอร์โต๊ะนี้: {active.map(o => o.id + ' (' + o.status + ')').join(', ') || 'ไม่มีรายการค้าง'}</p>
+    <p>รายการที่ยังไม่ชำระโต๊ะนี้: {active.map(o => o.id + ' (' + o.status + ')').join(', ') || 'ไม่มีรายการค้าง'}</p>
+    <p>ชำระแล้วโต๊ะนี้: {completed.map(o => o.id).join(', ') || 'ยังไม่มี'}</p>
     <h4>Na / Ken · งานจริงใน Simulation State</h4>
     {snapshot.staff.tasks.map(task => {
       return <div className="row" key={task.orderId}>
@@ -55,7 +57,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     {!snapshot.manager.close.cashBalanced && <p role="alert">ยอดเงินเกมไม่ตรงกัน — ตรวจสอบรายการรับเงินก่อนปิดยอด</p>}
     {!snapshot.manager.close.readyToClose && !snapshot.manager.closed && <p role="status">ยังปิดยอดไม่ได้: ตรวจสอบคิวค้างและรายการที่ยังไม่ได้รับเงิน</p>}
     {day.store.orders.filter(o => o.status === 'served').map(o =>
-      <button className="button secondary" key={'pay-'+o.id} disabled={snapshot.manager.closed} onClick={() => act({ mode: 'manager', type: 'pay', orderId: o.id })}>รับเงิน {o.tableId.toUpperCase()}</button>)}
+      <button className="button secondary" key={'pay-'+o.id} disabled={snapshot.manager.closed} onClick={() => act({ mode: 'manager', type: 'pay', orderId: o.id })}>รับเงิน {o.tableId.toUpperCase()} · {o.id}</button>)}
     {day.store.orders.filter(o => ['queued','preparing','ready'].includes(o.status)).map(o =>
       <button className="button secondary" key={'cancel-'+o.id} disabled={snapshot.manager.closed} onClick={() => act({ mode: 'manager', type: 'cancel', orderId: o.id })}>ยกเลิก {o.id}</button>)}
     <button className="button secondary" disabled={snapshot.manager.closed || !snapshot.manager.close.readyToClose}
@@ -70,7 +72,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
         ? 'ยังคำนวณไม่ได้ (ต้นทุนไม่ครบ)'
         : '฿' + (snapshot.manager.close.grossMarginSatang / 100).toFixed(2)}
         {' · '}ตรวจยอดเงิน {snapshot.manager.close.cashBalanced ? 'ตรงกัน' : 'ไม่ตรงกัน'}
-        {' · '}ปิดยอด {snapshot.manager.close.readyToClose ? 'พร้อม' : 'ยังไม่พร้อม'}</p>
+        {' · '}ปิดยอด {snapshot.manager.closed ? 'ปิดแล้ว' : snapshot.manager.close.readyToClose ? 'พร้อม' : 'ยังไม่พร้อม'}</p>
       <p>{snapshot.manager.closed ? 'ปิดยอดเกมเรียบร้อยแล้ว · ไม่รับรายการใหม่' : 'บัญชีระหว่างวัน · ยังไม่ได้ปิดยอด'}</p>
       <p>เป็นตัวเลขจำลอง ไม่รวมค่าแรง ค่าเช่า ค่าไฟ และไม่ใช่รายรับร้านจริง</p>
     </div>
