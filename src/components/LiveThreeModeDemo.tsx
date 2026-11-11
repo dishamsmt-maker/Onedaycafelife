@@ -23,7 +23,7 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
   const act = (action: Parameters<typeof session.dispatch>[0]) => {
     setMessage(session.dispatch(action) ? 'บันทึกเหตุการณ์เกมแล้ว' : 'คำสั่งไม่สำเร็จหรือถูกส่งซ้ำ');
   };
-  const active = day.store.orders.filter(o => o.tableId === table && o.status !== 'cancelled' && !o.paymentRecorded);
+  const active = day.store.orders.filter(o => o.tableId === table && o.status !== 'cancelled' && !o.paymentRecorded && o.refundedSatang === undefined);
   const completed = day.store.orders.filter(o => o.tableId === table && o.paymentRecorded && o.refundedSatang === undefined);
   const refundedForTable = day.store.orders.filter(o => o.tableId === table && o.refundedSatang !== undefined);
   const stock = snapshot.manager.stock;
@@ -64,12 +64,14 @@ export default function LiveThreeModeDemo({ session: externalSession }: LiveThre
     <div aria-label="ภาพรวมออร์เดอร์ทุกโต๊ะในเกม">
       <h4>ภาพรวมโต๊ะ · เกมทดลอง</h4>
       {DEMO_TABLE_IDS.map(tableId => {
-        const orders = day.store.orders.filter(order => order.tableId === tableId && order.status !== 'cancelled');
-        const unpaid = orders.filter(order => !order.paymentRecorded && order.refundedSatang === undefined);
+        const orders = day.store.orders.filter(order => order.tableId === tableId);
+        const cancelled = orders.filter(order => order.status === 'cancelled' && order.refundedSatang === undefined);
+        const liveOrders = orders.filter(order => order.status !== 'cancelled');
+        const unpaid = liveOrders.filter(order => !order.paymentRecorded && order.refundedSatang === undefined);
         const refunded = orders.filter(order => order.refundedSatang !== undefined);
-        const paid = orders.filter(order => order.paymentRecorded && order.refundedSatang === undefined);
+        const paid = liveOrders.filter(order => order.paymentRecorded && order.refundedSatang === undefined);
         // Refunds are a separate outcome, never also counted as unpaid or paid.
-        return <p key={tableId}>{tableId.toUpperCase()} · ค้างชำระ {unpaid.length} · ชำระแล้ว {paid.length} · คืนเงิน {refunded.length} · รวม {orders.length} ออร์เดอร์</p>;
+        return <p key={tableId}>{tableId.toUpperCase()} · ค้างชำระ {unpaid.length} · ชำระแล้ว {paid.length} · คืนเงิน {refunded.length} · ยกเลิก {cancelled.length} · รวม {orders.length} ออร์เดอร์</p>;
       })}
     </div>
 
