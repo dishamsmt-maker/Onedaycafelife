@@ -297,7 +297,14 @@ function progressEmployees(s: GameState, dt: number) {
     if(t.remaining<=0&&t.productionStep==='collect'){
       const o=s.orders.find(o=>o.id===t.orderId),m=s.menu.find(m=>m.id===o?.menuId);
       if(!o||!m||o.status==='cancelled'){e.task=null;continue;}
-      t.productionStep='prepare';t.target=[...(t.kind==='brew'?STATIONS.bar:STATIONS.kitchen)];t.path=findPath(e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
+      const station = t.kind === 'brew' ? STATIONS.bar : STATIONS.kitchen;
+      // Do not strand a paid order in 'walking' when the second leg is blocked.
+      // The scheduler may retry once the staff member can reach the station.
+      if (!canReachStation(e.position, station)) {
+        o.status = 'waiting'; o.workerId = undefined;
+        e.task = null; e.available = true; continue;
+      }
+      t.productionStep='prepare';t.target=[...station];t.path=findPath(e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
     }else if (t.remaining <= 0) finishTask(s, e);
   }
 }
