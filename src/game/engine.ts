@@ -257,6 +257,14 @@ function progressEmployees(s: GameState, dt: number) {
           e.task = null; e.available = true; continue;
         }
       }
+      // Guest service and table cleaning must not complete across blocked geometry.
+      // Requeue the task rather than accepting a missing path as arrival.
+      if (((t.kind === 'serve' && t.stage === 'take-order') ||
+           (t.kind === 'serve' && t.maintenance === 'question') ||
+           t.kind === 'clean') &&
+          Math.hypot(e.position[0] - t.target[0], e.position[1] - t.target[1]) > .45) {
+        e.task = null; e.available = true; continue;
+      }
       // A failed navigation route must not let Na or a barista collect stock or cook remotely.
       // Retry the waiting order after a reachable route can be assigned.
       if ((t.kind === 'cook' || t.kind === 'brew') &&
@@ -338,9 +346,9 @@ function scheduleStaff(s: GameState) {
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
     const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
     if (ready && canReachStation(serving.position, STATIONS.pickup)) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
-    else if(question)setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
-    else if (waiting) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
-    else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
+    else if(question && canReachStation(serving.position,customerTarget(s,question)))setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
+    else if (waiting && canReachStation(serving.position,customerTarget(s,waiting))) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
+    else if (dirty && canReachStation(serving.position,[dirty.position[0] + .9, dirty.position[1]])) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
     else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
   }
   const na = s.employees.find(e => e.id === 'na')!;
