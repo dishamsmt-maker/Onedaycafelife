@@ -263,13 +263,20 @@ function progressEmployees(s: GameState, dt: number) {
         o.status = 'preparing';
       }
       if (t.kind === 'serve' && t.stage === 'pickup') {
+        // Do not teleport food from the kitchen when the pickup path is missing.
+        // Requeue this order until a server can physically reach the counter.
+        if (Math.hypot(e.position[0] - STATIONS.pickup[0], e.position[1] - STATIONS.pickup[1]) > .4) {
+          if (o && o.status !== 'cancelled') { o.status = 'ready'; o.workerId = undefined; }
+          e.task = null; e.available = true; continue;
+        }
         const c = s.customers.find(c => c.id === t.customerId);
         if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
         const destination = customerTarget(s, c);
         const route = findPath(e.position, destination);
-        const endpoint = route[route.length - 1];
-        // Do not mark a delivery complete when the waiter cannot reach the guest.
-        if (!endpoint || Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
+        // A zero-length route is valid only if the server is already at the guest.
+        // Otherwise a missing endpoint means navigation failed, not delivery.
+        const endpoint = route[route.length - 1] ?? e.position;
+        if (Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
           o.status = 'ready'; o.workerId = undefined; e.task = null; e.available = true;
           continue;
         }
@@ -302,8 +309,10 @@ function scheduleStaff(s: GameState) {
       if (!customer) return false;
       const destination = customerTarget(s, customer);
       const route = findPath(STATIONS.pickup, destination);
-      const endpoint = route[route.length - 1];
-      return !!endpoint && Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
+      // An empty path is valid when pickup already coincides with the guest.
+      // Keep the reachability gate consistent with the pickup-to-delivery transition.
+      const endpoint = route[route.length - 1] ?? STATIONS.pickup;
+      return Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
     });
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');

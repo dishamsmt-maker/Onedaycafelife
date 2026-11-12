@@ -31,7 +31,15 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  role:'customer',tableId:null,scannedTableId:null,action:'idle',message:'',returnPosition:null,
  clearMessage:()=>set({message:''}),
  scanTable:()=>{const id=get().tableId,c=playerCustomer();if(!id||c?.tableId!==id){set({message:'นั่งที่โต๊ะก่อนแตะ QR'});return false;}set({scannedTableId:id,message:'เปิดเมนูจาก QR โต๊ะแล้ว · เลือกรายการเพื่อยืนยัน'});return true;},
- prepay:()=>{const c=playerCustomer();if(c?.orderChannel!=='counter')return false;useGame.getState().dispatch({type:'visitor-prepay'});set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;},
+ prepay:()=>{
+  const c=playerCustomer();if(c?.orderChannel!=='counter')return false;
+  const pending=useGame.getState().game.orders.filter(o=>o.customerId===c.id&&!o.parentOrderId&&!o.paid&&o.status!=='cancelled');
+  if(!pending.length){set({message:'ไม่มีรายการซื้อกลับที่ค้างชำระ'});return false;}
+  useGame.getState().dispatch({type:'visitor-prepay'});
+  const after=useGame.getState().game;
+  if(pending.some(o=>!after.orders.find(next=>next.id===o.id)?.paid)){set({message:'ยังยืนยันการชำระเงินไม่ได้ กรุณาตรวจสอบบิล'});return false;}
+  set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;
+ },
  setRole:role=>{
   get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
   if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
@@ -84,8 +92,13 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   const game=useGame.getState().game,c=playerCustomer();if(!c){set({message:'ยังไม่มีบิลที่ต้องชำระ'});return false;}
   const orders=game.orders.filter(o=>o.customerId===c.id);
   if(orders.some(o=>!['completed','cancelled'].includes(o.status))){set({message:'รอให้เสิร์ฟครบก่อนชำระเงิน'});return false;}
-  const total=orders.filter(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid).reduce((a,o)=>a+o.price,0);
-  get().stand();useGame.getState().dispatch({type:'visitor-pay'});set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ ONE DAY`});return true;
+  const pending=orders.filter(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid);
+  if(!pending.length){set({message:'ไม่มีบิลที่รอชำระเงิน'});return false;}
+  const total=pending.reduce((a,o)=>a+o.price,0);
+  useGame.getState().dispatch({type:'visitor-pay'});
+  const after=useGame.getState().game;
+  if(pending.some(o=>!after.orders.find(next=>next.id===o.id)?.paid)){set({message:'ยังยืนยันการชำระเงินไม่ได้ กรุณาตรวจสอบสถานะบิล'});return false;}
+  get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ ONE DAY`});return true;
  },
 }));
 // Releasing the staff role is intentional on reload; no employee stays frozen from an old browser session.
