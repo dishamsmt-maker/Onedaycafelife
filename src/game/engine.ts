@@ -342,9 +342,9 @@ function scheduleStaff(s: GameState) {
       const endpoint = route[route.length - 1] ?? STATIONS.pickup;
       return Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
     });
-    const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
-    const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
-    const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
+    const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id) && canReachStation(serving.position, customerTarget(s, c)));
+    const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving'&&canReachStation(serving.position,customerTarget(s,c)));
+    const dirty = s.tables.find(t => t.dirty && !t.customerIds.length && canReachStation(serving.position,[t.position[0]+.9,t.position[1]]));
     if (ready && canReachStation(serving.position, STATIONS.pickup)) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
     else if(question && canReachStation(serving.position,customerTarget(s,question)))setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
     else if (waiting && canReachStation(serving.position,customerTarget(s,waiting))) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
