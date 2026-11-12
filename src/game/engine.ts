@@ -331,7 +331,10 @@ function scheduleStaff(s: GameState) {
   if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
     // Only assign a delivery if the customer can be reached from pickup.
     // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
-    const ready = s.orders.find(o => {
+    // Check both delivery legs before selecting a ticket. If the server cannot
+    // reach pickup, do not reserve a job that cannot be started.
+    const pickupReachable = canReachStation(serving.position, STATIONS.pickup);
+    const ready = pickupReachable ? s.orders.find(o => {
       if (o.componentOrderIds?.length || o.status !== 'ready' || o.workerId) return false;
       const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
       if (!customer) return false;
@@ -341,11 +344,11 @@ function scheduleStaff(s: GameState) {
       // Keep the reachability gate consistent with the pickup-to-delivery transition.
       const endpoint = route[route.length - 1] ?? STATIONS.pickup;
       return Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
-    });
+    }) : undefined;
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id) && canReachStation(serving.position, customerTarget(s, c)));
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving'&&canReachStation(serving.position,customerTarget(s,c)));
     const dirty = s.tables.find(t => t.dirty && !t.customerIds.length && canReachStation(serving.position,[t.position[0]+.9,t.position[1]]));
-    if (ready && canReachStation(serving.position, STATIONS.pickup)) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
+    if (ready) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
     else if(question && canReachStation(serving.position,customerTarget(s,question)))setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
     else if (waiting && canReachStation(serving.position,customerTarget(s,waiting))) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
     else if (dirty && canReachStation(serving.position,[dirty.position[0] + .9, dirty.position[1]])) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
