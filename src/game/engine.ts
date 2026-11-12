@@ -633,9 +633,20 @@ export function act(state: GameState, action: GameAction): GameState {
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
       if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
-      const c=ensurePlayer(s);if(c.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
-      placeCustomerOrder(s,c,m.id);c.status='waiting';
-      if(!c.tableId){const table=s.tables.find(t=>!t.dirty&&!t.customerIds.length);if(table)playerSeat(s,table.id);}
+      // A dine-in order must have a valid delivery destination before a
+      // production job is created. Do not strand orders when all tables are full.
+      const current=s.customers.find(c=>c.player&&c.status!=='leaving');
+      if(current?.orderChannel==='counter')break;
+      if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
+      if(!current?.tableId){
+        const table=s.tables.find(t=>!t.dirty&&t.customerIds.length<table.capacity);
+        if(!table)break;
+        playerSeat(s,table.id);
+      }
+      const c=s.customers.find(c=>c.player&&c.status!=='leaving');
+      if(!c?.tableId)break;
+      const order=placeCustomerOrder(s,c,m.id);
+      if(order){c.orderChannel='table-qr';c.status='waiting';}
       break;
     }
     case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c&&s.orders.filter(o=>o.customerId===c.id).every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);break;}
