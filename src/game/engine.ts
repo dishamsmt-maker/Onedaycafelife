@@ -267,9 +267,10 @@ function progressEmployees(s: GameState, dt: number) {
         if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
         const destination = customerTarget(s, c);
         const route = findPath(e.position, destination);
-        const endpoint = route[route.length - 1];
-        // Do not mark a delivery complete when the waiter cannot reach the guest.
-        if (!endpoint || Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
+        // A zero-length route is valid only if the server is already at the guest.
+        // Otherwise a missing endpoint means navigation failed, not delivery.
+        const endpoint = route[route.length - 1] ?? e.position;
+        if (Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
           o.status = 'ready'; o.workerId = undefined; e.task = null; e.available = true;
           continue;
         }
