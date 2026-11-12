@@ -257,6 +257,13 @@ function progressEmployees(s: GameState, dt: number) {
           e.task = null; e.available = true; continue;
         }
       }
+      // A failed navigation route must not let Na or a barista collect stock or cook remotely.
+      // Retry the waiting order after a reachable route can be assigned.
+      if ((t.kind === 'cook' || t.kind === 'brew') &&
+          Math.hypot(e.position[0] - t.target[0], e.position[1] - t.target[1]) > .4) {
+        if (o && o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; }
+        e.task = null; e.available = true; continue;
+      }
       if ((t.kind === 'cook' || t.kind === 'brew') && o) {
         const menu = s.menu.find(m => m.id === o.menuId)!;
         if (o.status === 'cancelled' || !consume(s, o, menu)) { if (o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; } e.task = null; continue; }
