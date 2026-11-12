@@ -301,6 +301,12 @@ function progressEmployees(s: GameState, dt: number) {
     }else if (t.remaining <= 0) finishTask(s, e);
   }
 }
+// An empty route is reachable only when already standing at the destination.
+function canReachStation(from: Vec2, to: Vec2): boolean {
+  const route = findPath(from, to);
+  const end = route[route.length - 1] ?? from;
+  return Math.hypot(end[0] - to[0], end[1] - to[1]) <= .4;
+}
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
   const serving = s.employees.find(e => e.id === server)!;
@@ -332,7 +338,7 @@ function scheduleStaff(s: GameState) {
   }
   const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
-  if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
+  if (food && !na.controlled && (!na.task||na.task.kind==='station') && canReachStation(na.position, food.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (food.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen))) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
@@ -345,7 +351,7 @@ function scheduleStaff(s: GameState) {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
       return score(a) - score(b);
     });
-    if (order && candidates.length) { const e = candidates[0], m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(e, 'brew', order.stockConsumed?STATIONS.bar:STATIONS.fridge, order.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: order.id, productionStep:order.stockConsumed?'prepare':'collect' }); }
+    if (order && candidates.length) { const e = candidates.find(candidate => canReachStation(candidate.position, order.stockConsumed?STATIONS.bar:STATIONS.fridge) && (order.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.bar))); if(e) { const m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(e, 'brew', order.stockConsumed?STATIONS.bar:STATIONS.fridge, order.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: order.id, productionStep:order.stockConsumed?'prepare':'collect' }); } }
   }
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
