@@ -354,13 +354,26 @@ function scheduleStaff(s: GameState) {
   const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
-    const order = drinks.find(o => stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
     const candidates = s.employees.filter(e => !e.controlled && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
     candidates.sort((a, b) => {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
       return score(a) - score(b);
     });
-    if (order && candidates.length) { const e = candidates.find(candidate => canReachStation(candidate.position, order.stockConsumed?STATIONS.bar:STATIONS.fridge) && (order.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.bar))); if(e) { const m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(e, 'brew', order.stockConsumed?STATIONS.bar:STATIONS.fridge, order.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: order.id, productionStep:order.stockConsumed?'prepare':'collect' }); } }
+    // Match an actually reachable ticket and worker, not just the oldest ticket.
+    // A blocked drink must not starve every other ready-to-produce drink.
+    for (const order of drinks) {
+      const m = s.menu.find(item => item.id === order.menuId)!;
+      if (!stockAvailable(s, m)) continue;
+      const e = candidates.find(candidate =>
+        canReachStation(candidate.position, order.stockConsumed ? STATIONS.bar : STATIONS.fridge) &&
+        (order.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.bar)));
+      if (!e) continue;
+      order.status = 'walking'; order.workerId = e.id;
+      setTask(e, 'brew', order.stockConsumed ? STATIONS.bar : STATIONS.fridge,
+        order.stockConsumed ? m.duration * s.settings.prepMultiplier : .6,
+        { orderId: order.id, productionStep: order.stockConsumed ? 'prepare' : 'collect' });
+      break;
+    }
   }
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
