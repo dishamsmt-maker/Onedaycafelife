@@ -591,6 +591,9 @@ function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled)
 function playerSeat(s:GameState,tableId:string){
  const table=s.tables.find(t=>t.id===tableId);const current=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(current?.orderChannel==='counter')return;
+ // Keep an active dine-in ticket tied to its original table until service ends.
+ // Otherwise a QR order can silently move while Ken is already delivering it.
+ if(current?.tableId&&current.tableId!==tableId&&s.orders.some(o=>o.customerId===current.id&&!['completed','cancelled'].includes(o.status)))return;
  if(!table||table.dirty||(table.customerIds.length>=table.capacity&&!table.customerIds.includes(current?.id??'')))return;
  const c=ensurePlayer(s);for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
  table.customerIds.push(c.id);c.tableId=table.id;c.position=seatPosition(s,c);c.path=[];
