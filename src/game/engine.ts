@@ -337,7 +337,7 @@ function scheduleStaff(s: GameState) {
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
     const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
-    if (ready) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
+    if (ready && canReachStation(serving.position, STATIONS.pickup)) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
     else if(question)setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
     else if (waiting) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
     else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
