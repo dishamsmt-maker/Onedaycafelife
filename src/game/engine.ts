@@ -343,9 +343,11 @@ function scheduleStaff(s: GameState) {
     else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
     else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
   }
-  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
-  if (food && !na.controlled && (!na.task||na.task.kind==='station') && canReachStation(na.position, food.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (food.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen))) {
+  // Skip blocked orders rather than letting the oldest unreachable ticket starve the queue.
+  // Never mark an order as walking until its entire production route is reachable.
+  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!) && canReachStation(na.position, o.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (o.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen)));
+  if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
