@@ -639,7 +639,7 @@ export function act(state: GameState, action: GameAction): GameState {
       if(current?.orderChannel==='counter')break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       if(!current?.tableId){
-        const table=s.tables.find(t=>!t.dirty&&t.customerIds.length<table.capacity);
+        const table=s.tables.find(t=>!t.dirty&&t.customerIds.length<t.capacity);
         if(!table)break;
         playerSeat(s,table.id);
       }
