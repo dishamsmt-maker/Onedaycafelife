@@ -263,6 +263,12 @@ function progressEmployees(s: GameState, dt: number) {
         o.status = 'preparing';
       }
       if (t.kind === 'serve' && t.stage === 'pickup') {
+        // Do not teleport food from the kitchen when the pickup path is missing.
+        // Requeue this order until a server can physically reach the counter.
+        if (Math.hypot(e.position[0] - STATIONS.pickup[0], e.position[1] - STATIONS.pickup[1]) > .4) {
+          if (o && o.status !== 'cancelled') { o.status = 'ready'; o.workerId = undefined; }
+          e.task = null; e.available = true; continue;
+        }
         const c = s.customers.find(c => c.id === t.customerId);
         if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
         const destination = customerTarget(s, c);
