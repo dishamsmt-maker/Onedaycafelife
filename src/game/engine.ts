@@ -285,7 +285,15 @@ function progressEmployees(s: GameState, dt: number) {
           e.task = null; e.available = true; continue;
         }
         const c = s.customers.find(c => c.id === t.customerId);
-        if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
+        if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') {
+          // A guest can leave while Ken walks to pickup. Release the ticket and
+          // reservation rather than leaving a ready order permanently owned by Ken.
+          if (o && o.status !== 'cancelled') {
+            o.status = 'cancelled';
+            o.workerId = undefined;
+          }
+          e.task = null; e.available = true; continue;
+        }
         const destination = customerTarget(s, c);
         const route = findPath(e.position, destination);
         // A zero-length route is valid only if the server is already at the guest.
