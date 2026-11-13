@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useGame } from './store';
-import { menuAvailable, menuRecipe } from './engine';
+import { menuAvailable, stockAvailableForNewOrder } from './engine';
 import { touchControls } from './touchControls';
 import type { StaffId,Vec2 } from './types';
 
@@ -81,7 +81,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   if(state.tableId&&state.scannedTableId!==state.tableId){set({message:'แตะ QR บนโต๊ะก่อนสั่งอาหาร'});return false;}
   if(!state.tableId&&!atCounter){set({message:'สั่งที่เคาน์เตอร์ หรือเลือกนั่งโต๊ะก่อน'});return false;}
   if(!m||!menuAvailable(m,game.minute)||game.phase!=='open'){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}
-  if(Object.entries(menuRecipe(game,m)).some(([id,q])=>(game.inventory.find(i=>i.id===id)?.quantity??0)<q)){set({message:'วัตถุดิบเมนูนี้หมดแล้ว'});return false;}
+  if(!stockAvailableForNewOrder(game,m)){set({message:'วัตถุดิบคงเหลือไม่พอสำหรับออร์เดอร์ใหม่ (มีรายการก่อนหน้ารอผลิตอยู่)'});return false;}
   // The FPV seat/QR cache is not authoritative: reject stale table state before creating a kitchen ticket.
   const customer=playerCustomer();
   if(state.tableId&&customer?.tableId!==state.tableId){set({message:'สถานะโต๊ะไม่ตรงกับระบบ กรุณานั่งและสแกน QR อีกครั้ง'});return false;}
