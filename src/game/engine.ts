@@ -72,8 +72,10 @@ function seatCustomer(s: GameState, c: Customer): boolean {
     const index = table.customerIds.length;
     const target: Vec2 = [table.position[0] + (index % 2 === 0 ? -.9 : .9), table.position[1] + (index < 2 ? -.25 : .25)];
     const path = findPath(c.position, target);
-    const last = path[path.length - 1];
-    if (!last || Math.hypot(last[0] - target[0], last[1] - target[1]) > .35) continue;
+    // An empty route is valid if the customer is already at the chair approach.
+    // Reject only paths whose actual endpoint cannot reach the chair.
+    const last = path[path.length - 1] ?? c.position;
+    if (Math.hypot(last[0] - target[0], last[1] - target[1]) > .35) continue;
     table.customerIds.push(c.id);
     c.tableId = table.id;
     c.status = 'arriving';
