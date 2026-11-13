@@ -684,7 +684,12 @@ export function act(state: GameState, action: GameAction): GameState {
       break;
     }
     case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c&&s.orders.filter(o=>o.customerId===c.id).every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);break;}
-    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c)leave(s,c,true);break;}
+    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
+      // Leaving must not silently act as a POS payment button. Require explicit
+      // settlement for served dine-in tickets, while allowing a no-sale exit.
+      const served=s.orders.some(o=>o.customerId===c.id&&!o.parentOrderId&&o.status==='completed'&&!o.paid);
+      if(served){notice(s,'มีรายการเสิร์ฟแล้วที่ยังไม่ชำระ · กรุณาชำระเงินที่ POS ก่อนออกจากร้าน');break;}
+      leave(s,c,false);break;}
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
       releaseControl(s);if(!action.id)break;
