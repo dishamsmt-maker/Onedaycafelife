@@ -491,7 +491,14 @@ function progressCustomers(s: GameState, dt: number) {
       else if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90)){
         // Closing time must not act as POS: no implicit sale for served, unpaid tickets.
         const unsettled=orders.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid);
-        if(!unsettled)leave(s,c,false);
+        if(unsettled&&s.minute<=CLOSE+90){
+          // Give the player time to use POS; never invent a sale at closing.
+          continue;
+        }
+        if(unsettled)notice(s,'หมดเวลาชำระเงิน · บันทึกรายการที่ค้างเป็นยอดไม่ได้รับชำระ ไม่เพิ่มยอดขาย');
+        // After the grace period, release the seat so day close cannot deadlock.
+        // leave(false) deliberately does not charge completed unpaid orders.
+        leave(s,c,false);
       }
       continue;
     }
