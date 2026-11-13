@@ -41,7 +41,8 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;
  },
  setRole:role=>{
-  get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
+  get().stand();if(get().tableId){set({message:'กรุณาชำระเงินและรับอาหารให้ครบก่อนสลับโหมด'});return;}
+  useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
   if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
   else {const e=useGame.getState().game.employees.find(e=>e.id===role)!;moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);}
   set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ควบคุม ${role.toUpperCase()} · งานอัตโนมัติของคนนี้พักชั่วคราว`});
@@ -65,6 +66,11 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  },
  stand:()=>{
   const state=get();if(!state.tableId)return;
+  const before=playerCustomer();
+  if(before?.tableId){
+    useGame.getState().dispatch({type:'visitor-stand'});
+    if(playerCustomer()?.tableId){set({message:'ยังลุกจากโต๊ะไม่ได้ · กรุณารอเสิร์ฟและชำระบิลก่อน'});return;}
+  }
   const p=state.returnPosition??[.5,6.0];
   moveCamera(p[0],p[1]);set({tableId:null,scannedTableId:null,returnPosition:null,action:'idle',message:'ลุกจากโต๊ะแล้ว'});
  },
