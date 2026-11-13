@@ -82,8 +82,14 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   if(!state.tableId&&!atCounter){set({message:'สั่งที่เคาน์เตอร์ หรือเลือกนั่งโต๊ะก่อน'});return false;}
   if(!m||!menuAvailable(m,game.minute)||game.phase!=='open'){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}
   if(Object.entries(menuRecipe(game,m)).some(([id,q])=>(game.inventory.find(i=>i.id===id)?.quantity??0)<q)){set({message:'วัตถุดิบเมนูนี้หมดแล้ว'});return false;}
-  const previous=game.orders.length;useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId:crypto.randomUUID()});
-  if(useGame.getState().game.orders.length===previous){set({message:'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});return false;}
+  // The FPV seat/QR cache is not authoritative: reject stale table state before creating a kitchen ticket.
+  const customer=playerCustomer();
+  if(state.tableId&&customer?.tableId!==state.tableId){set({message:'สถานะโต๊ะไม่ตรงกับระบบ กรุณานั่งและสแกน QR อีกครั้ง'});return false;}
+  const requestId=crypto.randomUUID();
+  useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId});
+  // Confirm the engine accepted THIS request, not merely that another order appeared.
+  const accepted=playerCustomer()?.requestIds?.includes(requestId);
+  if(!accepted){set({message:'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});return false;}
   const c=playerCustomer(),t=useGame.getState().game.tables.find(t=>t.id===c?.tableId);
   set({message:`รับออร์เดอร์${m.name}แล้ว${t?` · เสิร์ฟที่${t.name}`:' · รับที่เคาน์เตอร์'}`});return true;
  },
