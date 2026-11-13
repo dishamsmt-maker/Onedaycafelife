@@ -113,7 +113,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   useGame.getState().dispatch({type:'visitor-pay'});
   const after=useGame.getState().game;
   if(pending.some(o=>!after.orders.find(next=>next.id===o.id)?.paid)){set({message:'ยังยืนยันการชำระเงินไม่ได้ กรุณาตรวจสอบสถานะบิล'});return false;}
-  get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ ONE DAY`});return true;
+  get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ HUA CHAO`});return true;
  },
 }));
 // Releasing the staff role is intentional on reload; no employee stays frozen from an old browser session.
