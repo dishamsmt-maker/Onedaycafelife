@@ -488,7 +488,11 @@ function progressCustomers(s: GameState, dt: number) {
       if(resolved&&anyServed)c.status='eating';
       else if(orders.length)c.status='waiting';
       if(resolved&&!anyServed)leave(s,c,false);
-      else if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,anyServed);
+      else if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90)){
+        // Closing time must not act as POS: no implicit sale for served, unpaid tickets.
+        const unsettled=orders.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid);
+        if(!unsettled)leave(s,c,false);
+      }
       continue;
     }
     if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
