@@ -30,7 +30,7 @@ export function activeServer(s: GameState): 'ken' | 'pun' { return s.serverOverr
 function scheduleEvents(s: GameState) {
   const size = 8 + Math.floor(random(s) * 9);
   const minute = (s.day % 2 ? 8 * 60 : 17 * 60) + Math.floor(random(s) * 50);
-  s.events = [{ id: uid(s, 'rush'), day: s.day, minute, label: s.day % 3 === 0 ? 'กรุ๊ปนักเดินทางแวะพัก' : pick(s, ['ลูกค้า ตรอ. และคนซื้อกลับมาพร้อมกัน', 'ชุมชนนัดกินข้าวที่ ONE DAY', 'เพื่อนชวนกันมาแวะร้าน']), size, announced: random(s) < .7, triggered: false }];
+  s.events = [{ id: uid(s, 'rush'), day: s.day, minute, label: s.day % 3 === 0 ? 'กรุ๊ปนักเดินทางแวะพัก' : pick(s, ['ลูกค้า ตรอ. และคนซื้อกลับมาพร้อมกัน', 'ชุมชนนัดกินข้าวที่ HUA CHAO', 'เพื่อนชวนกันมาแวะร้าน']), size, announced: random(s) < .7, triggered: false }];
   if (s.day % 3 === 0) s.events[0].size = 12 + Math.floor(random(s) * 14);
 }
 export function createGame(seed = DEFAULT_SETTINGS.seed): GameState {
@@ -41,7 +41,7 @@ export function createGame(seed = DEFAULT_SETTINGS.seed): GameState {
     garden: { moisture: 65, cleanliness: 95, lastInspection: -1, inspections: 0 }, baristaMode: 'auto', serverOverride: 'auto', notices: [],
     todayArrivals: 0, todayWaits: [], todaySatisfaction: [], openingCash: DEFAULT_SETTINGS.openingCash, settings: { ...DEFAULT_SETTINGS, seed }, shortages: [] };
   scheduleEvents(s);
-  notice(s, 'ยินดีต้อนรับสู่ ONE DAY · กดเริ่มเพื่อเตรียมเปิดร้าน 06:30');
+  notice(s, 'ยินดีต้อนรับสู่ HUA CHAO · กดเริ่มเพื่อเตรียมเปิดร้าน 06:30');
   return s;
 }
 
@@ -113,7 +113,7 @@ function arrive(s: GameState, count: number, eventId?: string) {
   for (let i = 0; i < Math.min(count, remaining); i++) {
     const takeaway = random(s) < (s.minute < 630 ? .48 : .35);
     const reason = eventId ? pick(s, ['แวะพร้อมเพื่อนที่นัดกันไว้', 'ขับผ่านมาเห็นคนแวะ เลยลองเข้าร้าน', 'รอคิวตรวจรถ ตรอ. จึงแวะร้าน', 'มาซื้อเครื่องดื่มช่วงเดียวกับลูกค้าหลายคน'])
-      : s.minute < 630 ? pick(s, ['อยากกินอาหารเช้าก่อนไปทำงาน', 'รอตรวจรถ ตรอ. ข้างร้าน', 'ขับรถผ่าน เห็นป้าย ONE DAY', 'คนในชุมชนออกมาซื้ออาหารให้ที่บ้าน', 'แวะซื้อเครื่องดื่มก่อนเริ่มงาน'])
+      : s.minute < 630 ? pick(s, ['อยากกินอาหารเช้าก่อนไปทำงาน', 'รอตรวจรถ ตรอ. ข้างร้าน', 'ขับรถผ่าน เห็นป้าย HUA CHAO', 'คนในชุมชนออกมาซื้ออาหารให้ที่บ้าน', 'แวะซื้อเครื่องดื่มก่อนเริ่มงาน'])
       : s.minute >= 1020 ? pick(s, ['นัดเพื่อนมานั่งคุยตอนเย็น', 'อยากดื่มชากับของกินเล่น', 'แวะซื้อเครื่องดื่มกลับบ้าน', 'พักจากการเดินทางช่วงค่ำ'])
       : pick(s, ['พักเที่ยงจากที่ทำงานใกล้ร้าน', 'ขับรถผ่านแล้วอยากพักดื่มกาแฟ', 'คนในชุมชนแวะซื้อกลับบ้าน', 'เพื่อนแนะนำให้มาลองร้านนี้']);
     const { guest, referrer, returning: isReturn } = arrivingGuest(s);
@@ -186,7 +186,7 @@ function consume(s: GameState, o: Order, m: MenuItem) {
 function customerTarget(s: GameState, c: Customer): Vec2 { const table=s.tables.find(t=>t.id===c.tableId);return table?[table.position[0],table.position[1]-.9]:seatPosition(s,c); }
 function finishTask(s: GameState, e: Employee) {
   const t = e.task!;
-  if(t.maintenance==='sign'){s.signMounted=signWanted(s);notice(s,s.signMounted?'Alee ติดป้าย ONE DAY แล้ว':'Alee ถอดป้าย ONE DAY แล้ว');}
+  if(t.maintenance==='sign'){s.signMounted=signWanted(s);notice(s,s.signMounted?'Alee ติดป้าย HUA CHAO แล้ว':'Alee ถอดป้าย HUA CHAO แล้ว');}
   if(t.maintenance==='water'){s.wateredCount=(t.stopIndex??0)+1;s.garden.moisture=Math.min(100,s.garden.moisture+3);}
   if(t.maintenance==='question'){const c=s.customers.find(c=>c.id===t.customerId);if(c){c.answeredAt=s.minute;notice(s,`${c.name} · พนักงานตรวจคิวและแจ้งความคืบหน้าแล้ว`);}}
   if (t.kind === 'cook' || t.kind === 'brew') {
@@ -584,7 +584,7 @@ export const PLAYER_ID='visitor-player';
 function ensurePlayer(s:GameState):Customer {
  let c=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(c)return c;
- c={id:uid(s,PLAYER_ID),player:true,name:'คุณ',reason:'มานั่งพักที่ ONE DAY',preference:'breakfast',budget:10000,patience:10000,groupId:'visitor',takeaway:false,position:[-.35,1.4],path:[],status:'waiting',tableId:null,orderIds:[],arrivedAt:s.minute,seatedAt:s.minute,eatRemaining:99999,satisfaction:100,isReturn:false,sweetness:100};
+ c={id:uid(s,PLAYER_ID),player:true,name:'คุณ',reason:'มานั่งพักที่ HUA CHAO',preference:'breakfast',budget:10000,patience:10000,groupId:'visitor',takeaway:false,position:[-.35,1.4],path:[],status:'waiting',tableId:null,orderIds:[],arrivedAt:s.minute,seatedAt:s.minute,eatRemaining:99999,satisfaction:100,isReturn:false,sweetness:100};
  s.customers.push(c);s.todayArrivals++;return c;
 }
 function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled){e.controlled=false;e.available=true;}}
