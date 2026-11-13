@@ -468,7 +468,8 @@ function progressCustomers(s: GameState, dt: number) {
       const orders=s.orders.filter(o=>c.orderIds.includes(o.id));
       const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
       c.status=orders.length&&resolved?'eating':'waiting';
-      if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,true);
+      // Closing must never silently settle an unpaid dine-in ticket. Only an explicit POS action may collect payment.
+       if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,orders.every(o=>o.status==='cancelled'||o.paid));
       continue;
     }
     if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
@@ -664,7 +665,10 @@ export function act(state: GameState, action: GameAction): GameState {
       break;
     }
     case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c&&s.orders.filter(o=>o.customerId===c.id).every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);break;}
-    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c)leave(s,c,true);break;}
+    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
+       // Leaving is not a payment action. Keep unpaid dine-in bills at POS, and never mint sales on exit.
+       if(s.orders.some(o=>o.customerId===c.id&&o.status!=='cancelled'&&!o.paid)){notice(s,'กรุณาชำระเงินผ่าน POS ก่อนออกจากร้าน');break;}
+       leave(s,c,false);break;}
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
       releaseControl(s);if(!action.id)break;
