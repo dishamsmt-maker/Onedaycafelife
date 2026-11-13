@@ -633,6 +633,15 @@ export function act(state: GameState, action: GameAction): GameState {
     }
 
     case 'visitor-seat': playerSeat(s,action.tableId);break;
+    case 'visitor-stand': {
+      const c=s.customers.find(c=>c.player&&c.status!=='leaving');
+      if(!c?.tableId)break;
+      // Keep a table reserved until every dine-in ticket has been settled.
+      if(s.orders.some(o=>o.customerId===c.id&&o.status!=='cancelled'&&(!o.paid||o.status!=='completed')))break;
+      for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
+      c.tableId=null;c.orderChannel=undefined;c.path=[];c.position=[-.35,1.4];
+      c.status='waiting';break;
+    }
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
       if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
