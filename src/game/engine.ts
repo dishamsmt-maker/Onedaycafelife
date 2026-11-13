@@ -165,7 +165,24 @@ export function menuRecipe(s:GameState,m:MenuItem):Record<string,number>{
  for(const part of m.components){const item=s.menu.find(x=>x.id===part.menuId);if(item)for(const [id,q] of Object.entries(menuRecipe(s,item)))recipe[id]=(recipe[id]??0)+q*part.quantity;}return recipe;
 }
 function recipeFor(s:GameState,m:MenuItem,sweetness=100){const recipe=menuRecipe(s,m);if(m.kind==='drink'&&recipe.sugar)recipe.sugar*=clamp(sweetness,0,100)/100;return recipe;}
-function stockAvailable(s:GameState,m:MenuItem,sweetness=100){return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>(s.inventory.find(i=>i.id===id)?.quantity??0)+1e-9>=q);}
+/** Inventory promised to accepted, unconsumed production jobs is unavailable for new sales. */
+function reservedStock(s:GameState):Record<string,number>{
+ const reserved:Record<string,number>={};
+ for(const order of s.orders){
+  if(order.stockConsumed||order.status==='cancelled'||order.componentOrderIds?.length)continue;
+  const item=s.menu.find(m=>m.id===order.menuId);
+  if(!item)continue;
+  for(const [id,quantity] of Object.entries(recipeFor(s,item,order.sweetness))){
+   reserved[id]=(reserved[id]??0)+quantity;
+  }
+ }
+ return reserved;
+}
+function stockAvailable(s:GameState,m:MenuItem,sweetness=100){
+ const reserved=reservedStock(s);
+ return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>
+  (s.inventory.find(i=>i.id===id)?.quantity??0)-(reserved[id]??0)+1e-9>=q);
+}
 function progressBundles(s:GameState){for(const root of s.orders.filter(o=>o.componentOrderIds?.length)){
  const children=root.componentOrderIds!.map(id=>s.orders.find(o=>o.id===id)).filter((o):o is Order=>!!o);
  root.cost=round(children.reduce((n,o)=>n+o.cost,0));root.stockConsumed=children.some(o=>o.stockConsumed);
@@ -175,7 +192,7 @@ function progressBundles(s:GameState){for(const root of s.orders.filter(o=>o.com
  }}
 function consume(s: GameState, o: Order, m: MenuItem) {
   if (o.stockConsumed) return true;
-  if (!stockAvailable(s, m, o.sweetness)) {
+  // This accepted order already owns its reservation; check physical stock here.\n  if (!Object.entries(recipeFor(s,m,o.sweetness)).every(([id,q]) => (s.inventory.find(i=>i.id===id)?.quantity??0)+1e-9>=q)) {
     for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (!i || i.quantity + 1e-9 < q) { const label = i?.name ?? id; if (!s.shortages.includes(label)) { s.shortages.push(label); notice(s, `${label}ไม่พอ · เติมสต็อกหรือพักขายเมนู`); } } }
     return false;
   }
