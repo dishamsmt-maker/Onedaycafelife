@@ -146,7 +146,7 @@ export function placeCustomerOrder(s:GameState,c:Customer,menuId:string,sweetnes
  const m=s.menu.find(m=>m.id===menuId);
  // Validate the full bundle before creating any order rows. A rejected order
  // must not leave orphan production jobs or a sale that cannot be fulfilled.
- if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,sweetness))return null;
+ if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailableForNewOrder(s,m,sweetness))return null;
  if(m.components?.some(part=>!Number.isInteger(part.quantity)||part.quantity<=0||!s.menu.some(item=>item.id===part.menuId)))return null;
  const add=(item:MenuItem,parentOrderId?:string):Order=>{const o:Order={id:uid(s,'order'),customerId:c.id,tableId:c.tableId,menuId:item.id,status:'waiting',createdAt:s.minute,cost:0,price:parentOrderId?0:item.price,stockConsumed:false,paid:false,parentOrderId,sweetness};s.orders.push(o);c.orderIds.push(o.id);return o;};
  const root=add(m);
@@ -164,6 +164,21 @@ export function menuRecipe(s:GameState,m:MenuItem):Record<string,number>{
 }
 function recipeFor(s:GameState,m:MenuItem,sweetness=100){const recipe=menuRecipe(s,m);if(m.kind==='drink'&&recipe.sugar)recipe.sugar*=clamp(sweetness,0,100)/100;return recipe;}
 function stockAvailable(s:GameState,m:MenuItem,sweetness=100){return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>(s.inventory.find(i=>i.id===id)?.quantity??0)+1e-9>=q);}
+/** Reserve ingredients for accepted, not-yet-prepared tickets.
+ * Bundle parents are excluded because their child tickets own production stock.
+ * The physical inventory remains unchanged until the cook actually consumes it.
+ */
+export function stockAvailableForNewOrder(s:GameState,m:MenuItem,sweetness=100){
+ const reserved:Record<string,number>={};
+ for(const o of s.orders){
+  if(o.stockConsumed||o.status==='cancelled'||o.componentOrderIds?.length)continue;
+  const item=s.menu.find(item=>item.id===o.menuId);
+  if(!item)continue;
+  for(const [id,q] of Object.entries(recipeFor(s,item,o.sweetness??100)))reserved[id]=(reserved[id]??0)+q;
+ }
+ return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>(s.inventory.find(i=>i.id===id)?.quantity??0)-(reserved[id]??0)+1e-9>=q);
+}
+
 function progressBundles(s:GameState){for(const root of s.orders.filter(o=>o.componentOrderIds?.length)){
  const children=root.componentOrderIds!.map(id=>s.orders.find(o=>o.id===id)).filter((o):o is Order=>!!o);
  root.cost=round(children.reduce((n,o)=>n+o.cost,0));root.stockConsumed=children.some(o=>o.stockConsumed);
@@ -613,7 +628,7 @@ export function act(state: GameState, action: GameAction): GameState {
       if(current?.orderChannel&&current.orderChannel!==action.channel)break;
       if(action.channel==='counter'&&current?.tableId)break;
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailableForNewOrder(s,m))break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       const c=ensurePlayer(s);
       // Only consume the idempotency key after an order was actually created.
@@ -644,7 +659,7 @@ export function act(state: GameState, action: GameAction): GameState {
     }
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailableForNewOrder(s,m))break;
       // A dine-in order must have a valid delivery destination before a
       // production job is created. Do not strand orders when all tables are full.
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
