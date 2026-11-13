@@ -128,7 +128,9 @@ function arrive(s: GameState, count: number, eventId?: string) {
   }
 }
 function chooseMenu(s: GameState, c: Customer): MenuItem[] {
-  const available = s.menu.filter(m => menuAvailable(m,s.minute) && stockAvailable(s,m));
+  // NPCs must use the same reservable stock as QR customers. Checking only
+  // physical inventory offers ingredients already promised to pending tickets.
+  const available = s.menu.filter(m => menuAvailable(m,s.minute) && stockAvailableForNewOrder(s,m,c.sweetness??100));
   const foods = available.filter(m => m.kind === 'food' && m.price <= c.budget);
   const drinks = available.filter(m => m.kind === 'drink' && m.price <= c.budget);
   const preferred = drinks.filter(m => c.preference === 'coffee' ? ['espresso', 'americano', 'latte', 'cappuccino'].includes(m.id) : c.preference === 'tea' ? ['thai-tea', 'green-tea'].includes(m.id) : true);
