@@ -481,9 +481,14 @@ function progressCustomers(s: GameState, dt: number) {
     if(delayed&&c.askedAt===undefined&&c.status!=='leaving'){c.askedAt=s.minute;notice(s,`${c.name} เรียกพนักงาน: อาหารเสร็จหรือยัง? รอเกิน 10 นาทีแล้ว`);}
     if(c.player && c.status!=='leaving'){
       const orders=s.orders.filter(o=>c.orderIds.includes(o.id));
-      const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
-      c.status=orders.length&&resolved?'eating':'waiting';
-      if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,true);
+      const resolved=orders.length>0&&orders.every(o=>['completed','cancelled'].includes(o.status));
+      const anyServed=orders.some(o=>o.status==='completed');
+      // Never mark a customer as eating when every item was cancelled.
+      // Keep an orderless player at their current seat instead of fabricating a wait.
+      if(resolved&&anyServed)c.status='eating';
+      else if(orders.length)c.status='waiting';
+      if(resolved&&!anyServed)leave(s,c,false);
+      else if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,anyServed);
       continue;
     }
     if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
