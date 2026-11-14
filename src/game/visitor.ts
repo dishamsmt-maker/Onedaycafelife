@@ -83,11 +83,30 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   setTimeout(()=>set({action:'idle'}),2200);return true;
  },
  pay:()=>{
-  const game=useGame.getState().game,c=playerCustomer();if(!c){set({message:'ยังไม่มีบิลที่ต้องชำระ'});return false;}
+  const game=useGame.getState().game,c=playerCustomer();
+  if(!c){set({message:'ยังไม่มีบิลที่ต้องชำระ'});return false;}
   const orders=game.orders.filter(o=>o.customerId===c.id);
-  if(orders.some(o=>!['completed','cancelled'].includes(o.status))){set({message:'รอให้เสิร์ฟครบก่อนชำระเงิน'});return false;}
-  const total=orders.filter(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid).reduce((a,o)=>a+o.price,0);
-  if(total<=0){set({message:'ไม่มีรายการที่เสิร์ฟแล้วและยังค้างชำระ'});return false;}const before=game.ledger.filter(t=>t.orderId&&['food-sale','drink-sale'].includes(t.type)).length;useGame.getState().dispatch({type:'visitor-pay'});const updated=useGame.getState().game;const paid=updated.ledger.filter(t=>t.orderId&&['food-sale','drink-sale'].includes(t.type)).length>before && updated.orders.filter(o=>o.customerId===c.id&&!o.parentOrderId&&o.status==='completed').every(o=>o.paid);if(!paid){set({message:'POS ยังไม่ยืนยันการชำระ · โปรดลองใหม่'});return false;}get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ HUA CHAO`});return true;
+  if(!orders.length){set({message:'ยังไม่มีรายการอาหารในบิล'});return false;}
+  if(orders.some(o=>!['completed','cancelled'].includes(o.status))){set({message:'รอให้เสิร์ฟหรือรับสินค้าครบก่อนปิดบิล'});return false;}
+  const roots=orders.filter(o=>!o.parentOrderId&&o.status==='completed');
+  if(!roots.length){set({message:'ไม่มีรายการที่ต้องชำระ'});return false;}
+  const unpaid=roots.filter(o=>!o.paid);
+  if(c.orderChannel==='counter'&&unpaid.length){set({message:'กรุณาชำระรายการซื้อกลับที่เคาน์เตอร์ก่อนรับสินค้า'});return false;}
+  const total=unpaid.reduce((sum,o)=>sum+o.price,0);
+  if(c.orderChannel!=='counter'&&total<=0){set({message:'ไม่มีรายการค้างชำระ'});return false;}
+  // Checkout must be confirmed against this customer's orders, not a global
+  // ledger count: another customer's payment must never produce a false success.
+  useGame.getState().dispatch({type:'visitor-pay'});
+  const updated=useGame.getState().game;
+  const settled=roots.every(o=>{
+    const current=updated.orders.find(row=>row.id===o.id);
+    return current?.paid&&updated.ledger.some(tx=>tx.orderId===o.id&&['food-sale','drink-sale'].includes(tx.type));
+  });
+  const departed=updated.customers.find(row=>row.id===c.id)?.status==='leaving';
+  if(!settled||!departed){set({message:'POS ยังไม่ยืนยันการปิดบิล · โปรดลองใหม่'});return false;}
+  get().stand();
+  set({message:c.orderChannel==='counter'?'รับสินค้าซื้อกลับครบแล้ว · ขอบคุณที่แวะ HUA CHAO':`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ HUA CHAO`});
+  return true;
  },
 }));
 // Releasing the staff role is intentional on reload; no employee stays frozen from an old browser session.
