@@ -626,7 +626,7 @@ function playerSeat(s:GameState,tableId:string){
  if(current?.orderChannel==='counter')return;
  // Keep an active dine-in ticket tied to its original table until service ends.
  // Otherwise a QR order can silently move while Ken is already delivering it.
- if(current?.tableId&&current.tableId!==tableId&&s.orders.some(o=>o.customerId===current.id&&!['completed','cancelled'].includes(o.status)))return;
+ if(current?.tableId&&current.tableId!==tableId&&s.orders.some(o=>o.customerId===current.id&&o.status!=='cancelled'&&(!o.paid||o.status!=='completed')))return;
  if(!table||table.dirty||(table.customerIds.length>=table.capacity&&!table.customerIds.includes(current?.id??'')))return;
  const c=ensurePlayer(s);for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
  table.customerIds.push(c.id);c.tableId=table.id;c.position=seatPosition(s,c);c.path=[];
@@ -694,7 +694,13 @@ export function act(state: GameState, action: GameAction): GameState {
       if(order){c.orderChannel='table-qr';c.status='waiting';}
       break;
     }
-    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c&&s.orders.filter(o=>o.customerId===c.id).every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);break;}
+    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
+      const orders=s.orders.filter(o=>o.customerId===c.id);
+      // A POS payment requires at least one served, unsettled root ticket.
+      // An empty or wholly cancelled cart must never count as a sale or paid visit.
+      if(!orders.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;
+      if(orders.some(o=>!['completed','cancelled'].includes(o.status)))break;
+      leave(s,c,true);break;}
     case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
       // Leaving must not silently act as a POS payment button. Require explicit
       // settlement for served dine-in tickets, while allowing a no-sale exit.
