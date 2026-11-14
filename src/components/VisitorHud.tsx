@@ -14,7 +14,7 @@ export default function VisitorHud({state,onMenu,onNotice}:{state:GameState;onMe
  const takeaway=customer?.orderChannel==='counter';
  // Live KDS and dispatch board read the same game state as the 3D workers.
  const staffTickets=state.orders.filter(o=>!o.componentOrderIds?.length&&o.status!=='cancelled'&&o.status!=='completed'&&state.customers.some(c=>c.id===o.customerId));
- const staffVisible=staffTickets.filter(o=>v.role==='na'?state.menu.find(m=>m.id===o.menuId)?.kind==='food':v.role==='ken'||v.role==='pun'?['ready','serving'].includes(o.status):true);
+ const staffVisible=staffTickets.filter(o=>v.role==='na'?(state.menu.find(m=>m.id===o.menuId)?.kind==='food'||(state.menu.find(m=>m.id===o.menuId)?.kind==='drink'&&o.workerId==='na')):v.role==='ken'||v.role==='pun'?['ready','serving'].includes(o.status):true);
  const ticketTable=(id:string|null)=>{const index=state.tables.findIndex(t=>t.id===id);return index>=0?`T${index+1}`:'ซื้อกลับ';};
  const run=(fn:()=>unknown)=>{fn();onNotice(useVisitor.getState().message)};
  return <><div className="visitor-role"><button onClick={()=>setRoles(!roles)} aria-label="เลือกตัวละคร"><Users size={14}/>{v.role==='customer'?'ลูกค้า':state.employees.find(e=>e.id===v.role)?.name} ⌄</button>{roles&&<div className="role-list">{(['customer','ham','na','alee','ken','pun'] as const).map(id=><button key={id} onClick={()=>{run(()=>v.setRole(id));setRoles(false)}}>{id==='customer'?'ลูกค้า':state.employees.find(e=>e.id===id)?.name}</button>)}</div>}</div>
