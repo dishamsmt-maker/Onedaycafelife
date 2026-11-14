@@ -288,12 +288,16 @@ function progressEmployees(s: GameState, dt: number) {
   }
 }
 function scheduleStaff(s: GameState) {
+  // Following Na or the active server in V2 must not disable dispatching new
+  // kitchen/delivery jobs. Manual movement is allowed only while idle;
+  // assigned tasks continue through progressEmployees regardless of control.
+
   const server = activeServer(s);
   const serving = s.employees.find(e => e.id === server)!;
   const off = s.employees.find(e => (e.id === 'ken' || e.id === 'pun') && e.id !== server)!;
   if (!off.controlled && (!off.task||off.task.kind==='station')) setTask(off, 'rest', REST, 999999);
-  if (!serving.controlled && serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
-  if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
+  if (serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
+  if (!serving.task||serving.task.kind==='station') {
     // Only assign a delivery if the customer can be reached from pickup.
     // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
     const ready = s.orders.find(o => {
@@ -316,7 +320,7 @@ function scheduleStaff(s: GameState) {
   }
   const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
-  if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
+  if (food && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
