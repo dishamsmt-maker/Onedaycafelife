@@ -276,7 +276,15 @@ function progressEmployees(s: GameState, dt: number) {
           e.task = null; e.available = true; continue;
         }
         const c = s.customers.find(c => c.id === t.customerId);
-        if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
+        if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') {
+          // A guest may leave while the waiter walks to pickup. Release the
+          // assigned order instead of leaving it permanently stuck in ready.
+          if (o && o.status !== 'cancelled') {
+            o.status = c && c.status !== 'leaving' ? 'ready' : 'cancelled';
+            o.workerId = undefined;
+          }
+          e.task = null; e.available = true; continue;
+        }
         const destination = customerTarget(s, c);
         const route = findPath(e.position, destination);
         const endpoint = route[route.length - 1] ?? e.position;
