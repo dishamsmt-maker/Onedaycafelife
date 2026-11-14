@@ -582,9 +582,20 @@ export function act(state: GameState, action: GameAction): GameState {
       const e=s.employees.find(e=>e.id===action.id);if(!e)break;
       // Keep an in-flight kitchen or delivery task alive when the player switches roles.
       // It must finish through the normal walking/production/delivery pipeline.
-      e.controlled=true;e.available=false;break;
+      // Selecting a worker is an observation mode first: keep their automatic
+      // kitchen/delivery pipeline running until the player actually moves them.
+      e.controlled=false;break;
     }
-    case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18))e.position=[...action.position];break;}
+    case 'control-move':{
+      const e=s.employees.find(e=>e.id===action.id);
+      if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18)){
+        // Never teleport an in-flight cook/waiter away from an active task.
+        // Manual movement is enabled once the task has completed.
+        if(e.task&&e.task.kind!=='station'&&e.task.kind!=='rest')break;
+        e.controlled=true;e.available=false;e.task=null;e.position=[...action.position];
+      }
+      break;
+    }
 
     case 'pause': s.paused = !s.paused; break;
     case 'speed': if ([1, 2, 5].includes(action.value)) s.speed = action.value; break;
