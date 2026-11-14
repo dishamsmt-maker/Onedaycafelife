@@ -258,6 +258,12 @@ function progressEmployees(s: GameState, dt: number) {
         }
       }
       if ((t.kind === 'cook' || t.kind === 'brew') && o) {
+        // Never consume stock or start a production timer from an unreachable
+        // fridge/kitchen/bar. A partial route must release the order for retry.
+        if (Math.hypot(e.position[0] - t.target[0], e.position[1] - t.target[1]) > .4) {
+          if (o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; }
+          e.task = null; e.available = true; continue;
+        }
         const menu = s.menu.find(m => m.id === o.menuId)!;
         if (o.status === 'cancelled' || !consume(s, o, menu)) { if (o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; } e.task = null; continue; }
         o.status = 'preparing';
@@ -291,6 +297,10 @@ function progressEmployees(s: GameState, dt: number) {
       const o=s.orders.find(o=>o.id===t.orderId),m=s.menu.find(m=>m.id===o?.menuId);
       if(!o||!m||o.status==='cancelled'){e.task=null;continue;}
       t.productionStep='prepare';t.target=[...(t.kind==='brew'?STATIONS.bar:STATIONS.kitchen)];t.path=findPath(e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
+      // If no valid route to the production station exists, do not enter
+      // preparing or consume ingredients on the next simulation tick.
+      const end=t.path[t.path.length-1]??e.position;
+      if(Math.hypot(end[0]-t.target[0],end[1]-t.target[1])>.4){o.status='waiting';o.workerId=undefined;e.task=null;e.available=true;}
     }else if (t.remaining <= 0) finishTask(s, e);
   }
 }
