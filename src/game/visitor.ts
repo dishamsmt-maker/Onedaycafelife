@@ -41,6 +41,8 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  sit:tableId=>{
   if(get().role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนเลือกที่นั่ง'});return false;}
   if(playerCustomer()?.orderChannel==='counter'){set({message:'รับรายการซื้อกลับให้ครบก่อนเริ่มบิลนั่งร้าน'});return false;}
+  const current=playerCustomer();
+  if(current?.tableId && current.tableId!==tableId && useGame.getState().game.orders.some(o=>o.customerId===current.id&&o.status!=='cancelled'&&(!o.paid||o.status!=='completed'))){set({message:'มีออร์เดอร์ค้างที่โต๊ะเดิม · รอเสิร์ฟและชำระให้ครบก่อนย้ายโต๊ะ'});return false;}
   const game=useGame.getState().game,t=game.tables.find(t=>t.id===tableId),existing=playerCustomer();
   if(!t||t.dirty||(t.customerIds.length>=t.capacity&&!t.customerIds.includes(existing?.id??''))){set({message:'โต๊ะนี้ยังไม่พร้อมรับลูกค้า'});return false;}
   if(Math.hypot(-touchControls.position.x-t.position[0],touchControls.position.z-t.position[1])>1.7){set({message:'เดินเข้าใกล้โต๊ะก่อนนั่ง'});return false;}
