@@ -263,6 +263,12 @@ function progressEmployees(s: GameState, dt: number) {
         o.status = 'preparing';
       }
       if (t.kind === 'serve' && t.stage === 'pickup') {
+        // Never pick up food remotely when a blocked or incomplete route ends
+        // before the pickup counter. Release the order for a later safe retry.
+        if (Math.hypot(e.position[0] - STATIONS.pickup[0], e.position[1] - STATIONS.pickup[1]) > .4) {
+          if (o && o.status !== 'cancelled') { o.status = 'ready'; o.workerId = undefined; }
+          e.task = null; e.available = true; continue;
+        }
         const c = s.customers.find(c => c.id === t.customerId);
         if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
         const destination = customerTarget(s, c);
@@ -302,6 +308,9 @@ function scheduleStaff(s: GameState) {
     // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
     const ready = s.orders.find(o => {
       if (o.componentOrderIds?.length || o.status !== 'ready' || o.workerId) return false;
+      const pickupPath = findPath(serving.position, STATIONS.pickup);
+      const pickupEnd = pickupPath[pickupPath.length - 1];
+      if (!pickupEnd || Math.hypot(pickupEnd[0] - STATIONS.pickup[0], pickupEnd[1] - STATIONS.pickup[1]) > .4) return false;
       const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
       if (!customer) return false;
       const destination = customerTarget(s, customer);
