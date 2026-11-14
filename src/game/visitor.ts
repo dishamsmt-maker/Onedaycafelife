@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useGame } from './store';
-import { menuAvailable, menuRecipe } from './engine';
+import { menuAvailable, stockAvailableForNewOrder } from './engine';
 import { touchControls } from './touchControls';
 import type { StaffId,Vec2 } from './types';
 
@@ -41,7 +41,8 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;
  },
  setRole:role=>{
-  get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
+  get().stand();if(get().tableId){set({message:'กรุณาชำระเงินและรับอาหารให้ครบก่อนสลับโหมด'});return;}
+  useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
   if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
   else {const e=useGame.getState().game.employees.find(e=>e.id===role)!;moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);}
   set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ควบคุม ${role.toUpperCase()} · งานอัตโนมัติของคนนี้พักชั่วคราว`});
@@ -53,7 +54,10 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   if(!t||t.dirty||(t.customerIds.length>=t.capacity&&!t.customerIds.includes(existing?.id??''))){set({message:'โต๊ะนี้ยังไม่พร้อมรับลูกค้า'});return false;}
   if(Math.hypot(-touchControls.position.x-t.position[0],touchControls.position.z-t.position[1])>1.7){set({message:'เดินเข้าใกล้โต๊ะก่อนนั่ง'});return false;}
   const back:Vec2=[touchControls.position.x,touchControls.position.z];
-  useGame.getState().dispatch({type:'visitor-seat',tableId});const c=playerCustomer();if(!c?.tableId)return false;
+  useGame.getState().dispatch({type:'visitor-seat',tableId});const c=playerCustomer();
+  // The engine can reject a seat change while an active QR ticket is assigned.
+  // Never move the FPV camera or update the local QR table unless the engine accepted this exact table.
+  if(c?.tableId!==tableId){set({message:'ยังเปลี่ยนโต๊ะไม่ได้ระหว่างมีออร์เดอร์ค้าง กรุณารอเสิร์ฟหรือยกเลิกรายการก่อน'});return false;}
   // Actual NPC seat allocation chooses a free chair. Rendered world is X mirrored.
   const x=-c.position[0],z=c.position[1],targetX=-t.position[0];
   moveCamera(x,z,1.12,Math.atan2(-(targetX-x),-(t.position[1]-z)));
@@ -62,6 +66,11 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  },
  stand:()=>{
   const state=get();if(!state.tableId)return;
+  const before=playerCustomer();
+  if(before?.tableId){
+    useGame.getState().dispatch({type:'visitor-stand'});
+    if(playerCustomer()?.tableId){set({message:'ยังลุกจากโต๊ะไม่ได้ · กรุณารอเสิร์ฟและชำระบิลก่อน'});return;}
+  }
   const p=state.returnPosition??[.5,6.0];
   moveCamera(p[0],p[1]);set({tableId:null,scannedTableId:null,returnPosition:null,action:'idle',message:'ลุกจากโต๊ะแล้ว'});
  },
@@ -72,9 +81,15 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   if(state.tableId&&state.scannedTableId!==state.tableId){set({message:'แตะ QR บนโต๊ะก่อนสั่งอาหาร'});return false;}
   if(!state.tableId&&!atCounter){set({message:'สั่งที่เคาน์เตอร์ หรือเลือกนั่งโต๊ะก่อน'});return false;}
   if(!m||!menuAvailable(m,game.minute)||game.phase!=='open'){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}
-  if(Object.entries(menuRecipe(game,m)).some(([id,q])=>(game.inventory.find(i=>i.id===id)?.quantity??0)<q)){set({message:'วัตถุดิบเมนูนี้หมดแล้ว'});return false;}
-  const previous=game.orders.length;useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId:crypto.randomUUID()});
-  if(useGame.getState().game.orders.length===previous){set({message:'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});return false;}
+  if(!stockAvailableForNewOrder(game,m)){set({message:'วัตถุดิบคงเหลือไม่พอสำหรับออร์เดอร์ใหม่ (มีรายการก่อนหน้ารอผลิตอยู่)'});return false;}
+  // The FPV seat/QR cache is not authoritative: reject stale table state before creating a kitchen ticket.
+  const customer=playerCustomer();
+  if(state.tableId&&customer?.tableId!==state.tableId){set({message:'สถานะโต๊ะไม่ตรงกับระบบ กรุณานั่งและสแกน QR อีกครั้ง'});return false;}
+  const requestId=crypto.randomUUID();
+  useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId});
+  // Confirm the engine accepted THIS request, not merely that another order appeared.
+  const accepted=playerCustomer()?.requestIds?.includes(requestId);
+  if(!accepted){set({message:'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});return false;}
   const c=playerCustomer(),t=useGame.getState().game.tables.find(t=>t.id===c?.tableId);
   set({message:`รับออร์เดอร์${m.name}แล้ว${t?` · เสิร์ฟที่${t.name}`:' · รับที่เคาน์เตอร์'}`});return true;
  },
@@ -98,7 +113,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   useGame.getState().dispatch({type:'visitor-pay'});
   const after=useGame.getState().game;
   if(pending.some(o=>!after.orders.find(next=>next.id===o.id)?.paid)){set({message:'ยังยืนยันการชำระเงินไม่ได้ กรุณาตรวจสอบสถานะบิล'});return false;}
-  get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ ONE DAY`});return true;
+  get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ HUA CHAO`});return true;
  },
 }));
 // Releasing the staff role is intentional on reload; no employee stays frozen from an old browser session.

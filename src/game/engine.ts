@@ -30,7 +30,7 @@ export function activeServer(s: GameState): 'ken' | 'pun' { return s.serverOverr
 function scheduleEvents(s: GameState) {
   const size = 8 + Math.floor(random(s) * 9);
   const minute = (s.day % 2 ? 8 * 60 : 17 * 60) + Math.floor(random(s) * 50);
-  s.events = [{ id: uid(s, 'rush'), day: s.day, minute, label: s.day % 3 === 0 ? 'กรุ๊ปนักเดินทางแวะพัก' : pick(s, ['ลูกค้า ตรอ. และคนซื้อกลับมาพร้อมกัน', 'ชุมชนนัดกินข้าวที่ ONE DAY', 'เพื่อนชวนกันมาแวะร้าน']), size, announced: random(s) < .7, triggered: false }];
+  s.events = [{ id: uid(s, 'rush'), day: s.day, minute, label: s.day % 3 === 0 ? 'กรุ๊ปนักเดินทางแวะพัก' : pick(s, ['ลูกค้า ตรอ. และคนซื้อกลับมาพร้อมกัน', 'ชุมชนนัดกินข้าวที่ HUA CHAO', 'เพื่อนชวนกันมาแวะร้าน']), size, announced: random(s) < .7, triggered: false }];
   if (s.day % 3 === 0) s.events[0].size = 12 + Math.floor(random(s) * 14);
 }
 export function createGame(seed = DEFAULT_SETTINGS.seed): GameState {
@@ -41,7 +41,7 @@ export function createGame(seed = DEFAULT_SETTINGS.seed): GameState {
     garden: { moisture: 65, cleanliness: 95, lastInspection: -1, inspections: 0 }, baristaMode: 'auto', serverOverride: 'auto', notices: [],
     todayArrivals: 0, todayWaits: [], todaySatisfaction: [], openingCash: DEFAULT_SETTINGS.openingCash, settings: { ...DEFAULT_SETTINGS, seed }, shortages: [] };
   scheduleEvents(s);
-  notice(s, 'ยินดีต้อนรับสู่ ONE DAY · กดเริ่มเพื่อเตรียมเปิดร้าน 06:30');
+  notice(s, 'ยินดีต้อนรับสู่ HUA CHAO · กดเริ่มเพื่อเตรียมเปิดร้าน 06:30');
   return s;
 }
 
@@ -113,7 +113,7 @@ function arrive(s: GameState, count: number, eventId?: string) {
   for (let i = 0; i < Math.min(count, remaining); i++) {
     const takeaway = random(s) < (s.minute < 630 ? .48 : .35);
     const reason = eventId ? pick(s, ['แวะพร้อมเพื่อนที่นัดกันไว้', 'ขับผ่านมาเห็นคนแวะ เลยลองเข้าร้าน', 'รอคิวตรวจรถ ตรอ. จึงแวะร้าน', 'มาซื้อเครื่องดื่มช่วงเดียวกับลูกค้าหลายคน'])
-      : s.minute < 630 ? pick(s, ['อยากกินอาหารเช้าก่อนไปทำงาน', 'รอตรวจรถ ตรอ. ข้างร้าน', 'ขับรถผ่าน เห็นป้าย ONE DAY', 'คนในชุมชนออกมาซื้ออาหารให้ที่บ้าน', 'แวะซื้อเครื่องดื่มก่อนเริ่มงาน'])
+      : s.minute < 630 ? pick(s, ['อยากกินอาหารเช้าก่อนไปทำงาน', 'รอตรวจรถ ตรอ. ข้างร้าน', 'ขับรถผ่าน เห็นป้าย HUA CHAO', 'คนในชุมชนออกมาซื้ออาหารให้ที่บ้าน', 'แวะซื้อเครื่องดื่มก่อนเริ่มงาน'])
       : s.minute >= 1020 ? pick(s, ['นัดเพื่อนมานั่งคุยตอนเย็น', 'อยากดื่มชากับของกินเล่น', 'แวะซื้อเครื่องดื่มกลับบ้าน', 'พักจากการเดินทางช่วงค่ำ'])
       : pick(s, ['พักเที่ยงจากที่ทำงานใกล้ร้าน', 'ขับรถผ่านแล้วอยากพักดื่มกาแฟ', 'คนในชุมชนแวะซื้อกลับบ้าน', 'เพื่อนแนะนำให้มาลองร้านนี้']);
     const { guest, referrer, returning: isReturn } = arrivingGuest(s);
@@ -128,7 +128,9 @@ function arrive(s: GameState, count: number, eventId?: string) {
   }
 }
 function chooseMenu(s: GameState, c: Customer): MenuItem[] {
-  const available = s.menu.filter(m => menuAvailable(m,s.minute) && stockAvailable(s,m));
+  // NPCs must use the same reservable stock as QR customers. Checking only
+  // physical inventory offers ingredients already promised to pending tickets.
+  const available = s.menu.filter(m => menuAvailable(m,s.minute) && stockAvailableForNewOrder(s,m,c.sweetness??100));
   const foods = available.filter(m => m.kind === 'food' && m.price <= c.budget);
   const drinks = available.filter(m => m.kind === 'drink' && m.price <= c.budget);
   const preferred = drinks.filter(m => c.preference === 'coffee' ? ['espresso', 'americano', 'latte', 'cappuccino'].includes(m.id) : c.preference === 'tea' ? ['thai-tea', 'green-tea'].includes(m.id) : true);
@@ -146,7 +148,7 @@ export function placeCustomerOrder(s:GameState,c:Customer,menuId:string,sweetnes
  const m=s.menu.find(m=>m.id===menuId);
  // Validate the full bundle before creating any order rows. A rejected order
  // must not leave orphan production jobs or a sale that cannot be fulfilled.
- if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,sweetness))return null;
+ if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailableForNewOrder(s,m,sweetness))return null;
  if(m.components?.some(part=>!Number.isInteger(part.quantity)||part.quantity<=0||!s.menu.some(item=>item.id===part.menuId)))return null;
  const add=(item:MenuItem,parentOrderId?:string):Order=>{const o:Order={id:uid(s,'order'),customerId:c.id,tableId:c.tableId,menuId:item.id,status:'waiting',createdAt:s.minute,cost:0,price:parentOrderId?0:item.price,stockConsumed:false,paid:false,parentOrderId,sweetness};s.orders.push(o);c.orderIds.push(o.id);return o;};
  const root=add(m);
@@ -164,6 +166,21 @@ export function menuRecipe(s:GameState,m:MenuItem):Record<string,number>{
 }
 function recipeFor(s:GameState,m:MenuItem,sweetness=100){const recipe=menuRecipe(s,m);if(m.kind==='drink'&&recipe.sugar)recipe.sugar*=clamp(sweetness,0,100)/100;return recipe;}
 function stockAvailable(s:GameState,m:MenuItem,sweetness=100){return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>(s.inventory.find(i=>i.id===id)?.quantity??0)+1e-9>=q);}
+/** Reserve ingredients for accepted, not-yet-prepared tickets.
+ * Bundle parents are excluded because their child tickets own production stock.
+ * The physical inventory remains unchanged until the cook actually consumes it.
+ */
+export function stockAvailableForNewOrder(s:GameState,m:MenuItem,sweetness=100){
+ const reserved:Record<string,number>={};
+ for(const o of s.orders){
+  if(o.stockConsumed||o.status==='cancelled'||o.componentOrderIds?.length)continue;
+  const item=s.menu.find(item=>item.id===o.menuId);
+  if(!item)continue;
+  for(const [id,q] of Object.entries(recipeFor(s,item,o.sweetness??100)))reserved[id]=(reserved[id]??0)+q;
+ }
+ return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>(s.inventory.find(i=>i.id===id)?.quantity??0)-(reserved[id]??0)+1e-9>=q);
+}
+
 function progressBundles(s:GameState){for(const root of s.orders.filter(o=>o.componentOrderIds?.length)){
  const children=root.componentOrderIds!.map(id=>s.orders.find(o=>o.id===id)).filter((o):o is Order=>!!o);
  root.cost=round(children.reduce((n,o)=>n+o.cost,0));root.stockConsumed=children.some(o=>o.stockConsumed);
@@ -186,7 +203,7 @@ function consume(s: GameState, o: Order, m: MenuItem) {
 function customerTarget(s: GameState, c: Customer): Vec2 { const table=s.tables.find(t=>t.id===c.tableId);return table?[table.position[0],table.position[1]-.9]:seatPosition(s,c); }
 function finishTask(s: GameState, e: Employee) {
   const t = e.task!;
-  if(t.maintenance==='sign'){s.signMounted=signWanted(s);notice(s,s.signMounted?'Alee ติดป้าย ONE DAY แล้ว':'Alee ถอดป้าย ONE DAY แล้ว');}
+  if(t.maintenance==='sign'){s.signMounted=signWanted(s);notice(s,s.signMounted?'Alee ติดป้าย HUA CHAO แล้ว':'Alee ถอดป้าย HUA CHAO แล้ว');}
   if(t.maintenance==='water'){s.wateredCount=(t.stopIndex??0)+1;s.garden.moisture=Math.min(100,s.garden.moisture+3);}
   if(t.maintenance==='question'){const c=s.customers.find(c=>c.id===t.customerId);if(c){c.answeredAt=s.minute;notice(s,`${c.name} · พนักงานตรวจคิวและแจ้งความคืบหน้าแล้ว`);}}
   if (t.kind === 'cook' || t.kind === 'brew') {
@@ -257,6 +274,21 @@ function progressEmployees(s: GameState, dt: number) {
           e.task = null; e.available = true; continue;
         }
       }
+      // Guest service and table cleaning must not complete across blocked geometry.
+      // Requeue the task rather than accepting a missing path as arrival.
+      if (((t.kind === 'serve' && t.stage === 'take-order') ||
+           (t.kind === 'serve' && t.maintenance === 'question') ||
+           t.kind === 'clean') &&
+          Math.hypot(e.position[0] - t.target[0], e.position[1] - t.target[1]) > .45) {
+        e.task = null; e.available = true; continue;
+      }
+      // A failed navigation route must not let Na or a barista collect stock or cook remotely.
+      // Retry the waiting order after a reachable route can be assigned.
+      if ((t.kind === 'cook' || t.kind === 'brew') &&
+          Math.hypot(e.position[0] - t.target[0], e.position[1] - t.target[1]) > .4) {
+        if (o && o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; }
+        e.task = null; e.available = true; continue;
+      }
       if ((t.kind === 'cook' || t.kind === 'brew') && o) {
         const menu = s.menu.find(m => m.id === o.menuId)!;
         if (o.status === 'cancelled' || !consume(s, o, menu)) { if (o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; } e.task = null; continue; }
@@ -270,7 +302,15 @@ function progressEmployees(s: GameState, dt: number) {
           e.task = null; e.available = true; continue;
         }
         const c = s.customers.find(c => c.id === t.customerId);
-        if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
+        if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') {
+          // A guest can leave while Ken walks to pickup. Release the ticket and
+          // reservation rather than leaving a ready order permanently owned by Ken.
+          if (o && o.status !== 'cancelled') {
+            o.status = 'cancelled';
+            o.workerId = undefined;
+          }
+          e.task = null; e.available = true; continue;
+        }
         const destination = customerTarget(s, c);
         const route = findPath(e.position, destination);
         // A zero-length route is valid only if the server is already at the guest.
@@ -290,9 +330,22 @@ function progressEmployees(s: GameState, dt: number) {
     if(t.remaining<=0&&t.productionStep==='collect'){
       const o=s.orders.find(o=>o.id===t.orderId),m=s.menu.find(m=>m.id===o?.menuId);
       if(!o||!m||o.status==='cancelled'){e.task=null;continue;}
-      t.productionStep='prepare';t.target=[...(t.kind==='brew'?STATIONS.bar:STATIONS.kitchen)];t.path=findPath(e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
+      const station = t.kind === 'brew' ? STATIONS.bar : STATIONS.kitchen;
+      // Do not strand a paid order in 'walking' when the second leg is blocked.
+      // The scheduler may retry once the staff member can reach the station.
+      if (!canReachStation(e.position, station)) {
+        o.status = 'waiting'; o.workerId = undefined;
+        e.task = null; e.available = true; continue;
+      }
+      t.productionStep='prepare';t.target=[...station];t.path=findPath(e.position,t.target);t.phase='walking';t.remaining=m.duration*s.settings.prepMultiplier;
     }else if (t.remaining <= 0) finishTask(s, e);
   }
+}
+// An empty route is reachable only when already standing at the destination.
+function canReachStation(from: Vec2, to: Vec2): boolean {
+  const route = findPath(from, to);
+  const end = route[route.length - 1] ?? from;
+  return Math.hypot(end[0] - to[0], end[1] - to[1]) <= .4;
 }
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
@@ -303,7 +356,10 @@ function scheduleStaff(s: GameState) {
   if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
     // Only assign a delivery if the customer can be reached from pickup.
     // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
-    const ready = s.orders.find(o => {
+    // Check both delivery legs before selecting a ticket. If the server cannot
+    // reach pickup, do not reserve a job that cannot be started.
+    const pickupReachable = canReachStation(serving.position, STATIONS.pickup);
+    const ready = pickupReachable ? s.orders.find(o => {
       if (o.componentOrderIds?.length || o.status !== 'ready' || o.workerId) return false;
       const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
       if (!customer) return false;
@@ -313,18 +369,20 @@ function scheduleStaff(s: GameState) {
       // Keep the reachability gate consistent with the pickup-to-delivery transition.
       const endpoint = route[route.length - 1] ?? STATIONS.pickup;
       return Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
-    });
-    const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
-    const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
-    const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
+    }) : undefined;
+    const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id) && canReachStation(serving.position, customerTarget(s, c)));
+    const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving'&&canReachStation(serving.position,customerTarget(s,c)));
+    const dirty = s.tables.find(t => t.dirty && !t.customerIds.length && canReachStation(serving.position,[t.position[0]+.9,t.position[1]]));
     if (ready) { ready.workerId = server; setTask(serving, 'serve', STATIONS.pickup, .35, { orderId: ready.id, customerId: ready.customerId, tableId: ready.tableId ?? undefined, stage: 'pickup' }); }
-    else if(question)setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
-    else if (waiting) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
-    else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
+    else if(question && canReachStation(serving.position,customerTarget(s,question)))setTask(serving,'serve',customerTarget(s,question),.5,{customerId:question.id,maintenance:'question'});
+    else if (waiting && canReachStation(serving.position,customerTarget(s,waiting))) setTask(serving, 'serve', customerTarget(s, waiting), .65, { customerId: waiting.id, tableId: waiting.tableId ?? undefined, stage: 'take-order' });
+    else if (dirty && canReachStation(serving.position,[dirty.position[0] + .9, dirty.position[1]])) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
     else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
   }
-  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
+  // Skip blocked orders rather than letting the oldest unreachable ticket starve the queue.
+  // Never mark an order as walking until its entire production route is reachable.
+  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!) && canReachStation(na.position, o.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (o.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen)));
   if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
@@ -332,13 +390,26 @@ function scheduleStaff(s: GameState) {
   const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
-    const order = drinks.find(o => stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
     const candidates = s.employees.filter(e => !e.controlled && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
     candidates.sort((a, b) => {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
       return score(a) - score(b);
     });
-    if (order && candidates.length) { const e = candidates[0], m = s.menu.find(m => m.id === order.menuId)!; order.status = 'walking'; order.workerId = e.id; setTask(e, 'brew', order.stockConsumed?STATIONS.bar:STATIONS.fridge, order.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: order.id, productionStep:order.stockConsumed?'prepare':'collect' }); }
+    // Match an actually reachable ticket and worker, not just the oldest ticket.
+    // A blocked drink must not starve every other ready-to-produce drink.
+    for (const order of drinks) {
+      const m = s.menu.find(item => item.id === order.menuId)!;
+      if (!stockAvailable(s, m)) continue;
+      const e = candidates.find(candidate =>
+        canReachStation(candidate.position, order.stockConsumed ? STATIONS.bar : STATIONS.fridge) &&
+        (order.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.bar)));
+      if (!e) continue;
+      order.status = 'walking'; order.workerId = e.id;
+      setTask(e, 'brew', order.stockConsumed ? STATIONS.bar : STATIONS.fridge,
+        order.stockConsumed ? m.duration * s.settings.prepMultiplier : .6,
+        { orderId: order.id, productionStep: order.stockConsumed ? 'prepare' : 'collect' });
+      break;
+    }
   }
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
@@ -410,9 +481,25 @@ function progressCustomers(s: GameState, dt: number) {
     if(delayed&&c.askedAt===undefined&&c.status!=='leaving'){c.askedAt=s.minute;notice(s,`${c.name} เรียกพนักงาน: อาหารเสร็จหรือยัง? รอเกิน 10 นาทีแล้ว`);}
     if(c.player && c.status!=='leaving'){
       const orders=s.orders.filter(o=>c.orderIds.includes(o.id));
-      const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
-      c.status=orders.length&&resolved?'eating':'waiting';
-      if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,true);
+      const resolved=orders.length>0&&orders.every(o=>['completed','cancelled'].includes(o.status));
+      const anyServed=orders.some(o=>o.status==='completed');
+      // Never mark a customer as eating when every item was cancelled.
+      // Keep an orderless player at their current seat instead of fabricating a wait.
+      if(resolved&&anyServed)c.status='eating';
+      else if(orders.length)c.status='waiting';
+      if(resolved&&!anyServed)leave(s,c,false);
+      else if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90)){
+        // Closing time must not act as POS: no implicit sale for served, unpaid tickets.
+        const unsettled=orders.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid);
+        if(unsettled&&s.minute<=CLOSE+90){
+          // Give the player time to use POS; never invent a sale at closing.
+          continue;
+        }
+        if(unsettled)notice(s,'หมดเวลาชำระเงิน · บันทึกรายการที่ค้างเป็นยอดไม่ได้รับชำระ ไม่เพิ่มยอดขาย');
+        // After the grace period, release the seat so day close cannot deadlock.
+        // leave(false) deliberately does not charge completed unpaid orders.
+        leave(s,c,false);
+      }
       continue;
     }
     if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
@@ -530,13 +617,16 @@ export const PLAYER_ID='visitor-player';
 function ensurePlayer(s:GameState):Customer {
  let c=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(c)return c;
- c={id:uid(s,PLAYER_ID),player:true,name:'คุณ',reason:'มานั่งพักที่ ONE DAY',preference:'breakfast',budget:10000,patience:10000,groupId:'visitor',takeaway:false,position:[-.35,1.4],path:[],status:'waiting',tableId:null,orderIds:[],arrivedAt:s.minute,seatedAt:s.minute,eatRemaining:99999,satisfaction:100,isReturn:false,sweetness:100};
+ c={id:uid(s,PLAYER_ID),player:true,name:'คุณ',reason:'มานั่งพักที่ HUA CHAO',preference:'breakfast',budget:10000,patience:10000,groupId:'visitor',takeaway:false,position:[-.35,1.4],path:[],status:'waiting',tableId:null,orderIds:[],arrivedAt:s.minute,seatedAt:s.minute,eatRemaining:99999,satisfaction:100,isReturn:false,sweetness:100};
  s.customers.push(c);s.todayArrivals++;return c;
 }
 function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled){e.controlled=false;e.available=true;}}
 function playerSeat(s:GameState,tableId:string){
  const table=s.tables.find(t=>t.id===tableId);const current=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(current?.orderChannel==='counter')return;
+ // Keep an active dine-in ticket tied to its original table until service ends.
+ // Otherwise a QR order can silently move while Ken is already delivering it.
+ if(current?.tableId&&current.tableId!==tableId&&s.orders.some(o=>o.customerId===current.id&&o.status!=='cancelled'&&(!o.paid||o.status!=='completed')))return;
  if(!table||table.dirty||(table.customerIds.length>=table.capacity&&!table.customerIds.includes(current?.id??'')))return;
  const c=ensurePlayer(s);for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
  table.customerIds.push(c.id);c.tableId=table.id;c.position=seatPosition(s,c);c.path=[];
@@ -556,7 +646,7 @@ export function act(state: GameState, action: GameAction): GameState {
       if(current?.orderChannel&&current.orderChannel!==action.channel)break;
       if(action.channel==='counter'&&current?.tableId)break;
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailableForNewOrder(s,m))break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       const c=ensurePlayer(s);
       // Only consume the idempotency key after an order was actually created.
@@ -576,16 +666,47 @@ export function act(state: GameState, action: GameAction): GameState {
     }
 
     case 'visitor-seat': playerSeat(s,action.tableId);break;
+    case 'visitor-stand': {
+      const c=s.customers.find(c=>c.player&&c.status!=='leaving');
+      if(!c?.tableId)break;
+      // Keep a table reserved until every dine-in ticket has been settled.
+      if(s.orders.some(o=>o.customerId===c.id&&o.status!=='cancelled'&&(!o.paid||o.status!=='completed')))break;
+      for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
+      c.tableId=null;c.orderChannel=undefined;c.path=[];c.position=[-.35,1.4];
+      c.status='waiting';break;
+    }
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
-      const c=ensurePlayer(s);if(c.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
-      placeCustomerOrder(s,c,m.id);c.status='waiting';
-      if(!c.tableId){const table=s.tables.find(t=>!t.dirty&&!t.customerIds.length);if(table)playerSeat(s,table.id);}
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailableForNewOrder(s,m))break;
+      // A dine-in order must have a valid delivery destination before a
+      // production job is created. Do not strand orders when all tables are full.
+      const current=s.customers.find(c=>c.player&&c.status!=='leaving');
+      if(current?.orderChannel==='counter')break;
+      if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
+      if(!current?.tableId){
+        const table=s.tables.find(t=>!t.dirty&&t.customerIds.length<t.capacity);
+        if(!table)break;
+        playerSeat(s,table.id);
+      }
+      const c=s.customers.find(c=>c.player&&c.status!=='leaving');
+      if(!c?.tableId)break;
+      const order=placeCustomerOrder(s,c,m.id);
+      if(order){c.orderChannel='table-qr';c.status='waiting';}
       break;
     }
-    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c&&s.orders.filter(o=>o.customerId===c.id).every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);break;}
-    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c)leave(s,c,true);break;}
+    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
+      const orders=s.orders.filter(o=>o.customerId===c.id);
+      // A POS payment requires at least one served, unsettled root ticket.
+      // An empty or wholly cancelled cart must never count as a sale or paid visit.
+      if(!orders.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;
+      if(orders.some(o=>!['completed','cancelled'].includes(o.status)))break;
+      leave(s,c,true);break;}
+    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
+      // Leaving must not silently act as a POS payment button. Require explicit
+      // settlement for served dine-in tickets, while allowing a no-sale exit.
+      const served=s.orders.some(o=>o.customerId===c.id&&!o.parentOrderId&&o.status==='completed'&&!o.paid);
+      if(served){notice(s,'มีรายการเสิร์ฟแล้วที่ยังไม่ชำระ · กรุณาชำระเงินที่ POS ก่อนออกจากร้าน');break;}
+      leave(s,c,false);break;}
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
       releaseControl(s);if(!action.id)break;

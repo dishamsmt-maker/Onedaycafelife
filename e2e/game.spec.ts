@@ -12,7 +12,7 @@ test('busy service, camera changes and IndexedDB resume preserve real state',asy
  await page.getByRole('button',{name:'ย่อแผง',exact:true}).click();await page.getByRole('button',{name:'ดูร้าน',exact:true}).click();await page.getByRole('button',{name:'เดินชมร้าน',exact:true}).click();
  let after=await state(page);expect(JSON.stringify({cash:after.cash,orders:after.orders,inventory:after.inventory,minute:after.minute,employees:after.employees})).toBe(signature);
  await page.getByRole('button',{name:'เปิดเมนูเกม',exact:true}).click();await page.getByRole('button',{name:'บันทึก',exact:true}).click();await expect(page.getByRole('status')).toContainText('บันทึก');await page.reload({waitUntil:'domcontentloaded'});
- await expect(page.getByRole('button',{name:'กลับมาที่ ONE DAY'})).toBeVisible();after=await state(page);
+ await expect(page.getByRole('button',{name:'กลับมาที่ HUA CHAO'})).toBeVisible();after=await state(page);
  expect(after.cash).toBe(s.cash);expect(after.inventory).toEqual(s.inventory);expect(after.orders).toEqual(s.orders);expect(new Set(after.ledger.map((t:any)=>t.id)).size).toBe(after.ledger.length);expect(errors).toEqual([]);
 });
 test('inventory purchase is a cash movement and menu edits affect actual simulation data',async({page})=>{
