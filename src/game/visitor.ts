@@ -85,7 +85,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   const orders=game.orders.filter(o=>o.customerId===c.id);
   if(orders.some(o=>!['completed','cancelled'].includes(o.status))){set({message:'รอให้เสิร์ฟครบก่อนชำระเงิน'});return false;}
   const total=orders.filter(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid).reduce((a,o)=>a+o.price,0);
-  if(total<=0){set({message:'ไม่มีรายการที่เสิร์ฟแล้วและยังค้างชำระ'});return false;}const before=game.ledger.filter(t=>t.type==='sale').length;useGame.getState().dispatch({type:'visitor-pay'});const paid=useGame.getState().game.ledger.filter(t=>t.type==='sale').length>before;if(!paid){set({message:'POS ยังไม่ยืนยันการชำระ · โปรดลองใหม่'});return false;}get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ HUA CHAO`});return true;
+  if(total<=0){set({message:'ไม่มีรายการที่เสิร์ฟแล้วและยังค้างชำระ'});return false;}const before=game.ledger.filter(t=>t.orderId&&['food-sale','drink-sale'].includes(t.type)).length;useGame.getState().dispatch({type:'visitor-pay'});const updated=useGame.getState().game;const paid=updated.ledger.filter(t=>t.orderId&&['food-sale','drink-sale'].includes(t.type)).length>before && updated.orders.filter(o=>o.customerId===c.id&&!o.parentOrderId&&o.status==='completed').every(o=>o.paid);if(!paid){set({message:'POS ยังไม่ยืนยันการชำระ · โปรดลองใหม่'});return false;}get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ HUA CHAO`});return true;
  },
 }));
 // Releasing the staff role is intentional on reload; no employee stays frozen from an old browser session.
