@@ -309,8 +309,10 @@ function scheduleStaff(s: GameState) {
     const ready = s.orders.find(o => {
       if (o.componentOrderIds?.length || o.status !== 'ready' || o.workerId) return false;
       const pickupPath = findPath(serving.position, STATIONS.pickup);
-      const pickupEnd = pickupPath[pickupPath.length - 1];
-      if (!pickupEnd || Math.hypot(pickupEnd[0] - STATIONS.pickup[0], pickupEnd[1] - STATIONS.pickup[1]) > .4) return false;
+      const pickupEnd = pickupPath[pickupPath.length - 1] ?? serving.position;
+      // An empty path is valid only when the waiter is already at the pickup.
+      // An unreachable distant pickup must never be treated as reachable.
+      if (Math.hypot(pickupEnd[0] - STATIONS.pickup[0], pickupEnd[1] - STATIONS.pickup[1]) > .4) return false;
       const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
       if (!customer) return false;
       const destination = customerTarget(s, customer);
