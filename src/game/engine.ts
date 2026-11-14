@@ -575,7 +575,15 @@ export function act(state: GameState, action: GameAction): GameState {
       break;
     }
     case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;const bill=s.orders.filter(o=>o.customerId===c.id);if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;if(!bill.some(o=>!o.parentOrderId&&o.status==='completed'&&(c.orderChannel==='counter'?o.paid:!o.paid)))break;leave(s,c,true);break;}
-    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c)leave(s,c,true);break;}
+    case 'visitor-leave':{
+      const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
+      const bill=s.orders.filter(o=>o.customerId===c.id);
+      // Leaving is not checkout: never turn an unpaid or unfinished order into revenue.
+      // A completed counter order may leave only after its advance payment is recorded.
+      if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;
+      if(bill.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;
+      leave(s,c,true);break;
+    }
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
       releaseControl(s);if(!action.id)break;
