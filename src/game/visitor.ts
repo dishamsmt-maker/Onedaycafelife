@@ -36,7 +36,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
   if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
   else {const e=useGame.getState().game.employees.find(e=>e.id===role)!;moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);}
-  set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ควบคุม ${role.toUpperCase()} · งานอัตโนมัติของคนนี้พักชั่วคราว`});
+  set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ติดตาม ${role.toUpperCase()} · งานอัตโนมัติยังทำต่อ (ขยับจอยเมื่อว่างเพื่อควบคุม)`});
  },
  sit:tableId=>{
   if(get().role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนเลือกที่นั่ง'});return false;}
