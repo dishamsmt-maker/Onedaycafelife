@@ -1,7 +1,7 @@
 import type { Customer, Employee, GameAction, GameState, Guest, MenuItem, Order, StaffId, Task, Transaction, Vec2, Weather } from './types';
 import {WATER_STOPS,signWanted} from './service';
 import { DEFAULT_SETTINGS, INITIAL_EMPLOYEES, INITIAL_INVENTORY, INITIAL_MENU, menuAvailable, servicePeriod } from './data';
-import { canWalk, findPath, STATIONS, TABLE_LAYOUT } from './world';
+import { canWalk, findPath, segmentWalkable, STATIONS, TABLE_LAYOUT } from './world';
 
 export { menuAvailable, servicePeriod } from './data';
 export const OPEN = 390, CLOSE = 1230;
@@ -52,6 +52,7 @@ function setTask(e: Employee, kind: Task['kind'], target: Vec2, remaining: numbe
 function walk(position: Vec2, path: Vec2[], distance: number) {
   while (path.length && distance > 0) {
     const p = path[0], dx = p[0] - position[0], dz = p[1] - position[1], d = Math.hypot(dx, dz);
+    if (d < 1e-8) { path.shift(); continue; }
     if (d <= distance + 1e-8) { position[0] = p[0]; position[1] = p[1]; path.shift(); distance -= d; }
     else { position[0] += dx / d * distance; position[1] += dz / d * distance; distance = 0; }
   }
@@ -64,9 +65,22 @@ function seatPosition(s: GameState, c: Customer): Vec2 {
   return [t.position[0] + (idx % 2 === 0 ? -.9 : .9), t.position[1] + (idx < 2 ? -.25 : .25)];
 }
 function seatCustomer(s: GameState, c: Customer): boolean {
-  const table = s.tables.find(t => !t.dirty && t.customerIds.length < t.capacity);
-  if (!table) return false;
-  table.customerIds.push(c.id); c.tableId = table.id; c.status = 'arriving'; c.path = findPath(c.position, seatPosition(s, c)); return true;
+  // Reserve only a table with a reachable chair-side approach. A failed route
+  // must not instantly turn a customer into a seated, orderable guest.
+  for (const table of s.tables) {
+    if (table.dirty || table.customerIds.length >= table.capacity) continue;
+    const index = table.customerIds.length;
+    const target: Vec2 = [table.position[0] + (index % 2 === 0 ? -.9 : .9), table.position[1] + (index < 2 ? -.25 : .25)];
+    const path = findPath(c.position, target);
+    const last = path[path.length - 1];
+    if (!last || Math.hypot(last[0] - target[0], last[1] - target[1]) > .35) continue;
+    table.customerIds.push(c.id);
+    c.tableId = table.id;
+    c.status = 'arriving';
+    c.path = path;
+    return true;
+  }
+  return false;
 }
 const NAMES = ['เมย์', 'ต้น', 'อิง', 'บีม', 'ฟ้า', 'นนท์', 'อ้อม', 'ปาล์ม', 'นิด', 'โอม', 'Alex', 'Siti', 'มิน', 'อาร์ต', 'หลิน', 'พีท'];
 /** Persistent people remember visits; age/nationality never constrain their needs. */
@@ -129,7 +143,11 @@ function chooseMenu(s: GameState, c: Customer): MenuItem[] {
 }
 /** Accept one sale item. Bundles are a priced root plus real zero-price production jobs. */
 export function placeCustomerOrder(s:GameState,c:Customer,menuId:string,sweetness=c.sweetness??100):Order|null {
- const m=s.menu.find(m=>m.id===menuId);if(!m||!menuAvailable(m,s.minute)||s.phase!=='open')return null;
+ const m=s.menu.find(m=>m.id===menuId);
+ // Validate the full bundle before creating any order rows. A rejected order
+ // must not leave orphan production jobs or a sale that cannot be fulfilled.
+ if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,sweetness))return null;
+ if(m.components?.some(part=>!Number.isInteger(part.quantity)||part.quantity<=0||!s.menu.some(item=>item.id===part.menuId)))return null;
  const add=(item:MenuItem,parentOrderId?:string):Order=>{const o:Order={id:uid(s,'order'),customerId:c.id,tableId:c.tableId,menuId:item.id,status:'waiting',createdAt:s.minute,cost:0,price:parentOrderId?0:item.price,stockConsumed:false,paid:false,parentOrderId,sweetness};s.orders.push(o);c.orderIds.push(o.id);return o;};
  const root=add(m);
  if(m.components?.length){root.componentOrderIds=[];for(const component of m.components){const childMenu=s.menu.find(x=>x.id===component.menuId);if(!childMenu)continue;for(let n=0;n<component.quantity;n++){const child=add(childMenu,root.id);root.componentOrderIds.push(child.id);}}}
@@ -180,9 +198,23 @@ function finishTask(s: GameState, e: Employee) {
     else if (t.stage === 'take-order' && c) placeOrders(s, c);
     else {
       const o = s.orders.find(o => o.id === t.orderId);
-      if (o && o.status !== 'cancelled' && c?.status !== 'leaving') {
-        o.status = 'completed'; o.completedAt = s.minute; o.workerId = undefined;
-        s.todayWaits.push(s.minute - o.createdAt);
+      // A delivery can only complete for a live customer and an order actively
+      // assigned for serving. Never resurrect cancelled or abandoned orders.
+      if (o && o.status === 'serving' && c && c.status !== 'leaving' && c.orderIds.includes(o.id)) {
+        const destination = customerTarget(s, c);
+        const closeEnough = Math.hypot(e.position[0] - destination[0], e.position[1] - destination[1]) <= .45;
+        if (closeEnough) {
+          o.status = 'completed'; o.completedAt = s.minute; o.workerId = undefined;
+          s.todayWaits.push(s.minute - o.createdAt);
+        } else {
+          // The customer moved after the route was planned: never mark a remote delivery complete.
+          o.status = 'ready'; o.workerId = undefined;
+        }
+      } else if (o && o.status === 'serving') {
+        // A cancelled/absent customer cannot receive this delivery. Release the
+        // assignment so it cannot remain stuck in the serving queue forever.
+        o.status = c && c.status !== 'leaving' && c.orderIds.includes(o.id) ? 'ready' : 'cancelled';
+        o.workerId = undefined;
       }
     }
   } else if (t.kind === 'clean') {
@@ -208,7 +240,7 @@ function finishTask(s: GameState, e: Employee) {
 function progressEmployees(s: GameState, dt: number) {
   const server = activeServer(s);
   for (const e of s.employees) {
-    if(e.controlled){e.available=false;continue;}
+    if(e.controlled && !e.task){e.available=false;continue;}
     const onDuty = !['ken', 'pun'].includes(e.id) || e.id === server || (e.task && e.task.kind !== 'rest');
     if (onDuty && s.phase !== 'closed') e.hours += dt / 60;
     const t = e.task; if (!t) { e.available = !!onDuty; continue; }
@@ -216,15 +248,38 @@ function progressEmployees(s: GameState, dt: number) {
       walk(e.position, t.path, dt * 4.5);
       if (t.path.length) continue;
       const o = s.orders.find(o => o.id === t.orderId);
+      // A missing/empty route must never complete a delivery from across the map.
+      if (t.kind === 'serve' && t.stage === 'deliver') {
+        const customer = s.customers.find(c => c.id === t.customerId);
+        const destination = customer ? customerTarget(s, customer) : t.target;
+        if (!customer || customer.status === 'leaving' || Math.hypot(e.position[0]-destination[0], e.position[1]-destination[1]) > .45) {
+          if (o && o.status === 'serving') { o.status = 'ready'; o.workerId = undefined; }
+          e.task = null; e.available = true; continue;
+        }
+      }
       if ((t.kind === 'cook' || t.kind === 'brew') && o) {
         const menu = s.menu.find(m => m.id === o.menuId)!;
         if (o.status === 'cancelled' || !consume(s, o, menu)) { if (o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; } e.task = null; continue; }
         o.status = 'preparing';
       }
       if (t.kind === 'serve' && t.stage === 'pickup') {
+        // Never pick up food remotely when a blocked or incomplete route ends
+        // before the pickup counter. Release the order for a later safe retry.
+        if (Math.hypot(e.position[0] - STATIONS.pickup[0], e.position[1] - STATIONS.pickup[1]) > .4) {
+          if (o && o.status !== 'cancelled') { o.status = 'ready'; o.workerId = undefined; }
+          e.task = null; e.available = true; continue;
+        }
         const c = s.customers.find(c => c.id === t.customerId);
         if (!o || o.status === 'cancelled' || !c || c.status === 'leaving') { e.task = null; continue; }
-        o.status = 'serving'; t.stage = 'deliver'; t.target = customerTarget(s, c); t.path = findPath(e.position, t.target); continue;
+        const destination = customerTarget(s, c);
+        const route = findPath(e.position, destination);
+        const endpoint = route[route.length - 1];
+        // Do not mark a delivery complete when the waiter cannot reach the guest.
+        if (!endpoint || Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
+          o.status = 'ready'; o.workerId = undefined; e.task = null; e.available = true;
+          continue;
+        }
+        o.status = 'serving'; t.stage = 'deliver'; t.target = destination; t.path = route; continue;
       }
       t.phase = 'working';
     }
@@ -239,13 +294,32 @@ function progressEmployees(s: GameState, dt: number) {
   }
 }
 function scheduleStaff(s: GameState) {
+  // Following Na or the active server in V2 must not disable dispatching new
+  // kitchen/delivery jobs. Manual movement is allowed only while idle;
+  // assigned tasks continue through progressEmployees regardless of control.
+
   const server = activeServer(s);
   const serving = s.employees.find(e => e.id === server)!;
   const off = s.employees.find(e => (e.id === 'ken' || e.id === 'pun') && e.id !== server)!;
   if (!off.controlled && (!off.task||off.task.kind==='station')) setTask(off, 'rest', REST, 999999);
-  if (!serving.controlled && serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
-  if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
-    const ready = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'ready' && !o.workerId);
+  if (serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
+  if (!serving.task||serving.task.kind==='station') {
+    // Only assign a delivery if the customer can be reached from pickup.
+    // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
+    const ready = s.orders.find(o => {
+      if (o.componentOrderIds?.length || o.status !== 'ready' || o.workerId) return false;
+      const pickupPath = findPath(serving.position, STATIONS.pickup);
+      const pickupEnd = pickupPath[pickupPath.length - 1] ?? serving.position;
+      // An empty path is valid only when the waiter is already at the pickup.
+      // An unreachable distant pickup must never be treated as reachable.
+      if (Math.hypot(pickupEnd[0] - STATIONS.pickup[0], pickupEnd[1] - STATIONS.pickup[1]) > .4) return false;
+      const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
+      if (!customer) return false;
+      const destination = customerTarget(s, customer);
+      const route = findPath(STATIONS.pickup, destination);
+      const endpoint = route[route.length - 1];
+      return !!endpoint && Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
+    });
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id));
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving');
     const dirty = s.tables.find(t => t.dirty && !t.customerIds.length);
@@ -257,7 +331,7 @@ function scheduleStaff(s: GameState) {
   }
   const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
   const na = s.employees.find(e => e.id === 'na')!;
-  if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
+  if (food && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
@@ -265,7 +339,7 @@ function scheduleStaff(s: GameState) {
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
     const order = drinks.find(o => stockAvailable(s, s.menu.find(m => m.id === o.menuId)!));
-    const candidates = s.employees.filter(e => !e.controlled && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
+    const candidates = s.employees.filter(e => (!e.controlled || e.id === 'na') && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
     candidates.sort((a, b) => {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
       return score(a) - score(b);
@@ -344,7 +418,11 @@ function progressCustomers(s: GameState, dt: number) {
       const orders=s.orders.filter(o=>c.orderIds.includes(o.id));
       const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
       c.status=orders.length&&resolved?'eating':'waiting';
-      if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,true);
+      if(s.phase==='closing'&&s.minute>CLOSE+90){
+        // Expired unpaid bills are abandoned, never silently collected.
+        const hasUnpaid=orders.some(o=>!o.parentOrderId&&!o.paid&&o.status==='completed');
+        leave(s,c,!hasUnpaid&&resolved);
+      }
       continue;
     }
     if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
@@ -469,6 +547,9 @@ function releaseControl(s:GameState){for(const e of s.employees)if(e.controlled)
 function playerSeat(s:GameState,tableId:string){
  const table=s.tables.find(t=>t.id===tableId);const current=s.customers.find(c=>c.player&&c.status!=='leaving');
  if(current?.orderChannel==='counter')return;
+ // A live table bill must keep its original table and waiter destination.
+ // Moving it mid-service can strand Ken or charge the wrong table.
+ if(current && s.orders.some(o=>o.customerId===current.id && o.status!=='cancelled' && (!o.paid || o.status!=='completed')))return;
  if(!table||table.dirty||(table.customerIds.length>=table.capacity&&!table.customerIds.includes(current?.id??'')))return;
  const c=ensurePlayer(s);for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
  table.customerIds.push(c.id);c.tableId=table.id;c.position=seatPosition(s,c);c.path=[];
@@ -507,21 +588,52 @@ export function act(state: GameState, action: GameAction): GameState {
       const m=s.menu.find(m=>m.id===action.menuId);
       if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
       const c=ensurePlayer(s);if(c.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
-      placeCustomerOrder(s,c,m.id);c.status='waiting';
+      // The legacy direct-order action must reserve a table BEFORE creating
+      // an outstanding bill. playerSeat correctly refuses to move live bills,
+      // so seating after placement stranded the player with tableId=null.
       if(!c.tableId){const table=s.tables.find(t=>!t.dirty&&!t.customerIds.length);if(table)playerSeat(s,table.id);}
+      if(!c.tableId)break;
+      placeCustomerOrder(s,c,m.id);c.status='waiting';
       break;
     }
-    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c&&s.orders.filter(o=>o.customerId===c.id).every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);break;}
-    case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c)leave(s,c,true);break;}
+    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;const bill=s.orders.filter(o=>o.customerId===c.id);if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;if(!bill.some(o=>!o.parentOrderId&&o.status==='completed'&&(c.orderChannel==='counter'?o.paid:!o.paid)))break;leave(s,c,true);break;}
+    case 'visitor-leave':{
+      const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
+      const bill=s.orders.filter(o=>o.customerId===c.id);
+      // Leaving is not checkout: never turn an unpaid or unfinished order into revenue.
+      // A completed counter order may leave only after its advance payment is recorded.
+      // Counter prepayments may be abandoned before pickup: leave() refunds
+      // undelivered root orders once, cancels their tasks and never books sales twice.
+      // Dine-in departures still require completed delivery and settled payment.
+      if(c.orderChannel==='counter'){
+        if(bill.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;
+        leave(s,c,bill.every(o=>['completed','cancelled'].includes(o.status)));
+        break;
+      }
+      if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;
+      if(bill.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;
+      leave(s,c,true);break;
+    }
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
       releaseControl(s);if(!action.id)break;
       const e=s.employees.find(e=>e.id===action.id);if(!e)break;
-      const o=s.orders.find(o=>o.id===e.task?.orderId);
-      if(o&&!['completed','cancelled'].includes(o.status)){o.status=e.task?.kind==='serve'?'ready':'waiting';o.workerId=undefined;}
-      e.task=null;e.controlled=true;e.available=false;break;
+      // Keep an in-flight kitchen or delivery task alive when the player switches roles.
+      // It must finish through the normal walking/production/delivery pipeline.
+      // Selecting a worker is an observation mode first: keep their automatic
+      // kitchen/delivery pipeline running until the player actually moves them.
+      e.controlled=false;break;
     }
-    case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18))e.position=[...action.position];break;}
+    case 'control-move':{
+      const e=s.employees.find(e=>e.id===action.id);
+      if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18)){
+        // Never teleport an in-flight cook/waiter away from an active task.
+        // Manual movement is enabled once the task has completed.
+        if(e.task&&e.task.kind!=='station'&&e.task.kind!=='rest')break;
+        e.controlled=true;e.available=false;e.task=null;e.position=[...action.position];
+      }
+      break;
+    }
 
     case 'pause': s.paused = !s.paused; break;
     case 'speed': if ([1, 2, 5].includes(action.value)) s.speed = action.value; break;

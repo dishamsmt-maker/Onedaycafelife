@@ -135,3 +135,11 @@ The visitor test also checks that, after delivery, employees remain clear of the
 - **Verification:** GitHub source-level check: one exact old wall-color pair replaced, positions/dimensions unchanged; check diff in PR. Local `npm ci`, `npm test`, `npm run build`, Playwright/mobile and matched WebGL screenshots **not run** because this execution environment cannot resolve github.com to clone dependencies. Run `npm ci && npm test && npm run build && npm run test:e2e` in a networked CI runner before approval; manually inspect the wall in isometric and FPV modes at day/night on a real phone.
 - **Limits:** this stacked change depends on the still-open PR #19; original V2 and production are untouched. `map={stone}` still applies a stone texture; neutral-gray appearance needs screenshot confirmation. No owner approval for merge/deploy yet.
 - **HANDOFF TASK-029 (QA & PM):** verify latest PR stack and CI; run matched before/after mobile screenshots and record pass/fail for the wall color plus all three modes, then propose safe review/merge order without merging.
+
+## Playtest cleanup — 2026-11-04 (draft PR #21)
+
+- Removed floating customer question text and kitchen/bar/POS debug overlays from the 3D scene; underlying customer and order logic remains unchanged.
+- Removed two unsupported floating preparation benches near the kitchen; updated staff apron badges to use staff names rather than generic ONE DAY text.
+- Source commits: `55f8407`, `b0d6609`, `6c6b89e`. **Not merged or deployed.**
+- Verification: source-level string/diff inspection only. `npm ci`, `npm test`, `npm run build`, browser/mobile visual tests **not run** in this task. Verify the three camera modes, kitchen appliances, employee names, and scene geometry before approval.
+- Remaining owner requests (bar alignment, pathfinding/collisions, diverse visitors, shared service duties, gardening schedule, furniture redesign, etc.) are not claimed complete.

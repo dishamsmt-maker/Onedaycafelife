@@ -31,16 +31,18 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  role:'customer',tableId:null,scannedTableId:null,action:'idle',message:'',returnPosition:null,
  clearMessage:()=>set({message:''}),
  scanTable:()=>{const id=get().tableId,c=playerCustomer();if(!id||c?.tableId!==id){set({message:'นั่งที่โต๊ะก่อนแตะ QR'});return false;}set({scannedTableId:id,message:'เปิดเมนูจาก QR โต๊ะแล้ว · เลือกรายการเพื่อยืนยัน'});return true;},
- prepay:()=>{const c=playerCustomer();if(c?.orderChannel!=='counter')return false;useGame.getState().dispatch({type:'visitor-prepay'});set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;},
+ prepay:()=>{const c=playerCustomer();if(c?.orderChannel!=='counter')return false;const before=useGame.getState().game.ledger.length;useGame.getState().dispatch({type:'visitor-prepay'});const paid=useGame.getState().game.ledger.length>before;if(!paid){set({message:'ยังชำระไม่ได้ · ตรวจสถานะบิลและลองใหม่'});return false;}set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;},
  setRole:role=>{
   get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
   if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
   else {const e=useGame.getState().game.employees.find(e=>e.id===role)!;moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);}
-  set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ควบคุม ${role.toUpperCase()} · งานอัตโนมัติของคนนี้พักชั่วคราว`});
+  set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ติดตาม ${role.toUpperCase()} · งานอัตโนมัติยังทำต่อ (ขยับจอยเมื่อว่างเพื่อควบคุม)`});
  },
  sit:tableId=>{
   if(get().role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนเลือกที่นั่ง'});return false;}
   if(playerCustomer()?.orderChannel==='counter'){set({message:'รับรายการซื้อกลับให้ครบก่อนเริ่มบิลนั่งร้าน'});return false;}
+  const current=playerCustomer();
+  if(current?.tableId && current.tableId!==tableId && useGame.getState().game.orders.some(o=>o.customerId===current.id&&o.status!=='cancelled'&&(!o.paid||o.status!=='completed'))){set({message:'มีออร์เดอร์ค้างที่โต๊ะเดิม · รอเสิร์ฟและชำระให้ครบก่อนย้ายโต๊ะ'});return false;}
   const game=useGame.getState().game,t=game.tables.find(t=>t.id===tableId),existing=playerCustomer();
   if(!t||t.dirty||(t.customerIds.length>=t.capacity&&!t.customerIds.includes(existing?.id??''))){set({message:'โต๊ะนี้ยังไม่พร้อมรับลูกค้า'});return false;}
   if(Math.hypot(-touchControls.position.x-t.position[0],touchControls.position.z-t.position[1])>1.7){set({message:'เดินเข้าใกล้โต๊ะก่อนนั่ง'});return false;}
@@ -81,11 +83,30 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   setTimeout(()=>set({action:'idle'}),2200);return true;
  },
  pay:()=>{
-  const game=useGame.getState().game,c=playerCustomer();if(!c){set({message:'ยังไม่มีบิลที่ต้องชำระ'});return false;}
+  const game=useGame.getState().game,c=playerCustomer();
+  if(!c){set({message:'ยังไม่มีบิลที่ต้องชำระ'});return false;}
   const orders=game.orders.filter(o=>o.customerId===c.id);
-  if(orders.some(o=>!['completed','cancelled'].includes(o.status))){set({message:'รอให้เสิร์ฟครบก่อนชำระเงิน'});return false;}
-  const total=orders.filter(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid).reduce((a,o)=>a+o.price,0);
-  get().stand();useGame.getState().dispatch({type:'visitor-pay'});set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ ONE DAY`});return true;
+  if(!orders.length){set({message:'ยังไม่มีรายการอาหารในบิล'});return false;}
+  if(orders.some(o=>!['completed','cancelled'].includes(o.status))){set({message:'รอให้เสิร์ฟหรือรับสินค้าครบก่อนปิดบิล'});return false;}
+  const roots=orders.filter(o=>!o.parentOrderId&&o.status==='completed');
+  if(!roots.length){set({message:'ไม่มีรายการที่ต้องชำระ'});return false;}
+  const unpaid=roots.filter(o=>!o.paid);
+  if(c.orderChannel==='counter'&&unpaid.length){set({message:'กรุณาชำระรายการซื้อกลับที่เคาน์เตอร์ก่อนรับสินค้า'});return false;}
+  const total=unpaid.reduce((sum,o)=>sum+o.price,0);
+  if(c.orderChannel!=='counter'&&total<=0){set({message:'ไม่มีรายการค้างชำระ'});return false;}
+  // Checkout must be confirmed against this customer's orders, not a global
+  // ledger count: another customer's payment must never produce a false success.
+  useGame.getState().dispatch({type:'visitor-pay'});
+  const updated=useGame.getState().game;
+  const settled=roots.every(o=>{
+    const current=updated.orders.find(row=>row.id===o.id);
+    return current?.paid&&updated.ledger.some(tx=>tx.orderId===o.id&&['food-sale','drink-sale'].includes(tx.type));
+  });
+  const departed=updated.customers.find(row=>row.id===c.id)?.status==='leaving';
+  if(!settled||!departed){set({message:'POS ยังไม่ยืนยันการปิดบิล · โปรดลองใหม่'});return false;}
+  get().stand();
+  set({message:c.orderChannel==='counter'?'รับสินค้าซื้อกลับครบแล้ว · ขอบคุณที่แวะ HUA CHAO':`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ HUA CHAO`});
+  return true;
  },
 }));
 // Releasing the staff role is intentional on reload; no employee stays frozen from an old browser session.
