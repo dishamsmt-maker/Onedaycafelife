@@ -583,6 +583,14 @@ export function act(state: GameState, action: GameAction): GameState {
       const bill=s.orders.filter(o=>o.customerId===c.id);
       // Leaving is not checkout: never turn an unpaid or unfinished order into revenue.
       // A completed counter order may leave only after its advance payment is recorded.
+      // Counter prepayments may be abandoned before pickup: leave() refunds
+      // undelivered root orders once, cancels their tasks and never books sales twice.
+      // Dine-in departures still require completed delivery and settled payment.
+      if(c.orderChannel==='counter'){
+        if(bill.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;
+        leave(s,c,bill.every(o=>['completed','cancelled'].includes(o.status)));
+        break;
+      }
       if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;
       if(bill.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;
       leave(s,c,true);break;
