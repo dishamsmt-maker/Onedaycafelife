@@ -240,7 +240,7 @@ function finishTask(s: GameState, e: Employee) {
 function progressEmployees(s: GameState, dt: number) {
   const server = activeServer(s);
   for (const e of s.employees) {
-    if(e.controlled){e.available=false;continue;}
+    if(e.controlled && !e.task){e.available=false;continue;}
     const onDuty = !['ken', 'pun'].includes(e.id) || e.id === server || (e.task && e.task.kind !== 'rest');
     if (onDuty && s.phase !== 'closed') e.hours += dt / 60;
     const t = e.task; if (!t) { e.available = !!onDuty; continue; }
@@ -403,7 +403,11 @@ function progressCustomers(s: GameState, dt: number) {
       const orders=s.orders.filter(o=>c.orderIds.includes(o.id));
       const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
       c.status=orders.length&&resolved?'eating':'waiting';
-      if(s.phase==='closing'&&(resolved||s.minute>CLOSE+90))leave(s,c,true);
+      if(s.phase==='closing'&&s.minute>CLOSE+90){
+        // Expired unpaid bills are abandoned, never silently collected.
+        const hasUnpaid=orders.some(o=>!o.parentOrderId&&!o.paid&&o.status==='completed');
+        leave(s,c,!hasUnpaid&&resolved);
+      }
       continue;
     }
     if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
@@ -570,15 +574,15 @@ export function act(state: GameState, action: GameAction): GameState {
       if(!c.tableId){const table=s.tables.find(t=>!t.dirty&&!t.customerIds.length);if(table)playerSeat(s,table.id);}
       break;
     }
-    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c&&s.orders.filter(o=>o.customerId===c.id).every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);break;}
+    case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;const bill=s.orders.filter(o=>o.customerId===c.id);if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;if(!bill.some(o=>!o.parentOrderId&&o.status==='completed'&&!o.paid))break;leave(s,c,true);break;}
     case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c)leave(s,c,true);break;}
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
       releaseControl(s);if(!action.id)break;
       const e=s.employees.find(e=>e.id===action.id);if(!e)break;
-      const o=s.orders.find(o=>o.id===e.task?.orderId);
-      if(o&&!['completed','cancelled'].includes(o.status)){o.status=e.task?.kind==='serve'?'ready':'waiting';o.workerId=undefined;}
-      e.task=null;e.controlled=true;e.available=false;break;
+      // Keep an in-flight kitchen or delivery task alive when the player switches roles.
+      // It must finish through the normal walking/production/delivery pipeline.
+      e.controlled=true;e.available=false;break;
     }
     case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18))e.position=[...action.position];break;}
 
