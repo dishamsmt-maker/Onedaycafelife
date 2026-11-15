@@ -612,9 +612,13 @@ export function act(state: GameState, action: GameAction): GameState {
       const m=s.menu.find(m=>m.id===action.menuId);
       if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
-      const c=ensurePlayer(s);c.orderChannel=action.channel;c.takeaway=action.channel==='counter';
+      const c=ensurePlayer(s);
+      // An idempotency key acknowledges only an accepted order, not a rejected QR attempt.
+      const placed=placeCustomerOrder(s,c,m.id,c.sweetness??100);
+      if(!placed)break;
+      c.orderChannel=action.channel;c.takeaway=action.channel==='counter';
       c.requestIds=[...(c.requestIds??[]),action.requestId];
-      placeCustomerOrder(s,c,m.id);c.status='waiting';break;
+      c.status='waiting';break;
     }
     case 'visitor-prepay': {
       const c=s.customers.find(c=>c.player&&c.status!=='leaving'&&c.orderChannel==='counter');if(!c)break;
