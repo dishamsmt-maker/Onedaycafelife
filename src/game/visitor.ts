@@ -70,7 +70,8 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   if(state.tableId&&state.scannedTableId!==state.tableId){set({message:'แตะ QR บนโต๊ะก่อนสั่งอาหาร'});return false;}
   if(!state.tableId&&!atCounter){set({message:'สั่งที่เคาน์เตอร์ หรือเลือกนั่งโต๊ะก่อน'});return false;}
   if(!m||!menuAvailable(m,game.minute)||game.phase!=='open'){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}
-  if(Object.entries(menuRecipe(game,m)).some(([id,q])=>(game.inventory.find(i=>i.id===id)?.quantity??0)<q)){set({message:'วัตถุดิบเมนูนี้หมดแล้ว'});return false;}
+  // The simulation action is the single authority for recipe/sweetness stock checks.
+  // A UI-side default-sweetness check can reject a valid low-sugar QR order.
   const beforeIds=new Set(game.orders.map(o=>o.id));
   const requestId=crypto.randomUUID();
   useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId});
