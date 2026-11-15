@@ -16,7 +16,13 @@ export default function VisitorHud({state,onMenu,onNotice}:{state:GameState;onMe
  // KDS must display executable leaf jobs, including bundle components. Bundle
  // parents are sale/bill rows and never enter the kitchen dispatch queue.
  const staffTickets=state.orders.filter(o=>!o.componentOrderIds?.length&&o.status!=='cancelled'&&o.status!=='completed'&&state.customers.some(c=>c.id===o.customerId&&c.status!=='leaving'));
- const staffVisible=staffTickets.filter(o=>v.role==='na'?['food','drink'].includes(state.menu.find(m=>m.id===o.menuId)?.kind??''):v.role==='ken'||v.role==='pun'?['ready','serving'].includes(o.status):true);
+ const staffVisible=staffTickets.filter(o=>{
+  const kind=state.menu.find(m=>m.id===o.menuId)?.kind;
+  if(v.role==='na') return o.workerId==='na'||(kind==='food'&&o.status==='waiting');
+  if(v.role==='ken'||v.role==='pun') return (o.workerId===v.role&&o.status==='serving')||(o.status==='ready'&&!o.workerId);
+  if(v.role==='ham'||v.role==='alee') return o.workerId===v.role||(kind==='drink'&&o.status==='waiting');
+  return true;
+ });
  const ticketTable=(id:string|null)=>{const index=state.tables.findIndex(t=>t.id===id);return index>=0?`T${index+1}`:'ซื้อกลับ';};
  const run=(fn:()=>unknown)=>{fn();onNotice(useVisitor.getState().message)};
  return <><div className="visitor-role"><button onClick={()=>setRoles(!roles)} aria-label="เลือกตัวละคร"><Users size={14}/>{v.role==='customer'?'ลูกค้า':state.employees.find(e=>e.id===v.role)?.name} ⌄</button>{roles&&<div className="role-list">{(['customer','ham','na','alee','ken','pun'] as const).map(id=><button key={id} onClick={()=>{run(()=>v.setRole(id));setRoles(false)}}>{id==='customer'?'ลูกค้า':state.employees.find(e=>e.id===id)?.name}</button>)}</div>}</div>
