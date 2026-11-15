@@ -372,7 +372,7 @@ function scheduleStaff(s: GameState) {
   }
   const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!, o.sweetness));
   const na = s.employees.find(e => e.id === 'na')!;
-  if (food && (!na.task||na.task.kind==='station')) {
+  if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
@@ -380,7 +380,7 @@ function scheduleStaff(s: GameState) {
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
     const order = drinks.find(o => stockAvailable(s, s.menu.find(m => m.id === o.menuId)!, o.sweetness));
-    const candidates = s.employees.filter(e => (!e.controlled || e.id === 'na') && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
+    const candidates = s.employees.filter(e => !e.controlled && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
     candidates.sort((a, b) => {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
       return score(a) - score(b);
@@ -390,7 +390,7 @@ function scheduleStaff(s: GameState) {
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
     const m = s.menu.find(m => m.id === o.menuId)!;
-    if (!stockAvailable(s, m)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
+    if (!stockAvailable(s, m, o.sweetness)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
   }
   const alee = s.employees.find(e => e.id === 'alee')!;
   if (!alee.controlled && (!alee.task || alee.task.kind==='station')) {
@@ -674,9 +674,15 @@ export function act(state: GameState, action: GameAction): GameState {
     case 'control-move':{
       const e=s.employees.find(e=>e.id===action.id);
       if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18)){
-        // Never teleport an in-flight cook/waiter away from an active task.
-        // Manual movement is enabled once the task has completed.
-        if(e.task&&e.task.kind!=='station'&&e.task.kind!=='rest')break;
+        // Explicit manual takeover releases an active job back to the queue.
+        // Keep stockConsumed intact: a resumed recipe must not charge COGS twice.
+        if(e.task && e.task.kind!=='station' && e.task.kind!=='rest'){
+          const order=s.orders.find(o=>o.id===e.task?.orderId);
+          if(order && !['completed','cancelled'].includes(order.status)){
+            order.status=e.task.kind==='serve'?'ready':'waiting';
+            order.workerId=undefined;
+          }
+        }
         e.controlled=true;e.available=false;e.task=null;e.position=[...action.position];
       }
       break;
