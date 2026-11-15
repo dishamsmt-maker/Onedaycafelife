@@ -610,7 +610,9 @@ export function act(state: GameState, action: GameAction): GameState {
       if(current?.orderChannel&&current.orderChannel!==action.channel)break;
       if(action.channel==='counter'&&current?.tableId)break;
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      // placeCustomerOrder validates stock against the customer's actual sweetness.
+      // Do not pre-reject a valid low-sugar QR order using the 100% default.
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open')break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       const c=ensurePlayer(s);
       // An idempotency key acknowledges only an accepted order, not a rejected QR attempt.
