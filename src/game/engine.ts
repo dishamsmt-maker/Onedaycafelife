@@ -189,7 +189,20 @@ function customerTarget(s: GameState, c: Customer): Vec2 {
   // A seated player occupies a chair-side position, not the table centre.
   // Route delivery to that same position so the waiter can approach the
   // actual customer instead of attempting to walk through the table.
-  if (c.player) return seatPosition(s, c);
+  if (c.player) {
+    const seat = seatPosition(s, c);
+    // A chair can be reachable by the guest but not by a waiter carrying food.
+    // Select a collision-free serving point within arm's reach of the chair,
+    // rather than repeatedly re-queuing an otherwise ready T3 order.
+    const approaches: Vec2[] = [seat, [seat[0] + .25, seat[1]], [seat[0] - .25, seat[1]], [seat[0], seat[1] + .25], [seat[0], seat[1] - .25]];
+    for (const point of approaches) {
+      if (!canWalk(...point)) continue;
+      const path = findPath(STATIONS.pickup, point);
+      const end = path[path.length - 1] ?? STATIONS.pickup;
+      if (Math.hypot(end[0] - point[0], end[1] - point[1]) <= .15) return point;
+    }
+    return seat; // Keep the existing safe rejection when no approach exists.
+  }
   return [table.position[0], table.position[1] - .9];
 }
 function finishTask(s: GameState, e: Employee) {
