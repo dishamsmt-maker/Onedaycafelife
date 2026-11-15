@@ -31,7 +31,11 @@ export const useVisitor=create<VisitorState>((set,get)=>({
  role:'customer',tableId:null,scannedTableId:null,action:'idle',message:'',returnPosition:null,
  clearMessage:()=>set({message:''}),
  scanTable:()=>{const id=get().tableId,c=playerCustomer();if(!id||c?.tableId!==id){set({message:'นั่งที่โต๊ะก่อนแตะ QR'});return false;}set({scannedTableId:id,message:'เปิดเมนูจาก QR โต๊ะแล้ว · เลือกรายการเพื่อยืนยัน'});return true;},
- prepay:()=>{const c=playerCustomer();if(c?.orderChannel!=='counter')return false;const before=useGame.getState().game.ledger.length;useGame.getState().dispatch({type:'visitor-prepay'});const paid=useGame.getState().game.ledger.length>before;if(!paid){set({message:'ยังชำระไม่ได้ · ตรวจสถานะบิลและลองใหม่'});return false;}set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;},
+ prepay:()=>{const c=playerCustomer();if(c?.orderChannel!=='counter')return false;const pending=useGame.getState().game.orders.filter(o=>o.customerId===c.id&&!o.parentOrderId&&!o.paid&&o.status!=='cancelled');
+  if(!pending.length){set({message:'ไม่มีรายการซื้อกลับที่รอชำระ'});return false;}
+  useGame.getState().dispatch({type:'visitor-prepay'});
+  const updated=useGame.getState().game;
+  const paid=pending.every(o=>updated.orders.find(row=>row.id===o.id)?.paid&&updated.ledger.some(tx=>tx.orderId===o.id&&['food-sale','drink-sale'].includes(tx.type)));if(!paid){set({message:'ยังชำระไม่ได้ · ตรวจสถานะบิลและลองใหม่'});return false;}set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;},
  setRole:role=>{
   get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
   if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
