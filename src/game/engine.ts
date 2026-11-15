@@ -183,7 +183,15 @@ function consume(s: GameState, o: Order, m: MenuItem) {
   transaction(s, 'cogs', cost, 0, `ใช้วัตถุดิบ · ${m.name}`, o.id);
   return true;
 }
-function customerTarget(s: GameState, c: Customer): Vec2 { const table=s.tables.find(t=>t.id===c.tableId);return table?[table.position[0],table.position[1]-.9]:seatPosition(s,c); }
+function customerTarget(s: GameState, c: Customer): Vec2 {
+  const table = s.tables.find(t => t.id === c.tableId);
+  if (!table) return seatPosition(s, c);
+  // A seated player occupies a chair-side position, not the table centre.
+  // Route delivery to that same position so the waiter can approach the
+  // actual customer instead of attempting to walk through the table.
+  if (c.player) return seatPosition(s, c);
+  return [table.position[0], table.position[1] - .9];
+}
 function finishTask(s: GameState, e: Employee) {
   const t = e.task!;
   if(t.maintenance==='sign'){s.signMounted=signWanted(s);notice(s,s.signMounted?'Alee ติดป้าย ONE DAY แล้ว':'Alee ถอดป้าย ONE DAY แล้ว');}
