@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useGame } from './store';
-import { menuAvailable, menuRecipe } from './engine';
+import { menuAvailable } from './engine';
 import { touchControls } from './touchControls';
 import type { StaffId,Vec2 } from './types';
 
