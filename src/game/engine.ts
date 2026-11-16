@@ -633,14 +633,14 @@ export function act(state: GameState, action: GameAction): GameState {
     case 'visitor-seat': playerSeat(s,action.tableId);break;
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open')break;
       const c=ensurePlayer(s);if(c.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       // The legacy direct-order action must reserve a table BEFORE creating
       // an outstanding bill. playerSeat correctly refuses to move live bills,
       // so seating after placement stranded the player with tableId=null.
       if(!c.tableId){const table=s.tables.find(t=>!t.dirty&&!t.customerIds.length);if(table)playerSeat(s,table.id);}
       if(!c.tableId)break;
-      placeCustomerOrder(s,c,m.id);c.status='waiting';
+      // Only enter the waiting state after an order is actually accepted.\n      // The order helper checks stock using the selected sweetness, matching QR.\n      if (placeCustomerOrder(s,c,m.id,c.sweetness??100)) c.status='waiting';
       break;
     }
     case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;const bill=s.orders.filter(o=>o.customerId===c.id);if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;if(!bill.some(o=>!o.parentOrderId&&o.status==='completed'&&(c.orderChannel==='counter'?o.paid:!o.paid)))break;leave(s,c,true);break;}
