@@ -194,13 +194,30 @@ function customerTarget(s: GameState, c: Customer): Vec2 {
     // A chair can be reachable by the guest but not by a waiter carrying food.
     // Select a collision-free serving point within arm's reach of the chair,
     // rather than repeatedly re-queuing an otherwise ready T3 order.
-    const approaches: Vec2[] = [seat, [seat[0] + .25, seat[1]], [seat[0] - .25, seat[1]], [seat[0], seat[1] + .25], [seat[0], seat[1] - .25]];
-    for (const point of approaches) {
+    // Search the entire hand-off radius, not just four 25cm offsets.
+    // A chair can block all cardinal offsets while a diagonal remains reachable.
+    // Keep the hand-off within the same 45cm delivery threshold used by finishTask.
+    const offsets: Vec2[] = [[0, 0]];
+    for (const radius of [.2, .35, .4]) {
+      for (let step = 0; step < 16; step++) {
+        const angle = (step * Math.PI * 2) / 16;
+        offsets.push([Math.cos(angle) * radius, Math.sin(angle) * radius]);
+      }
+    }
+    let best: { point: Vec2; length: number } | undefined;
+    for (const [dx, dy] of offsets) {
+      const point: Vec2 = [seat[0] + dx, seat[1] + dy];
       if (!canWalk(...point)) continue;
       const path = findPath(STATIONS.pickup, point);
       const end = path[path.length - 1] ?? STATIONS.pickup;
-      if (Math.hypot(end[0] - point[0], end[1] - point[1]) <= .15) return point;
+      if (Math.hypot(end[0] - point[0], end[1] - point[1]) > .15) continue;
+      const length = path.reduce((sum, node, i) => {
+        const prev = i ? path[i - 1] : STATIONS.pickup;
+        return sum + Math.hypot(node[0] - prev[0], node[1] - prev[1]);
+      }, 0);
+      if (!best || length < best.length) best = { point, length };
     }
+    if (best) return best.point;
     return seat; // Keep the existing safe rejection when no approach exists.
   }
   return [table.position[0], table.position[1] - .9];
