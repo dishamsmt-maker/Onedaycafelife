@@ -38,9 +38,24 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   const paid=pending.every(o=>updated.orders.find(row=>row.id===o.id)?.paid&&updated.ledger.some(tx=>tx.orderId===o.id&&['food-sale','drink-sale'].includes(tx.type)));if(!paid){set({message:'ยังชำระไม่ได้ · ตรวจสถานะบิลและลองใหม่'});return false;}set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;},
  setRole:role=>{
   get().stand();useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
-  if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
-  else {const e=useGame.getState().game.employees.find(e=>e.id===role)!;moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);}
-  set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ติดตาม ${role.toUpperCase()} · งานอัตโนมัติยังทำต่อ (ขยับจอยเมื่อว่างเพื่อควบคุม)`});
+  if(role==='customer'){
+    // Switching to staff mode must not silently orphan an active dine-in bill.
+    // Restore the actual simulation seat when returning to customer mode;
+    // QR authorization is intentionally cleared so the customer scans again.
+    const customer=playerCustomer();
+    const seat=customer?.tableId?useGame.getState().game.tables.find(t=>t.id===customer.tableId):undefined;
+    if(seat&&customer){
+      moveCamera(-customer.position[0],customer.position[1],1.12,3.09);
+      set({role,tableId:seat.id,scannedTableId:null,returnPosition:null,action:'idle',message:`กลับมาที่${seat.name} · แตะ QR อีกครั้งเพื่อสั่งอาหาร`});
+    }else{
+      moveCamera(.4,-6.1,1.62,3.09);
+      set({role,tableId:null,scannedTableId:null,returnPosition:null,action:'idle',message:'เข้ามานั่งพักที่ร้านได้เลย'});
+    }
+  }else{
+    const e=useGame.getState().game.employees.find(e=>e.id===role)!;
+    moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);
+    set({role,tableId:null,scannedTableId:null,action:'idle',message:`ติดตาม ${role.toUpperCase()} · งานอัตโนมัติยังทำต่อ (ขยับจอยเมื่อว่างเพื่อควบคุม)`});
+  }
  },
  sit:tableId=>{
   if(get().role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนเลือกที่นั่ง'});return false;}
