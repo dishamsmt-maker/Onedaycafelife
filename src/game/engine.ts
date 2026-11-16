@@ -657,7 +657,9 @@ export function act(state: GameState, action: GameAction): GameState {
       // so seating after placement stranded the player with tableId=null.
       if(!c.tableId){const table=s.tables.find(t=>!t.dirty&&!t.customerIds.length);if(table)playerSeat(s,table.id);}
       if(!c.tableId)break;
-      // Only enter the waiting state after an order is actually accepted.\n      // The order helper checks stock using the selected sweetness, matching QR.\n      if (placeCustomerOrder(s,c,m.id,c.sweetness??100)) c.status='waiting';
+      // Only enter the waiting state after an order is actually accepted.
+      // The order helper checks stock using the selected sweetness, matching QR.
+      if (placeCustomerOrder(s,c,m.id,c.sweetness??100)) c.status='waiting';
       break;
     }
     case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;const bill=s.orders.filter(o=>o.customerId===c.id);if(bill.some(o=>!['completed','cancelled'].includes(o.status)))break;if(!bill.some(o=>!o.parentOrderId&&o.status==='completed'&&(c.orderChannel==='counter'?o.paid:!o.paid)))break;leave(s,c,true);break;}
