@@ -370,7 +370,7 @@ function scheduleStaff(s: GameState) {
     else if (dirty) setTask(serving, 'clean', [dirty.position[0] + .9, dirty.position[1]], 1.5, { tableId: dirty.id });
     else if(!serving.task)setTask(serving,'station',[-.4,3.5],999999);
   }
-  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!, o.sweetness));
+  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && (o.stockConsumed || stockAvailable(s, s.menu.find(m => m.id === o.menuId)!, o.sweetness)));
   const na = s.employees.find(e => e.id === 'na')!;
   if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
@@ -379,7 +379,7 @@ function scheduleStaff(s: GameState) {
   const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
-    const order = drinks.find(o => stockAvailable(s, s.menu.find(m => m.id === o.menuId)!, o.sweetness));
+    const order = drinks.find(o => o.stockConsumed || stockAvailable(s, s.menu.find(m => m.id === o.menuId)!, o.sweetness));
     const candidates = s.employees.filter(e => !e.controlled && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
     candidates.sort((a, b) => {
       const score = (e: Employee) => (e.id === 'ham' ? 0 : e.id === 'alee' ? 2 : 5) + Math.hypot(e.position[0] - STATIONS.bar[0], e.position[1] - STATIONS.bar[1]) * .1;
@@ -390,7 +390,7 @@ function scheduleStaff(s: GameState) {
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
     const m = s.menu.find(m => m.id === o.menuId)!;
-    if (!stockAvailable(s, m, o.sweetness)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
+    if (!o.stockConsumed && !stockAvailable(s, m, o.sweetness)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
   }
   const alee = s.employees.find(e => e.id === 'alee')!;
   if (!alee.controlled && (!alee.task || alee.task.kind==='station')) {
