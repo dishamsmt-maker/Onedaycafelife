@@ -360,7 +360,9 @@ function scheduleStaff(s: GameState) {
   const off = s.employees.find(e => (e.id === 'ken' || e.id === 'pun') && e.id !== server)!;
   if (!off.controlled && (!off.task||off.task.kind==='station')) setTask(off, 'rest', REST, 999999);
   if (serving.task?.kind === 'rest') { serving.task = null; serving.available = true; }
-  if (!serving.task||serving.task.kind==='station') {
+  // A manually driven waiter must not be assigned an automatic delivery that
+  // overwrites the player's movement. Following the waiter keeps auto dispatch.
+  if (!serving.controlled && (!serving.task||serving.task.kind==='station')) {
     // Only assign a delivery if the customer can be reached from pickup.
     // Otherwise keep the order ready without repeatedly sending Ken/Pun into a dead end.
     const ready = s.orders.find(o => {
