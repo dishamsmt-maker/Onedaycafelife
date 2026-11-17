@@ -192,7 +192,8 @@ function progressBundles(s:GameState){for(const root of s.orders.filter(o=>o.com
  }}
 function consume(s: GameState, o: Order, m: MenuItem) {
   if (o.stockConsumed) return true;
-  // This accepted order already owns its reservation; check physical stock here.\n  if (!Object.entries(recipeFor(s,m,o.sweetness)).every(([id,q]) => (s.inventory.find(i=>i.id===id)?.quantity??0)+1e-9>=q)) {
+  // This accepted order already owns its reservation; check physical stock here.
+  if (!Object.entries(recipeFor(s,m,o.sweetness)).every(([id,q]) => (s.inventory.find(i=>i.id===id)?.quantity??0)+1e-9>=q)) {
     for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (!i || i.quantity + 1e-9 < q) { const label = i?.name ?? id; if (!s.shortages.includes(label)) { s.shortages.push(label); notice(s, `${label}ไม่พอ · เติมสต็อกหรือพักขายเมนู`); } } }
     return false;
   }
