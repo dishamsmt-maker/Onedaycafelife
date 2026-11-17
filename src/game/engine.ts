@@ -692,13 +692,25 @@ export function act(state: GameState, action: GameAction): GameState {
        leave(s,c,false);break;}
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
-      releaseControl(s);if(!action.id)break;
-      const e=s.employees.find(e=>e.id===action.id);if(!e)break;
-      const o=s.orders.find(o=>o.id===e.task?.orderId);
-      if(o&&!['completed','cancelled'].includes(o.status)){o.status=e.task?.kind==='serve'?'ready':'waiting';o.workerId=undefined;}
-      e.task=null;e.controlled=true;e.available=false;break;
+      // Selecting a staff camera is observation, not an instruction to abandon
+      // an active kitchen/delivery job. Manual control begins on first movement.
+      releaseControl(s);
+      break;
     }
-    case 'control-move':{const e=s.employees.find(e=>e.id===action.id&&e.controlled);if(e&&canWalk(...action.position,.18)&&segmentWalkable(e.position,action.position,.18))e.position=[...action.position];break;}
+    case 'control-move':{
+      const e=s.employees.find(e=>e.id===action.id);
+      if(!e||!canWalk(...action.position,.18)||!segmentWalkable(e.position,action.position,.18))break;
+      if(!e.controlled){
+        const o=s.orders.find(o=>o.id===e.task?.orderId);
+        if(o&&!['completed','cancelled'].includes(o.status)){
+          o.status=e.task?.kind==='serve'?'ready':'waiting';
+          o.workerId=undefined;
+        }
+        e.task=null;e.controlled=true;e.available=false;
+      }
+      e.position=[...action.position];
+      break;
+    }
 
     case 'pause': s.paused = !s.paused; break;
     case 'speed': if ([1, 2, 5].includes(action.value)) s.speed = action.value; break;
