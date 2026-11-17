@@ -1,0 +1,52 @@
+name: ONE DAY QA gates
+on:
+  push:
+    branches:
+      - 'feature/**'
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Unit and simulation tests
+        run: npm test
+      - name: Typecheck and production build
+        run: npm run build
+  browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium and browser dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Run browser end-to-end tests
+        env:
+          CHROMIUM_PATH: /home/runner/.cache/ms-playwright/chromium-*/chrome-linux/chrome
+        run: |
+          CHROMIUM_PATH="$(find "$HOME/.cache/ms-playwright" -type f -path '*/chrome-linux/chrome' -o -path '*/chrome-linux64/chrome' | head -n 1)"
+          test -n "$CHROMIUM_PATH"
+          export CHROMIUM_PATH
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
