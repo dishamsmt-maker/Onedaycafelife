@@ -166,10 +166,10 @@ export function menuRecipe(s:GameState,m:MenuItem):Record<string,number>{
 }
 function recipeFor(s:GameState,m:MenuItem,sweetness=100){const recipe=menuRecipe(s,m);if(m.kind==='drink'&&recipe.sugar)recipe.sugar*=clamp(sweetness,0,100)/100;return recipe;}
 /** Inventory promised to accepted, unconsumed production jobs is unavailable for new sales. */
-function reservedStock(s:GameState):Record<string,number>{
+function reservedStock(s:GameState,excludeOrderId?:string):Record<string,number>{
  const reserved:Record<string,number>={};
  for(const order of s.orders){
-  if(order.stockConsumed||order.status==='cancelled'||order.componentOrderIds?.length)continue;
+  if(order.id===excludeOrderId||order.stockConsumed||order.status==='cancelled'||order.componentOrderIds?.length)continue;
   const item=s.menu.find(m=>m.id===order.menuId);
   if(!item)continue;
   for(const [id,quantity] of Object.entries(recipeFor(s,item,order.sweetness))){
@@ -178,8 +178,8 @@ function reservedStock(s:GameState):Record<string,number>{
  }
  return reserved;
 }
-function stockAvailable(s:GameState,m:MenuItem,sweetness=100){
- const reserved=reservedStock(s);
+function stockAvailable(s:GameState,m:MenuItem,sweetness=100,excludeOrderId?:string){
+ const reserved=reservedStock(s,excludeOrderId);
  return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>
   (s.inventory.find(i=>i.id===id)?.quantity??0)-(reserved[id]??0)+1e-9>=q);
 }
@@ -385,7 +385,7 @@ function scheduleStaff(s: GameState) {
   const na = s.employees.find(e => e.id === 'na')!;
   // Skip blocked orders rather than letting the oldest unreachable ticket starve the queue.
   // Never mark an order as walking until its entire production route is reachable.
-  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && stockAvailable(s, s.menu.find(m => m.id === o.menuId)!) && canReachStation(na.position, o.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (o.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen)));
+  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && (o.stockConsumed || stockAvailable(s, s.menu.find(m => m.id === o.menuId)!,o.sweetness,o.id)) && canReachStation(na.position, o.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (o.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen)));
   if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
@@ -402,7 +402,7 @@ function scheduleStaff(s: GameState) {
     // A blocked drink must not starve every other ready-to-produce drink.
     for (const order of drinks) {
       const m = s.menu.find(item => item.id === order.menuId)!;
-      if (!stockAvailable(s, m)) continue;
+      if (!order.stockConsumed && !stockAvailable(s, m,order.sweetness,order.id)) continue;
       const e = candidates.find(candidate =>
         canReachStation(candidate.position, order.stockConsumed ? STATIONS.bar : STATIONS.fridge) &&
         (order.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.bar)));
@@ -417,7 +417,7 @@ function scheduleStaff(s: GameState) {
   // Report unavailable ingredients even when nobody can start that item.
   for (const o of s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting')) {
     const m = s.menu.find(m => m.id === o.menuId)!;
-    if (!stockAvailable(s, m)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
+    if (!o.stockConsumed && !stockAvailable(s, m,o.sweetness,o.id)) for (const [id, q] of Object.entries(recipeFor(s,m,o.sweetness))) { const i = s.inventory.find(i => i.id === id); if (i && i.quantity < q && !s.shortages.includes(i.name)) { s.shortages.push(i.name); notice(s, `${i.name}ไม่พอ · ออร์เดอร์กำลังรอวัตถุดิบ`); } }
   }
   const alee = s.employees.find(e => e.id === 'alee')!;
   if (!alee.controlled && (!alee.task || alee.task.kind==='station')) {
