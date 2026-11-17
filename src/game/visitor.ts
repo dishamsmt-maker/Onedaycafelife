@@ -96,7 +96,9 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   // The simulation action is the single authority for recipe/sweetness stock checks.
   // A UI-side default-sweetness check can reject a valid low-sugar QR order.
   const beforeIds=new Set(game.orders.map(o=>o.id));
-  const requestId=crypto.randomUUID();
+  // randomUUID is unavailable on some non-secure mobile/LAN preview origins.
+  // Generate a per-attempt idempotency key without blocking the QR order UI.
+  const requestId=globalThis.crypto?.randomUUID?.() ?? `qr-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId});
   const nextGame=useGame.getState().game;
   const player=nextGame.customers.find(c=>c.player&&c.status!=='leaving');
