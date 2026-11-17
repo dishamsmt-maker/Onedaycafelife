@@ -92,7 +92,8 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   }
   if(state.tableId&&state.scannedTableId!==state.tableId){set({message:'แตะ QR บนโต๊ะก่อนสั่งอาหาร'});return false;}
   if(!state.tableId&&!atCounter){set({message:'สั่งที่เคาน์เตอร์ หรือเลือกนั่งโต๊ะก่อน'});return false;}
-  if(!m||!menuAvailable(m,game.minute)||game.phase!=='open'){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}
+  if(game.phase!=='open'){set({message:game.phase==='preparing'?'ร้านยังไม่เปิด · กดเริ่มและเดินเวลาเกมให้ถึง 06:30 ก่อนสั่ง QR':'ร้านปิดแล้ว · เริ่มวันใหม่ก่อนสั่งอาหาร'});return false;}
+  if(!m||!menuAvailable(m,game.minute)){set({message:'เมนูนี้ยังไม่เปิดขายในช่วงนี้'});return false;}
   // The simulation action is the single authority for recipe/sweetness stock checks.
   // A UI-side default-sweetness check can reject a valid low-sugar QR order.
   const beforeIds=new Set(game.orders.map(o=>o.id));
