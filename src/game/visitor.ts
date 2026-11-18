@@ -10,6 +10,7 @@ interface VisitorState {
  scannedTableId:string|null;
  scanTable:()=>boolean;
  prepay:()=>boolean;
+ finishTakeaway:()=>boolean;
  action:'idle'|'eating'|'drinking';
  message:string;
  returnPosition:Vec2|null;
@@ -39,6 +40,18 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   const after=useGame.getState().game;
   if(pending.some(o=>!after.orders.find(next=>next.id===o.id)?.paid)){set({message:'ยังยืนยันการชำระเงินไม่ได้ กรุณาตรวจสอบบิล'});return false;}
   set({message:'รับชำระแล้ว · ส่งเข้าคิวครัวและบาร์'});return true;
+ },
+ finishTakeaway:()=>{
+  const c=playerCustomer(),game=useGame.getState().game;
+  if(!c||c.orderChannel!=='counter'){set({message:'ไม่มีรายการซื้อกลับที่รอรับ'});return false;}
+  const orders=game.orders.filter(o=>o.customerId===c.id&&!o.parentOrderId);
+  if(!orders.length||orders.some(o=>o.status!=='cancelled'&&(!o.paid||o.status!=='completed'))){
+    set({message:'กรุณาชำระเงินและรอรับสินค้าครบก่อนปิดบิล'});return false;
+  }
+  useGame.getState().dispatch({type:'visitor-leave'});
+  if(playerCustomer()?.id===c.id){set({message:'ยังปิดบิลซื้อกลับไม่ได้ กรุณาตรวจสอบรายการ'});return false;}
+  set({tableId:null,scannedTableId:null,returnPosition:null,action:'idle',message:'รับสินค้าครบและปิดบิลซื้อกลับแล้ว · ขอบคุณที่แวะหัวเช้า'});
+  return true;
  },
  setRole:role=>{
   get().stand();if(get().tableId){set({message:'กรุณาชำระเงินและรับอาหารให้ครบก่อนสลับโหมด'});return;}
