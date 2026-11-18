@@ -178,7 +178,7 @@ function reservedStock(s:GameState,excludeOrderId?:string):Record<string,number>
  }
  return reserved;
 }
-function stockAvailable(s:GameState,m:MenuItem,sweetness=100,excludeOrderId?:string){
+export function stockAvailable(s:GameState,m:MenuItem,sweetness=100,excludeOrderId?:string){
  const reserved=reservedStock(s,excludeOrderId);
  return Object.entries(recipeFor(s,m,sweetness)).every(([id,q])=>
   (s.inventory.find(i=>i.id===id)?.quantity??0)-(reserved[id]??0)+1e-9>=q);
