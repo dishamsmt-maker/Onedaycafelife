@@ -54,11 +54,27 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   return true;
  },
  setRole:role=>{
-  get().stand();if(get().tableId){set({message:'กรุณาชำระเงินและรับอาหารให้ครบก่อนสลับโหมด'});return;}
+  const previous=get();
+  // Changing the camera to observe staff must not abandon an active T3 bill.
+  // Keep the seated customer's table/QR state intact across role changes.
+  const seated=previous.tableId&&playerCustomer()?.tableId===previous.tableId;
+  if(previous.tableId&&!seated){
+    set({tableId:null,scannedTableId:null,returnPosition:null,action:'idle'});
+  }
   useGame.getState().dispatch({type:'control-staff',id:role==='customer'?null:role});
-  if(role==='customer')moveCamera(.4,-6.1,1.62,3.09);
-  else {const e=useGame.getState().game.employees.find(e=>e.id===role)!;moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);}
-  set({role,tableId:null,action:'idle',message:role==='customer'?'เข้ามานั่งพักที่ร้านได้เลย':`ติดตาม ${role.toUpperCase()} · งานอัตโนมัติยังเดินต่อ · ขยับจอยเพื่อเข้าควบคุม`});
+  if(role==='customer'){
+    const c=playerCustomer();
+    if(seated&&c){
+      const t=useGame.getState().game.tables.find(t=>t.id===c.tableId);
+      const x=-c.position[0],z=c.position[1];
+      moveCamera(x,z,1.12,t?Math.atan2(-(-t.position[0]-x),-(t.position[1]-z)):undefined);
+      touchControls.view.pitch=-.18;
+    }else moveCamera(.4,-6.1,1.62,3.09);
+  }else{
+    const e=useGame.getState().game.employees.find(e=>e.id===role);
+    if(e)moveCamera(-e.position[0],e.position[1],1.62,Math.PI/2);
+  }
+  set({role,action:'idle',message:role==='customer'?'กลับสู่มุมมองลูกค้า':`ติดตาม ${role.toUpperCase()} · คิวงานยังเดินต่อ · กลับโหมดลูกค้าเพื่อชำระบิล`});
  },
  sit:tableId=>{
   if(get().role!=='customer'){set({message:'เปลี่ยนเป็นลูกค้าก่อนเลือกที่นั่ง'});return false;}
