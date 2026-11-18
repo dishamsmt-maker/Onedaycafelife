@@ -705,10 +705,12 @@ export function act(state: GameState, action: GameAction): GameState {
       const e=s.employees.find(e=>e.id===action.id);
       if(!e||!canWalk(...action.position,.18)||!segmentWalkable(e.position,action.position,.18))break;
       if(!e.controlled){
-        const o=s.orders.find(o=>o.id===e.task?.orderId);
-        if(o&&!['completed','cancelled'].includes(o.status)){
-          o.status=e.task?.kind==='serve'?'ready':'waiting';
-          o.workerId=undefined;
+        // Moving the staff camera must not silently abandon an active T3 ticket.
+        // Wait for the assigned production/delivery to finish before manual takeover.
+        // This preserves order status, worker assignment and the ongoing route.
+        if(e.task?.orderId && ['cook','brew','serve'].includes(e.task.kind)){
+          notice(s, `${e.name} กำลังทำออร์เดอร์ · รอให้งานเสร็จก่อนควบคุมเดิน`);
+          break;
         }
         e.task=null;e.controlled=true;e.available=false;
       }
