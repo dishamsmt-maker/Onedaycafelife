@@ -689,7 +689,11 @@ export function act(state: GameState, action: GameAction): GameState {
     case 'visitor-leave':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(!c)break;
        // Leaving is not a payment action. Keep unpaid dine-in bills at POS, and never mint sales on exit.
        if(s.orders.some(o=>o.customerId===c.id&&o.status!=='cancelled'&&!o.paid)){notice(s,'กรุณาชำระเงินผ่าน POS ก่อนออกจากร้าน');break;}
-       leave(s,c,false);break;}
+       // A fully delivered, prepaid takeaway is a successful visit, not an abandoned sale.
+       // leave(..., true) skips already-paid ledger entries and records normal satisfaction.
+       const settled=s.orders.filter(o=>o.customerId===c.id&&!o.parentOrderId);
+       const fulfilled=settled.length>0&&settled.some(o=>o.status==='completed')&&settled.every(o=>o.status==='cancelled'||(o.status==='completed'&&o.paid));
+       leave(s,c,fulfilled);break;}
     case 'visitor-consume':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');const o=s.orders.find(o=>o.customerId===c?.id&&!o.componentOrderIds?.length&&o.status==='completed'&&!o.consumed&&s.menu.find(m=>m.id===o.menuId)?.kind===action.kind);if(o)o.consumed=true;break;}
     case 'control-staff':{
       // Selecting a staff camera is observation, not an instruction to abandon
