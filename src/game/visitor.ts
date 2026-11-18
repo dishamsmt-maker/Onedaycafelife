@@ -113,7 +113,12 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   useGame.getState().dispatch({type:'visitor-pay'});
   const after=useGame.getState().game;
   if(pending.some(o=>!after.orders.find(next=>next.id===o.id)?.paid)){set({message:'ยังยืนยันการชำระเงินไม่ได้ กรุณาตรวจสอบสถานะบิล'});return false;}
-  get().stand();set({message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ ONE DAY`});return true;
+  // POS settlement marks the player customer as leaving in the engine.
+  // stand() cannot find a leaving customer, so clear the FPV seat/QR cache
+  // explicitly; otherwise the next visit remains stuck on the old table.
+  const back=get().returnPosition??[.5,6.0];
+  moveCamera(back[0],back[1]);
+  set({tableId:null,scannedTableId:null,returnPosition:null,action:'idle',message:`ชำระ ฿${total} แล้ว · ขอบคุณที่แวะ ONE DAY`});return true;
  },
 }));
 // Releasing the staff role is intentional on reload; no employee stays frozen from an old browser session.
