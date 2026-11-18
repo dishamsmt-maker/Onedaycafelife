@@ -646,7 +646,13 @@ export function act(state: GameState, action: GameAction): GameState {
       if(!order)break;
       c.orderChannel=action.channel;c.takeaway=action.channel==='counter';
       c.requestIds=[...(c.requestIds??[]),action.requestId];
-      c.status='waiting';break;
+      c.status='waiting';
+      // Surface the engine-accepted ticket in the same event stream as KDS.
+      // This is emitted only after order creation and request-id acceptance;
+      // rejected or repeated submissions cannot create a phantom receipt.
+      const tableLabel = c.tableId ? (s.tables.find(t=>t.id===c.tableId)?.name ?? c.tableId) : 'เคาน์เตอร์';
+      notice(s, `รับคิว ${order.id} · ${tableLabel} · ${m.name} · ส่งเข้าคิวผลิตแล้ว`);
+      break;
     }
     case 'visitor-prepay': {
       const c=s.customers.find(c=>c.player&&c.status!=='leaving'&&c.orderChannel==='counter');if(!c)break;
