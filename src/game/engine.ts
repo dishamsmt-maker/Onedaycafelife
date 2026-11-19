@@ -633,6 +633,14 @@ function playerSeat(s:GameState,tableId:string){
  // Otherwise a QR order can silently move while Ken is already delivering it.
  if(current?.tableId&&current.tableId!==tableId&&s.orders.some(o=>o.customerId===current.id&&o.status!=='cancelled'&&(!o.paid||o.status!=='completed')))return;
  if(!table||table.dirty||(table.customerIds.length>=table.capacity&&!table.customerIds.includes(current?.id??'')))return;
+ // The player may teleport to a seat in FPV, but a QR ticket must remain
+ // deliverable by the same physical waiter route used for NPC orders.
+ // Validate BEFORE changing table occupancy or creating the player.
+ const destination:Vec2=[table.position[0],table.position[1]-.9];
+ if(!canReachStation(STATIONS.pickup,destination)){
+   notice(s,`โต๊ะ ${table.name} ยังไม่มีทางเดินเสิร์ฟที่ปลอดสิ่งกีดขวาง`);
+   return;
+ }
  const c=ensurePlayer(s);for(const t of s.tables)t.customerIds=t.customerIds.filter(id=>id!==c.id);
  table.customerIds.push(c.id);c.tableId=table.id;c.position=seatPosition(s,c);c.path=[];
  for(const o of s.orders.filter(o=>o.customerId===c.id))o.tableId=table.id;
