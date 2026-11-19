@@ -319,7 +319,7 @@ function progressEmployees(s: GameState, dt: number) {
         // A zero-length route is valid only if the server is already at the guest.
         // Otherwise a missing endpoint means navigation failed, not delivery.
         const endpoint = route[route.length - 1] ?? e.position;
-        if (Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4) {
+        if (Math.hypot(endpoint[0]-destination[0], endpoint[1]-destination[1]) > .4 || !segmentWalkable(endpoint, destination)) {
           o.status = 'ready'; o.workerId = undefined; e.task = null; e.available = true;
           continue;
         }
@@ -348,7 +348,7 @@ function progressEmployees(s: GameState, dt: number) {
 function canReachStation(from: Vec2, to: Vec2): boolean {
   const route = findPath(from, to);
   const end = route[route.length - 1] ?? from;
-  return Math.hypot(end[0] - to[0], end[1] - to[1]) <= .4;
+  return Math.hypot(end[0] - to[0], end[1] - to[1]) <= .4 && segmentWalkable(end, to);
 }
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
@@ -371,7 +371,7 @@ function scheduleStaff(s: GameState) {
       // An empty path is valid when pickup already coincides with the guest.
       // Keep the reachability gate consistent with the pickup-to-delivery transition.
       const endpoint = route[route.length - 1] ?? STATIONS.pickup;
-      return Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4;
+      return Math.hypot(endpoint[0] - destination[0], endpoint[1] - destination[1]) <= .4 && segmentWalkable(endpoint, destination);
     }) : undefined;
     const waiting = s.customers.find(c => !c.player && c.takeaway && c.status === 'seated' && !c.orderIds.length && !s.employees.some(e => e.task?.customerId === c.id) && canReachStation(serving.position, customerTarget(s, c)));
     const question=s.customers.find(c=>c.askedAt!==undefined&&c.answeredAt===undefined&&c.status!=='leaving'&&canReachStation(serving.position,customerTarget(s,c)));
