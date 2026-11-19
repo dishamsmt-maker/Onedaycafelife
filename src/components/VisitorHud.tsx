@@ -14,6 +14,13 @@ export default function VisitorHud({state,onMenu,onNotice}:{state:GameState;onMe
  const takeaway=customer?.orderChannel==='counter';
  // KDS tracks actionable leaf tickets. A bundle parent is a summary, not a cook/serve task.
  const activeTickets=state.orders.filter(o=>!o.componentOrderIds?.length&&!['completed','cancelled'].includes(o.status));
+ // Keep the player's T3 ticket visible in the staff KDS even during a rush.
+ // The queue is still sourced from the same simulation orders; this only
+ // changes which five tickets fit on the mobile HUD, not their work priority.
+ const visibleTickets=[...activeTickets].sort((a,b)=>{
+  const aPlayer=Number(a.customerId===customer?.id),bPlayer=Number(b.customerId===customer?.id);
+  return bPlayer-aPlayer||a.createdAt-b.createdAt;
+ }).slice(0,5);
  const run=(fn:()=>unknown)=>{fn();onNotice(useVisitor.getState().message)};
  return <><div className="visitor-role"><button onClick={()=>setRoles(!roles)} aria-label="เลือกตัวละคร"><Users size={14}/>{v.role==='customer'?'ลูกค้า':state.employees.find(e=>e.id===v.role)?.name} ⌄</button>{roles&&<div className="role-list">{(['customer','ham','na','alee','ken','pun'] as const).map(id=><button key={id} onClick={()=>{run(()=>v.setRole(id));setRoles(false)}}>{id==='customer'?'ลูกค้า':state.employees.find(e=>e.id===id)?.name}</button>)}</div>}</div>
  {v.role==='customer'?<div className="visitor-story"><span>ONE DAY · TABLE & TAKEAWAY</span><strong>{table?`${tableLabel} · สั่งผ่าน QR`:takeaway?`ซื้อกลับ · คิว ${customer.id.split('-').at(-1)}`:'นั่งร้าน: เลือกโต๊ะในสวน · ซื้อกลับ: สั่งหน้าเคาน์เตอร์'}</strong>
@@ -24,7 +31,7 @@ export default function VisitorHud({state,onMenu,onNotice}:{state:GameState;onMe
  </div>{takeaway&&<small>{unpaid>0?'ยืนยันชำระในบิลก่อนเริ่มผลิต':'ชำระแล้ว · รอเรียกรับที่เคาน์เตอร์'}</small>}</div>:<div className="visitor-story"><span>TEAM ONE DAY</span><strong>คุณกำลังเดินเป็น {state.employees.find(e=>e.id===v.role)?.name}</strong>
  {(v.role==='na'||v.role==='ken'||v.role==='pun'||v.role==='ham'||v.role==='alee')&&<div aria-label="คิวงานจริงจากระบบจำลอง" className="visitor-actions">
  <span>คิว KDS/เสิร์ฟ · {activeTickets.length} งาน</span>
- {activeTickets.slice(0,5).map(o=><small key={o.id}>{state.tables.find(t=>t.id===o.tableId)?.name??'ซื้อกลับ'} · {state.menu.find(m=>m.id===o.menuId)?.name??o.menuId} · {labels[o.status]}{o.workerId?` · ${o.workerId.toUpperCase()}`:''}</small>)}
+ {visibleTickets.map(o=><small key={o.id}>{state.tables.find(t=>t.id===o.tableId)?.name??'ซื้อกลับ'} · {state.menu.find(m=>m.id===o.menuId)?.name??o.menuId} · {labels[o.status]}{o.workerId?` · ${o.workerId.toUpperCase()}`:''}</small>)}
  </div>}</div>}
  {bill&&<div className="sheet-backdrop"><section className="game-sheet" role="dialog" aria-label="บิลและคิว"><div className="sheet-heading"><h2>{takeaway?'บิลซื้อกลับ':`บิล ${state.tables.find(t=>t.id===customer?.tableId)?.name??'ของคุณ'}`}</h2><button className="icon-btn" aria-label="ปิดบิล" onClick={()=>setBill(false)}>×</button></div><div className="panel-content">
  <p>รับรายการ → ผลิต → ส่งมอบ → ปิดบิล</p>{orders.map(o=><div className="order-card" key={o.id}><strong>{state.menu.find(m=>m.id===o.menuId)?.name} · ฿{o.price}</strong><p>{takeaway&&!o.paid&&o.status==='waiting'?'รอชำระก่อนผลิต':labels[o.status]}</p><small>{o.paid?'ชำระแล้ว':o.status==='cancelled'?'ไม่คิดเงิน':'ยังไม่ชำระ'} · #{o.id}</small>{o.componentOrderIds?.map(id=>{const child=state.orders.find(x=>x.id===id);return child&&<p key={id}>{state.menu.find(m=>m.id===child.menuId)?.name}: {labels[child.status]}</p>})}</div>)}
