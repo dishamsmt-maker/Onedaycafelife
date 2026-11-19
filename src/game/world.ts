@@ -30,6 +30,11 @@ export function segmentWalkable(from:Vec2,to:Vec2,radius=.16):boolean{
  * or table centre is blocked by its own collision box. */
 export function findPath(from:Vec2,to:Vec2):Vec2[]{
  if(![...from,...to].every(Number.isFinite))return [];
+ // Preserve a physically clear direct route, especially the kitchen pickup -> T3
+ // approach. Grid snapping can otherwise choose a nearby endpoint even though
+ // the exact destination is reachable, causing delivery to be requeued.
+ // Never bypass collision checks for a direct route.
+ if(segmentWalkable(from,to))return Math.hypot(to[0]-from[0],to[1]-from[1])<1e-8?[]:[[...to]];
  const step=.25;
  const key=(x:number,z:number)=>`${x},${z}`;
  const snap=(p:Vec2):Vec2=>[Math.round(p[0]/step),Math.round(p[1]/step)];
