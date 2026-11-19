@@ -42,7 +42,24 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
  // This avoids routing through an obstacle on the very first step.
  const requestedOrigin=snap(from);
  let origin=requestedOrigin;
- if(!canWalk(origin[0]*step,origin[1]*step)){
+ // A snapped grid origin can be on the opposite side of a counter even when
+ // both points are walkable. Never teleport an actor onto that grid cell.
+ // Search nearby cells that the actor can physically reach first.
+ if(canWalk(...from)){
+  let closest=Infinity;
+  let reachable:Vec2|undefined;
+  for(let dx=-8;dx<=8;dx++)for(let dz=-8;dz<=8;dz++){
+   const candidate:Vec2=[requestedOrigin[0]+dx,requestedOrigin[1]+dz];
+   const point:Vec2=[candidate[0]*step,candidate[1]*step];
+   const distance=Math.hypot(point[0]-from[0],point[1]-from[1]);
+   if(distance<closest && segmentWalkable(from,point)){
+    closest=distance;reachable=candidate;
+   }
+  }
+  if(!reachable)return [];
+  origin=reachable;
+ } else if(!canWalk(origin[0]*step,origin[1]*step)){
+  // Preserve existing recovery for legacy staff spawned inside furniture.
   let closest=Infinity;
   for(let dx=-8;dx<=8;dx++)for(let dz=-8;dz<=8;dz++){
    const candidate:Vec2=[requestedOrigin[0]+dx,requestedOrigin[1]+dz];
@@ -84,8 +101,12 @@ export function findPath(from:Vec2,to:Vec2):Vec2[]{
   path.unshift([p[0]*step,p[1]*step]);
   const parent=prev.get(key(...p));if(!parent)break;p=parent;
  }
+ // Include the reachable grid origin whenever it differs from the actor's
+ // actual position, not only when the requested snapped cell was blocked.
+ if(canWalk(...from) && Math.hypot(from[0]-origin[0]*step,from[1]-origin[1]*step)>1e-8)
+  path.unshift([origin[0]*step,origin[1]*step]);
  // Recovery must be the FIRST waypoint, not the last one.
- if(key(...origin)!==key(...requestedOrigin))path.unshift([origin[0]*step,origin[1]*step]);
+ if(!canWalk(...from) && key(...origin)!==key(...requestedOrigin))path.unshift([origin[0]*step,origin[1]*step]);
  // Do not append a destination unless its direct segment is collision-free.
  const last=path.length?path[path.length-1]:from;
  const distance=Math.hypot(to[0]-last[0],to[1]-last[1]);
