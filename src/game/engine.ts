@@ -75,7 +75,7 @@ function seatCustomer(s: GameState, c: Customer): boolean {
     // An empty route is valid if the customer is already at the chair approach.
     // Reject only paths whose actual endpoint cannot reach the chair.
     const last = path[path.length - 1] ?? c.position;
-    if (Math.hypot(last[0] - target[0], last[1] - target[1]) > .35) continue;
+    if (Math.hypot(last[0] - target[0], last[1] - target[1]) > .35 || !segmentWalkable(last, target)) continue;
     table.customerIds.push(c.id);
     c.tableId = table.id;
     c.status = 'arriving';
@@ -496,7 +496,21 @@ function progressCustomers(s: GameState, dt: number) {
     if (c.status === 'leaving') { walk(c.position, c.path, dt * 4); continue; }
     walk(c.position, c.path, dt * 3.5);
     if (c.status === 'queuing') { if (!c.path.length) seatCustomer(s, c); }
-    else if (c.status === 'arriving' && !c.path.length) { c.status = 'seated'; c.seatedAt = s.minute; }
+    else if (c.status === 'arriving' && !c.path.length) {
+      // A partial route is not proof of arrival: the chair approach must be
+      // physically reachable before an order can enter KDS.
+      const target = seatPosition(s, c);
+      if (Math.hypot(c.position[0] - target[0], c.position[1] - target[1]) <= .35 &&
+          segmentWalkable(c.position, target)) {
+        c.status = 'seated'; c.seatedAt = s.minute;
+      } else if (c.tableId) {
+        const table = s.tables.find(t => t.id === c.tableId);
+        if (table) table.customerIds = table.customerIds.filter(id => id !== c.id);
+        c.tableId = null;
+        c.status = 'queuing';
+        c.path = findPath(c.position, STATIONS.queue);
+      }
+    }
     if(c.status==='seated'&&!c.takeaway&&!c.orderIds.length&&s.minute-c.seatedAt>.5){c.orderChannel='table-qr';placeOrders(s,c);}
     if ((c.status === 'queuing' || c.status === 'seated') && s.minute - c.arrivedAt > c.patience) { leave(s, c, false); continue; }
     if (c.status === 'waiting') {
