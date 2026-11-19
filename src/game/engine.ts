@@ -222,7 +222,7 @@ function finishTask(s: GameState, e: Employee) {
       // assigned for serving. Never resurrect cancelled or abandoned orders.
       if (o && o.status === 'serving' && c && c.status !== 'leaving' && c.orderIds.includes(o.id)) {
         const destination = customerTarget(s, c);
-        const closeEnough = Math.hypot(e.position[0] - destination[0], e.position[1] - destination[1]) <= .45;
+        const closeEnough = Math.hypot(e.position[0] - destination[0], e.position[1] - destination[1]) <= .45 && segmentWalkable(e.position, destination);
         if (closeEnough) {
           o.status = 'completed'; o.completedAt = s.minute; o.workerId = undefined;
           s.todayWaits.push(s.minute - o.createdAt);
@@ -272,7 +272,7 @@ function progressEmployees(s: GameState, dt: number) {
       if (t.kind === 'serve' && t.stage === 'deliver') {
         const customer = s.customers.find(c => c.id === t.customerId);
         const destination = customer ? customerTarget(s, customer) : t.target;
-        if (!customer || customer.status === 'leaving' || Math.hypot(e.position[0]-destination[0], e.position[1]-destination[1]) > .45) {
+        if (!customer || customer.status === 'leaving' || (Math.hypot(e.position[0]-destination[0], e.position[1]-destination[1]) > .45 || !segmentWalkable(e.position, destination))) {
           if (o && o.status === 'serving') { o.status = 'ready'; o.workerId = undefined; }
           e.task = null; e.available = true; continue;
         }
