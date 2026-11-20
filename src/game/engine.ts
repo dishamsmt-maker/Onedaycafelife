@@ -657,7 +657,19 @@ export function act(state: GameState, action: GameAction): GameState {
     case 'visitor-submit': {
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
       if(!action.requestId||current?.requestIds?.includes(action.requestId))break;
-      if(action.channel==='table-qr'&&!current?.tableId)break;
+      if(action.channel==='table-qr'){
+        // A cached FPV seat is not sufficient: only an occupied, reachable table
+        // can create a real KDS ticket. This also protects orders after layout edits.
+        const table=s.tables.find(t=>t.id===current?.tableId);
+        if(!current||!table||!table.customerIds.includes(current.id)){
+          notice(s,'QR โต๊ะไม่ตรงกับที่นั่งปัจจุบัน · กรุณาเลือกโต๊ะและสแกนใหม่');
+          break;
+        }
+        if(!canReachStation(STATIONS.pickup,customerTarget(s,current))){
+          notice(s,`โต๊ะ ${table.name} ไม่มีเส้นทางให้ Ken เสิร์ฟ · ยังไม่รับออร์เดอร์`);
+          break;
+        }
+      }
       if(current?.orderChannel&&current.orderChannel!==action.channel)break;
       if(action.channel==='counter'&&current?.tableId)break;
       const m=s.menu.find(m=>m.id===action.menuId);
