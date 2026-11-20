@@ -487,9 +487,11 @@ function progressCustomers(s: GameState, dt: number) {
       const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
       c.status=orders.length&&resolved?'eating':'waiting';
       // Closing must never silently settle an unpaid dine-in ticket. Only an explicit POS action may collect payment.
-       if(s.phase==='closing' && (orders.every(o=>o.status==='cancelled'||o.paid) && resolved || s.minute>CLOSE+90)) {
-        // Preserve the POS payment window after service. Unpaid tickets never become sales on timeout.
-        leave(s,c,orders.some(o=>o.status==='completed') && orders.every(o=>o.status==='cancelled'||o.paid));
+       if(s.phase==='closing' && resolved && orders.every(o=>o.status==='cancelled'||o.paid)) {
+        // Never evict the player at CLOSE+90 while a dine-in ticket is unpaid:
+        // that would discard the only POS path and leave a completed T3 sale
+        // unsettled. Closing waits for explicit payment or cancellation.
+        leave(s,c,orders.some(o=>o.status==='completed'));
       }
       continue;
     }
