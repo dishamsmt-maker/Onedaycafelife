@@ -115,10 +115,17 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   const customer=playerCustomer();
   if(state.tableId&&customer?.tableId!==state.tableId){set({message:'สถานะโต๊ะไม่ตรงกับระบบ กรุณานั่งและสแกน QR อีกครั้ง'});return false;}
   const requestId=crypto.randomUUID();
+  const previousNoticeId=game.notices[0]?.id;
   useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId});
-  // Confirm the engine accepted THIS request, not merely that another order appeared.
+  // A rejected T3 QR order must display the new engine notice, not an unrelated old notice.
+  const after=useGame.getState().game;
   const accepted=playerCustomer()?.requestIds?.includes(requestId);
-  if(!accepted){set({message:'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});return false;}
+  if(!accepted){
+    const latest=after.notices[0];
+    const reason=latest?.id!==previousNoticeId?latest?.text:null;
+    set({message:reason??'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});
+    return false;
+  }
   const c=playerCustomer(),t=useGame.getState().game.tables.find(t=>t.id===c?.tableId);
   set({message:`รับออร์เดอร์${m.name}แล้ว${t?` · เสิร์ฟที่${t.name}`:' · รับที่เคาน์เตอร์'}`});return true;
  },
