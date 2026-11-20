@@ -712,7 +712,16 @@ export function act(state: GameState, action: GameAction): GameState {
       const c=s.customers.find(c=>c.player&&c.status!=='leaving');
       if(!c?.tableId)break;
       const order=placeCustomerOrder(s,c,m.id);
-      if(order){c.orderChannel='table-qr';c.status='waiting';}
+      if(order){
+        c.orderChannel='table-qr';c.status='waiting';
+        // Use the same accepted-ticket feedback as visitor-submit, so a
+        // Gameplay V2 QR order is observable in the shared KDS event stream.
+        // Never announce a ticket unless the engine actually created it.
+        const tableLabel=s.tables.find(t=>t.id===c.tableId)?.name??c.tableId;
+        notice(s,`รับคิว ${order.id} · ${tableLabel} · ${m.name} · ส่งเข้าคิวผลิตแล้ว`);
+      }else{
+        notice(s,'รับออร์เดอร์ไม่สำเร็จ · ตรวจสอบเมนูและสต็อก');
+      }
       break;
     }
     case 'visitor-pay':{const c=s.customers.find(c=>c.player&&c.status!=='leaving');if(c){const orders=s.orders.filter(o=>o.customerId===c.id);if(orders.some(o=>o.status==='completed'&&!o.paid)&&orders.every(o=>['completed','cancelled'].includes(o.status)))leave(s,c,true);}break;}
