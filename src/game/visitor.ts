@@ -83,10 +83,16 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   if(!t||t.dirty||(t.customerIds.length>=t.capacity&&!t.customerIds.includes(existing?.id??''))){set({message:'โต๊ะนี้ยังไม่พร้อมรับลูกค้า'});return false;}
   if(Math.hypot(-touchControls.position.x-t.position[0],touchControls.position.z-t.position[1])>1.7){set({message:'เดินเข้าใกล้โต๊ะก่อนนั่ง'});return false;}
   const back:Vec2=[touchControls.position.x,touchControls.position.z];
+  const previousNoticeId=game.notices[0]?.id;
   useGame.getState().dispatch({type:'visitor-seat',tableId});const c=playerCustomer();
   // The engine can reject a seat change while an active QR ticket is assigned.
   // Never move the FPV camera or update the local QR table unless the engine accepted this exact table.
-  if(c?.tableId!==tableId){set({message:'ยังเปลี่ยนโต๊ะไม่ได้ระหว่างมีออร์เดอร์ค้าง กรุณารอเสิร์ฟหรือยกเลิกรายการก่อน'});return false;}
+  if(c?.tableId!==tableId){
+    const latest=useGame.getState().game.notices[0];
+    const engineReason=latest?.id!==previousNoticeId?latest?.text:null;
+    set({message:engineReason??'ยังเปลี่ยนโต๊ะไม่ได้ระหว่างมีออร์เดอร์ค้าง กรุณารอเสิร์ฟหรือยกเลิกรายการก่อน'});
+    return false;
+  }
   // Actual NPC seat allocation chooses a free chair. Rendered world is X mirrored.
   const x=-c.position[0],z=c.position[1],targetX=-t.position[0];
   moveCamera(x,z,1.12,Math.atan2(-(targetX-x),-(t.position[1]-z)));
