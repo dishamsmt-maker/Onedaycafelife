@@ -703,8 +703,10 @@ export function act(state: GameState, action: GameAction): GameState {
       if(current?.orderChannel==='counter')break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       if(!current?.tableId){
-        const table=s.tables.find(t=>!t.dirty&&t.customerIds.length<t.capacity);
-        if(!table)break;
+        // Skip unreachable free tables instead of silently dropping the QR order.
+        const table=s.tables.find(t=>!t.dirty&&t.customerIds.length<t.capacity&&
+          canReachStation(STATIONS.pickup,[t.position[0],t.position[1]-.9]));
+        if(!table){notice(s,'ไม่มีโต๊ะว่างที่พนักงานเดินเสิร์ฟถึง');break;}
         playerSeat(s,table.id);
       }
       const c=s.customers.find(c=>c.player&&c.status!=='leaving');
