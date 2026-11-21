@@ -744,6 +744,18 @@ export function act(state: GameState, action: GameAction): GameState {
       }
       const c=s.customers.find(c=>c.player&&c.status!=='leaving');
       if(!c?.tableId)break;
+      // The legacy FPV action must validate the actual occupied destination,
+      // just like visitor-submit. A stale seat or a changed layout must not
+      // create a KDS ticket that Ken can never deliver.
+      const seatedTable=s.tables.find(t=>t.id===c.tableId);
+      if(!seatedTable||!seatedTable.customerIds.includes(c.id)){
+        notice(s,'โต๊ะไม่ตรงกับที่นั่งปัจจุบัน · ยังไม่รับออร์เดอร์');
+        break;
+      }
+      if(!canReachStation(STATIONS.pickup,customerTarget(s,c))){
+        notice(s,`โต๊ะ ${seatedTable.name} ไม่มีเส้นทางให้พนักงานเสิร์ฟ · ยังไม่รับออร์เดอร์`);
+        break;
+      }
       const waiter=s.employees.find(e=>e.id===activeServer(s));
       if(!waiter||!canReachStation(waiter.position,STATIONS.pickup)){
         notice(s,'พนักงานยังเข้าถึงจุดรับอาหารไม่ได้ · ยังไม่รับออร์เดอร์');
