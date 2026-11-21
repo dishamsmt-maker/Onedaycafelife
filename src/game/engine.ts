@@ -693,6 +693,15 @@ export function act(state: GameState, action: GameAction): GameState {
       c.orderChannel=action.channel;c.takeaway=action.channel==='counter';
       c.requestIds=[...(c.requestIds??[]),action.requestId];
       c.status='waiting';
+      // A QR sale must not be stranded behind an idle, manually controlled worker.
+      // Hand the required idle staff back to the scheduler after acceptance.
+      // Never interrupt an active production or delivery task.
+      if (action.channel === 'table-qr') {
+        const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
+        const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled && !e.task?.orderId);
+        for (const e of resumed) { e.controlled = false; e.available = true; }
+        if (resumed.length) notice(s, `รับคิว QR แล้ว · คืนการทำงานอัตโนมัติให้ ${resumed.map(e => e.name).join(', ')} เพื่อไม่ให้คิวค้าง`);
+      }
       // Surface the engine-accepted ticket in the same event stream as KDS.
       // This is emitted only after order creation and request-id acceptance;
       // rejected or repeated submissions cannot create a phantom receipt.
