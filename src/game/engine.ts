@@ -658,6 +658,13 @@ export function act(state: GameState, action: GameAction): GameState {
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
       if(!action.requestId||current?.requestIds?.includes(action.requestId))break;
       if(action.channel==='table-qr'){
+        // Do not accept a QR ticket when the active server cannot reach pickup.
+        // A pickup-to-table route alone can leave a paid-for meal permanently ready.
+        const waiter = s.employees.find(e => e.id === activeServer(s));
+        if (!waiter || !canReachStation(waiter.position, STATIONS.pickup)) {
+          notice(s, 'พนักงานยังเข้าถึงจุดรับอาหารไม่ได้ · ยังไม่รับออร์เดอร์ QR');
+          break;
+        }
         // A cached FPV seat is not sufficient: only an occupied, reachable table
         // can create a real KDS ticket. This also protects orders after layout edits.
         const table=s.tables.find(t=>t.id===current?.tableId);
@@ -725,6 +732,11 @@ export function act(state: GameState, action: GameAction): GameState {
       }
       const c=s.customers.find(c=>c.player&&c.status!=='leaving');
       if(!c?.tableId)break;
+      const waiter=s.employees.find(e=>e.id===activeServer(s));
+      if(!waiter||!canReachStation(waiter.position,STATIONS.pickup)){
+        notice(s,'พนักงานยังเข้าถึงจุดรับอาหารไม่ได้ · ยังไม่รับออร์เดอร์');
+        break;
+      }
       const order=placeCustomerOrder(s,c,m.id);
       if(order){
         c.orderChannel='table-qr';c.status='waiting';
