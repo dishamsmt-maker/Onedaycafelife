@@ -260,6 +260,15 @@ function finishTask(s: GameState, e: Employee) {
 function progressEmployees(s: GameState, dt: number) {
   const server = activeServer(s);
   for (const e of s.employees) {
+    if (e.controlled && e.task?.orderId && ['cook', 'brew', 'serve'].includes(e.task.kind)) {
+      // A saved or interrupted manual session can retain an assigned ticket.
+      // The UI blocks new manual takeover of active orders, but older saves
+      // may still have controlled=true. Resume that exact task rather than
+      // leaving the ticket in preparing/serving forever.
+      e.controlled = false;
+      e.available = true;
+      notice(s, `${e.name} กลับมาทำออร์เดอร์ที่ค้างต่อโดยอัตโนมัติ`);
+    }
     if(e.controlled){e.available=false;continue;}
     const onDuty = !['ken', 'pun'].includes(e.id) || e.id === server || (e.task && e.task.kind !== 'rest');
     if (onDuty && s.phase !== 'closed') e.hours += dt / 60;
