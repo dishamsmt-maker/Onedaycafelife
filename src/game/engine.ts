@@ -750,6 +750,13 @@ export function act(state: GameState, action: GameAction): GameState {
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
       if(current?.orderChannel==='counter')break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
+      // Preflight the server route BEFORE auto-seating the visitor. Rejected
+      // orders must not reserve a chair or mutate table occupancy.
+      const waiter=s.employees.find(e=>e.id===activeServer(s));
+      if(!waiter||!canReachStation(waiter.position,STATIONS.pickup)){
+        notice(s,'พนักงานยังเข้าถึงจุดรับอาหารไม่ได้ · ยังไม่รับออร์เดอร์');
+        break;
+      }
       if(!current?.tableId){
         // Skip unreachable free tables instead of silently dropping the QR order.
         const table=s.tables.find(t=>!t.dirty&&t.customerIds.length<t.capacity&&
@@ -769,11 +776,6 @@ export function act(state: GameState, action: GameAction): GameState {
       }
       if(!canReachStation(STATIONS.pickup,customerTarget(s,c))){
         notice(s,`โต๊ะ ${seatedTable.name} ไม่มีเส้นทางให้พนักงานเสิร์ฟ · ยังไม่รับออร์เดอร์`);
-        break;
-      }
-      const waiter=s.employees.find(e=>e.id===activeServer(s));
-      if(!waiter||!canReachStation(waiter.position,STATIONS.pickup)){
-        notice(s,'พนักงานยังเข้าถึงจุดรับอาหารไม่ได้ · ยังไม่รับออร์เดอร์');
         break;
       }
       const order=placeCustomerOrder(s,c,m.id);
