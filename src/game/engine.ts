@@ -699,7 +699,13 @@ export function act(state: GameState, action: GameAction): GameState {
       if (action.channel === 'table-qr') {
         const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
         const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled && !e.task?.orderId);
-        for (const e of resumed) { e.controlled = false; e.available = true; }
+        for (const e of resumed) {
+          // A controlled worker may retain a non-order station/rest task. Clear it
+          // when resuming, otherwise the scheduler can skip the new T3 ticket.
+          e.task = null;
+          e.controlled = false;
+          e.available = true;
+        }
         if (resumed.length) notice(s, `รับคิว QR แล้ว · คืนการทำงานอัตโนมัติให้ ${resumed.map(e => e.name).join(', ')} เพื่อไม่ให้คิวค้าง`);
       }
       // Surface the engine-accepted ticket in the same event stream as KDS.
@@ -770,7 +776,13 @@ export function act(state: GameState, action: GameAction): GameState {
         // Never interrupt a worker with an active order task.
         const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
         const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled && !e.task?.orderId);
-        for (const e of resumed) { e.controlled = false; e.available = true; }
+        for (const e of resumed) {
+          // A controlled worker may retain a non-order station/rest task. Clear it
+          // when resuming, otherwise the scheduler can skip the new T3 ticket.
+          e.task = null;
+          e.controlled = false;
+          e.available = true;
+        }
         if (resumed.length) notice(s, `รับคิว QR แล้ว · คืนการทำงานอัตโนมัติให้ ${resumed.map(e => e.name).join(', ')} เพื่อไม่ให้คิวค้าง`);
         // Use the same accepted-ticket feedback as visitor-submit, so a
         // Gameplay V2 QR order is observable in the shared KDS event stream.
