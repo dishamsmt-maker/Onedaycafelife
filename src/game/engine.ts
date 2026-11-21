@@ -752,6 +752,14 @@ export function act(state: GameState, action: GameAction): GameState {
       const order=placeCustomerOrder(s,c,m.id);
       if(order){
         c.orderChannel='table-qr';c.status='waiting';
+        // Legacy Gameplay V2 visitor-order must resume idle controlled staff too.
+        // visitor-submit already does this; without parity, a ticket can remain
+        // waiting/ready indefinitely when Na or the active server is controlled.
+        // Never interrupt a worker with an active order task.
+        const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
+        const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled && !e.task?.orderId);
+        for (const e of resumed) { e.controlled = false; e.available = true; }
+        if (resumed.length) notice(s, `รับคิว QR แล้ว · คืนการทำงานอัตโนมัติให้ ${resumed.map(e => e.name).join(', ')} เพื่อไม่ให้คิวค้าง`);
         // Use the same accepted-ticket feedback as visitor-submit, so a
         // Gameplay V2 QR order is observable in the shared KDS event stream.
         // Never announce a ticket unless the engine actually created it.
