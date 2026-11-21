@@ -583,7 +583,10 @@ function step(s: GameState, dt: number) {
   if (s.phase === 'closing' && !s.customers.length) {
     const dirty = s.tables.some(t => t.dirty);
     const inspected = s.garden.lastInspection >= CLOSE || s.minute - s.garden.lastInspection < 10;
-    if ((!dirty && inspected && !s.signMounted) || s.minute > CLOSE + 120) closeReport(s);
+    // Never finalize a day with an unpaid completed dine-in ticket, even after
+    // the cleanup timeout. Keep POS settlement available before freezing totals.
+    const unsettled = s.orders.some(o => !o.parentOrderId && o.status === 'completed' && !o.paid);
+    if (!unsettled && ((!dirty && inspected && !s.signMounted) || s.minute > CLOSE + 120)) closeReport(s);
   }
 }
 export function tick(state: GameState, dtMinutes: number): GameState {
