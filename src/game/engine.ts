@@ -508,6 +508,12 @@ function progressCustomers(s: GameState, dt: number) {
     if(c.player && c.status!=='leaving'){
       const orders=s.orders.filter(o=>c.orderIds.includes(o.id));
       const resolved=orders.every(o=>['completed','cancelled'].includes(o.status));
+      // An idle T3 guest with no ticket must not block end-of-day settlement forever.
+      // There is no sale to collect, so release the seat without posting revenue.
+      if (s.phase === 'closing' && orders.length === 0) {
+        leave(s, c, false);
+        continue;
+      }
       c.status=orders.length&&resolved?'eating':'waiting';
       // Closing must never silently settle an unpaid dine-in ticket. Only an explicit POS action may collect payment.
        if(s.phase==='closing' && resolved && orders.every(o=>o.status==='cancelled'||o.paid)) {
