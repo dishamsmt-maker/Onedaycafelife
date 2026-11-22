@@ -712,7 +712,9 @@ export function act(state: GameState, action: GameAction): GameState {
       if(current?.orderChannel&&current.orderChannel!==action.channel)break;
       if(action.channel==='counter'&&current?.tableId)break;
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      // Match the FPV QR preflight and the recipe actually reserved by placeCustomerOrder.
+      // Otherwise a reduced-sugar drink can be rejected using 100% sugar stock.
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,current?.sweetness??100))break;
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       const c=ensurePlayer(s);
       // Only consume the idempotency key after an order was actually created.
