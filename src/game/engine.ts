@@ -371,7 +371,13 @@ function scheduleStaff(s: GameState) {
     // Check both delivery legs before selecting a ticket. If the server cannot
     // reach pickup, do not reserve a job that cannot be started.
     const pickupReachable = canReachStation(serving.position, STATIONS.pickup);
-    const ready = pickupReachable ? s.orders.find(o => {
+    const ready = pickupReachable ? [...s.orders].sort((a, b) => {
+      // Give an interactive guest a small head start in a rush, while
+      // preserving FIFO for orders that have already waited longer.
+      const priority = (o: Order) => o.createdAt -
+        (s.customers.some(c => c.id === o.customerId && c.player) ? 2 : 0);
+      return priority(a) - priority(b);
+    }).find(o => {
       if (o.componentOrderIds?.length || o.status !== 'ready' || o.workerId) return false;
       const customer = s.customers.find(c => c.id === o.customerId && c.status !== 'leaving');
       if (!customer) return false;
