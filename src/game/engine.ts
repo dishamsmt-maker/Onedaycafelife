@@ -130,7 +130,7 @@ function arrive(s: GameState, count: number, eventId?: string) {
   }
 }
 function chooseMenu(s: GameState, c: Customer): MenuItem[] {
-  const available = s.menu.filter(m => menuAvailable(m,s.minute) && stockAvailable(s,m));
+  const available = s.menu.filter(m => menuAvailable(m,s.minute) && stockAvailable(s,m,c.sweetness??100));
   const foods = available.filter(m => m.kind === 'food' && m.price <= c.budget);
   const drinks = available.filter(m => m.kind === 'drink' && m.price <= c.budget);
   const preferred = drinks.filter(m => c.preference === 'coffee' ? ['espresso', 'americano', 'latte', 'cappuccino'].includes(m.id) : c.preference === 'tea' ? ['thai-tea', 'green-tea'].includes(m.id) : true);
@@ -772,7 +772,7 @@ export function act(state: GameState, action: GameAction): GameState {
     }
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
-      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m))break;
+      if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,s.customers.find(c=>c.player&&c.status!=='leaving')?.sweetness??100))break;
       // A dine-in order must have a valid delivery destination before a
       // production job is created. Do not strand orders when all tables are full.
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
