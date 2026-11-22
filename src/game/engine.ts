@@ -722,6 +722,12 @@ export function act(state: GameState, action: GameAction): GameState {
       // rejected or repeated submissions cannot create a phantom receipt.
       const tableLabel = c.tableId ? (s.tables.find(t=>t.id===c.tableId)?.name ?? c.tableId) : 'เคาน์เตอร์';
       notice(s, `รับคิว ${order.id} · ${tableLabel} · ${m.name} · ส่งเข้าคิวผลิตแล้ว`);
+      // Dispatch the newly accepted T3 ticket to the actual kitchen/server scheduler
+      // immediately. The KDS and staff HUD must observe the same assigned order
+      // even before the next simulation clock tick (e.g. while the game is paused).
+      // The scheduler respects existing active tasks and does not advance time,
+      // consume inventory or settle payment here.
+      scheduleStaff(s);
       break;
     }
     case 'visitor-prepay': {
