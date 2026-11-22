@@ -814,6 +814,11 @@ export function act(state: GameState, action: GameAction): GameState {
         // Never announce a ticket unless the engine actually created it.
         const tableLabel=s.tables.find(t=>t.id===c.tableId)?.name??c.tableId;
         notice(s,`รับคิว ${order.id} · ${tableLabel} · ${m.name} · ส่งเข้าคิวผลิตแล้ว`);
+        // Gameplay V2's legacy order button must dispatch through the same live
+        // staff scheduler as visitor-submit. Without this, the KDS shows a
+        // waiting ticket until the next clock tick even when Na is idle.
+        // Scheduling does not advance time, consume stock or charge the POS.
+        scheduleStaff(s);
       }else{
         notice(s,'รับออร์เดอร์ไม่สำเร็จ · ตรวจสอบเมนูและสต็อก');
       }
