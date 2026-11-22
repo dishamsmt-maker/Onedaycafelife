@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {Coffee,UtensilsCrossed,Users,QrCode} from 'lucide-react';
 import {useVisitor} from '../game/visitor';
+import {useGame} from '../game/store';
 import type {GameState} from '../game/types';
 const labels={waiting:'รอคิวผลิต',walking:'พนักงานกำลังไปสถานี',preparing:'กำลังทำ',ready:'พร้อมแล้ว · รอส่งมอบ',serving:'กำลังส่งมอบ',completed:'ส่งมอบแล้ว',cancelled:'ยกเลิกแล้ว'};
 export default function VisitorHud({state,onMenu,onNotice}:{state:GameState;onMenu:()=>void;onNotice:(s:string)=>void}){
@@ -23,6 +24,7 @@ export default function VisitorHud({state,onMenu,onNotice}:{state:GameState;onMe
  }).slice(0,5);
  const run=(fn:()=>unknown)=>{fn();onNotice(useVisitor.getState().message)};
  return <><div className="visitor-role"><button onClick={()=>setRoles(!roles)} aria-label="เลือกตัวละคร"><Users size={14}/>{v.role==='customer'?'ลูกค้า':state.employees.find(e=>e.id===v.role)?.name} ⌄</button>{roles&&<div className="role-list">{(['customer','ham','na','alee','ken','pun'] as const).map(id=><button key={id} onClick={()=>{run(()=>v.setRole(id));setRoles(false)}}>{id==='customer'?'ลูกค้า':state.employees.find(e=>e.id===id)?.name}</button>)}</div>}</div>
+ {state.paused&&state.phase==='open'&&<div className="visitor-story" aria-label="สถานะเวลาจำลอง"><small>เวลาจำลองหยุดอยู่ · คิวครัวและพนักงานจะไม่เดินจนกว่าจะเริ่มเวลา</small><button onClick={()=>useGame.getState().dispatch({type:'pause'})}>เริ่มเวลาเพื่อดำเนินคิว</button></div>}
  {v.role==='customer'?<div className="visitor-story"><span>ONE DAY · TABLE & TAKEAWAY</span><strong>{table?`${tableLabel} · สั่งผ่าน QR`:takeaway?`ซื้อกลับ · คิว ${customer.id.split('-').at(-1)}`:'นั่งร้าน: เลือกโต๊ะในสวน · ซื้อกลับ: สั่งหน้าเคาน์เตอร์'}</strong>
  <div className="visitor-actions">{table&&<><button className="table-qr" aria-label="สแกน QR บนโต๊ะ" onClick={()=>{if(v.scanTable()){onMenu();}else onNotice(useVisitor.getState().message)}}><QrCode size={28}/>แตะ QR เพื่อสั่ง</button><button onClick={()=>run(()=>v.stand())}>ลุกขึ้น</button></>}
  {orders.length>0&&<button onClick={()=>setBill(true)}>บิลและคิว · {orders.length} รายการ</button>}
