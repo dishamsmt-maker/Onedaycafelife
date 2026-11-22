@@ -394,12 +394,20 @@ function scheduleStaff(s: GameState) {
   const na = s.employees.find(e => e.id === 'na')!;
   // Skip blocked orders rather than letting the oldest unreachable ticket starve the queue.
   // Never mark an order as walking until its entire production route is reachable.
-  const food = s.orders.find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && (o.stockConsumed || stockAvailable(s, s.menu.find(m => m.id === o.menuId)!,o.sweetness,o.id)) && canReachStation(na.position, o.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (o.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen)));
+  const food = [...s.orders].sort((a,b) => {
+    // Keep the interactive T3 ticket moving during a simulated rush without
+    // starving older guests: after ten minutes, the older ticket wins.
+    const priority = (o: Order) => o.createdAt - (s.customers.some(c => c.id === o.customerId && c.player) ? 2 : 0);
+    return priority(a) - priority(b);
+  }).find(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'food' && (o.stockConsumed || stockAvailable(s, s.menu.find(m => m.id === o.menuId)!,o.sweetness,o.id)) && canReachStation(na.position, o.stockConsumed?STATIONS.kitchen:STATIONS.fridge) && (o.stockConsumed || canReachStation(STATIONS.fridge, STATIONS.kitchen)));
   if (food && !na.controlled && (!na.task||na.task.kind==='station')) {
     const m = s.menu.find(m => m.id === food.menuId)!; food.workerId = 'na'; food.status = 'walking';
     setTask(na, 'cook', food.stockConsumed?STATIONS.kitchen:STATIONS.fridge, food.stockConsumed?m.duration*s.settings.prepMultiplier:.6, { orderId: food.id, productionStep:food.stockConsumed?'prepare':'collect' });
   }
-  const drinks = s.orders.filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
+  const drinks = [...s.orders].sort((a,b) => {
+    const priority = (o: Order) => o.createdAt - (s.customers.some(c => c.id === o.customerId && c.player) ? 2 : 0);
+    return priority(a) - priority(b);
+  }).filter(o => !o.componentOrderIds?.length && o.status === 'waiting' && !(s.customers.find(c=>c.id===o.customerId)?.orderChannel==='counter'&&!o.paid) && s.menu.find(m => m.id === o.menuId)?.kind === 'drink');
   const stationBusy = s.employees.some(e => e.task?.kind === 'brew');
   if (drinks.length && !stationBusy) {
     const candidates = s.employees.filter(e => !e.controlled && ['ham', 'na', 'alee'].includes(e.id) && (!e.task || ['manage', 'garden','station'].includes(e.task.kind)) && (s.baristaMode === 'auto' || e.id === s.baristaMode) && !(e.id === 'na' && food) && !(e.id === 'alee' && s.garden.careRequested));
