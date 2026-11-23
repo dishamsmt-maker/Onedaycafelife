@@ -132,8 +132,13 @@ export const useVisitor=create<VisitorState>((set,get)=>({
     set({message:reason??'ส่งรายการไม่ได้ · ตรวจว่าบิลเดิมเป็นนั่งร้านหรือซื้อกลับ และไม่เกิน 8 รายการ'});
     return false;
   }
-  const c=playerCustomer(),t=useGame.getState().game.tables.find(t=>t.id===c?.tableId);
-  set({message:`รับออร์เดอร์${m.name}แล้ว${t?` · เสิร์ฟที่${t.name}`:' · รับที่เคาน์เตอร์'}`});return true;
+  const c=playerCustomer(),t=after.tables.find(t=>t.id===c?.tableId);
+  // Show the actual engine-created ticket and production state in the FPV UI.
+  // A successful request key alone must not be mistaken for a visible KDS order.
+  const ticket=after.orders.filter(o=>o.customerId===c?.id&&!o.parentOrderId)
+    .find(o=>o.menuId===menuId&&o.status!=='cancelled'&&o.createdAt===after.minute);
+  const queueState=ticket?.status==='walking'||ticket?.status==='preparing'?'พนักงานรับคิวแล้ว':'เข้าคิว KDS แล้ว';
+  set({message:ticket?`คิว ${ticket.id} · ${m.name} · ${queueState}${t?` · ${t.name}`:''}`:`รับออร์เดอร์${m.name}แล้ว · กำลังตรวจคิว KDS`});return true;
  },
  consume:kind=>{
   const state=get(),game=useGame.getState().game,c=playerCustomer();
