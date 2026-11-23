@@ -361,6 +361,18 @@ function canReachStation(from: Vec2, to: Vec2): boolean {
 }
 // A reachable table is not enough: the accepted QR ticket must also have a
 // physical production route to the fridge and the relevant preparation station.
+// A busy employee can reach the next station from the end of their current task.
+// Use the same preflight for QR acceptance and avoid rejecting an order while
+// the waiter is walking an already committed delivery route.
+function canReachAfterCurrentTask(e: Employee, station: Vec2): boolean {
+  if (canReachStation(e.position, station)) return true;
+  if (!e.task || e.task.kind === 'rest') return false;
+  const destination = e.task.target;
+  const plannedEnd = e.task.path[e.task.path.length - 1] ?? e.position;
+  return Math.hypot(plannedEnd[0] - destination[0], plannedEnd[1] - destination[1]) <= .4
+    && segmentWalkable(plannedEnd, destination)
+    && canReachStation(destination, station);
+}
 function qrProductionReachable(s: GameState, menu: MenuItem): boolean {
   const jobs = menu.components?.length
     ? menu.components.map(part => s.menu.find(item => item.id === part.menuId)).filter((item): item is MenuItem => !!item)
@@ -375,13 +387,7 @@ function qrProductionReachable(s: GameState, menu: MenuItem): boolean {
       // An occupied worker can finish an existing route before collecting the
       // next QR ticket. Validate that task's destination as well as the current
       // position; transient movement must not reject an otherwise reachable sale.
-      if (canReachStation(e.position, STATIONS.fridge)) return true;
-      if (!e.task || e.task.kind === 'rest') return false;
-      const destination = e.task.target;
-      const plannedEnd = e.task.path[e.task.path.length - 1] ?? e.position;
-      return Math.hypot(plannedEnd[0] - destination[0], plannedEnd[1] - destination[1]) <= .4
-        && segmentWalkable(plannedEnd, destination)
-        && canReachStation(destination, STATIONS.fridge);
+      return canReachAfterCurrentTask(e, STATIONS.fridge);
     });
   });
 }
@@ -719,7 +725,7 @@ export function act(state: GameState, action: GameAction): GameState {
         // Do not accept a QR ticket when the active server cannot reach pickup.
         // A pickup-to-table route alone can leave a paid-for meal permanently ready.
         const waiter = s.employees.find(e => e.id === activeServer(s));
-        if (!waiter || !canReachStation(waiter.position, STATIONS.pickup)) {
+        if (!waiter || !canReachAfterCurrentTask(waiter, STATIONS.pickup)) {
           notice(s, 'พนักงานยังเข้าถึงจุดรับอาหารไม่ได้ · ยังไม่รับออร์เดอร์ QR');
           break;
         }
