@@ -359,6 +359,21 @@ function canReachStation(from: Vec2, to: Vec2): boolean {
   const end = route[route.length - 1] ?? from;
   return Math.hypot(end[0] - to[0], end[1] - to[1]) <= .4 && segmentWalkable(end, to);
 }
+// A reachable table is not enough: the accepted QR ticket must also have a
+// physical production route to the fridge and the relevant preparation station.
+function qrProductionReachable(s: GameState, menu: MenuItem): boolean {
+  const jobs = menu.components?.length
+    ? menu.components.map(part => s.menu.find(item => item.id === part.menuId)).filter((item): item is MenuItem => !!item)
+    : [menu];
+  return jobs.every(item => {
+    const station = item.kind === 'food' ? STATIONS.kitchen : STATIONS.bar;
+    if (!canReachStation(STATIONS.fridge, station)) return false;
+    const workers = item.kind === 'food'
+      ? s.employees.filter(e => e.id === 'na')
+      : s.employees.filter(e => ['ham', 'na', 'alee'].includes(e.id) && (s.baristaMode === 'auto' || e.id === s.baristaMode));
+    return workers.some(e => canReachStation(e.position, STATIONS.fridge));
+  });
+}
 function scheduleStaff(s: GameState) {
   const server = activeServer(s);
   const serving = s.employees.find(e => e.id === server)!;
@@ -715,6 +730,7 @@ export function act(state: GameState, action: GameAction): GameState {
       // Match the FPV QR preflight and the recipe actually reserved by placeCustomerOrder.
       // Otherwise a reduced-sugar drink can be rejected using 100% sugar stock.
       if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,current?.sweetness??100))break;
+       if(action.channel==='table-qr'&&!qrProductionReachable(s,m)){notice(s,'เส้นทางไปสถานีผลิตถูกกีดขวาง · ยังไม่รับออร์เดอร์ QR');break;}
       if(current&&current.orderIds.filter(id=>!s.orders.find(o=>o.id===id)?.parentOrderId).length>=8)break;
       const c=ensurePlayer(s);
       // Only consume the idempotency key after an order was actually created.
@@ -773,6 +789,7 @@ export function act(state: GameState, action: GameAction): GameState {
     case 'visitor-order': {
       const m=s.menu.find(m=>m.id===action.menuId);
       if(!m||!menuAvailable(m,s.minute)||s.phase!=='open'||!stockAvailable(s,m,s.customers.find(c=>c.player&&c.status!=='leaving')?.sweetness??100))break;
+       if(!qrProductionReachable(s,m)){notice(s,'เส้นทางไปสถานีผลิตถูกกีดขวาง · ยังไม่รับออร์เดอร์');break;}
       // A dine-in order must have a valid delivery destination before a
       // production job is created. Do not strand orders when all tables are full.
       const current=s.customers.find(c=>c.player&&c.status!=='leaving');
