@@ -371,7 +371,18 @@ function qrProductionReachable(s: GameState, menu: MenuItem): boolean {
     const workers = item.kind === 'food'
       ? s.employees.filter(e => e.id === 'na')
       : s.employees.filter(e => ['ham', 'na', 'alee'].includes(e.id) && (s.baristaMode === 'auto' || e.id === s.baristaMode));
-    return workers.some(e => canReachStation(e.position, STATIONS.fridge));
+    return workers.some(e => {
+      // An occupied worker can finish an existing route before collecting the
+      // next QR ticket. Validate that task's destination as well as the current
+      // position; transient movement must not reject an otherwise reachable sale.
+      if (canReachStation(e.position, STATIONS.fridge)) return true;
+      if (!e.task || e.task.kind === 'rest') return false;
+      const destination = e.task.target;
+      const plannedEnd = e.task.path[e.task.path.length - 1] ?? e.position;
+      return Math.hypot(plannedEnd[0] - destination[0], plannedEnd[1] - destination[1]) <= .4
+        && segmentWalkable(plannedEnd, destination)
+        && canReachStation(destination, STATIONS.fridge);
+    });
   });
 }
 function scheduleStaff(s: GameState) {
