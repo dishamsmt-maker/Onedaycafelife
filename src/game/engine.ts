@@ -766,13 +766,17 @@ export function act(state: GameState, action: GameAction): GameState {
       // Never interrupt an active production or delivery task.
       if (action.channel === 'table-qr') {
         const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
-        const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled && !e.task?.orderId);
+        const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled);
         for (const e of resumed) {
           // A controlled worker may retain a non-order station/rest task. Clear it
           // when resuming, otherwise the scheduler can skip the new T3 ticket.
-          e.task = null;
+          // Preserve in-flight production/delivery; relinquish manual control
+          // so the scheduler can assign the next QR ticket when it finishes.
+          if (!e.task?.orderId) {
+            e.task = null;
+            e.available = true;
+          }
           e.controlled = false;
-          e.available = true;
         }
         if (resumed.length) notice(s, `รับคิว QR แล้ว · คืนการทำงานอัตโนมัติให้ ${resumed.map(e => e.name).join(', ')} เพื่อไม่ให้คิวค้าง`);
       }
@@ -852,13 +856,17 @@ export function act(state: GameState, action: GameAction): GameState {
         // waiting/ready indefinitely when Na or the active server is controlled.
         // Never interrupt a worker with an active order task.
         const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
-        const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled && !e.task?.orderId);
+        const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled);
         for (const e of resumed) {
           // A controlled worker may retain a non-order station/rest task. Clear it
           // when resuming, otherwise the scheduler can skip the new T3 ticket.
-          e.task = null;
+          // Preserve in-flight production/delivery; relinquish manual control
+          // so the scheduler can assign the next QR ticket when it finishes.
+          if (!e.task?.orderId) {
+            e.task = null;
+            e.available = true;
+          }
           e.controlled = false;
-          e.available = true;
         }
         if (resumed.length) notice(s, `รับคิว QR แล้ว · คืนการทำงานอัตโนมัติให้ ${resumed.map(e => e.name).join(', ')} เพื่อไม่ให้คิวค้าง`);
         // Use the same accepted-ticket feedback as visitor-submit, so a
