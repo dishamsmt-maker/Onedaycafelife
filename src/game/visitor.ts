@@ -120,6 +120,10 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   // The FPV seat/QR cache is not authoritative: reject stale table state before creating a kitchen ticket.
   const customer=playerCustomer();
   if(state.tableId&&customer?.tableId!==state.tableId){set({message:'สถานะโต๊ะไม่ตรงกับระบบ กรุณานั่งและสแกน QR อีกครั้ง'});return false;}
+  // Capture existing ticket IDs before dispatch. Two orders of the same menu
+  // can share the same simulation minute; matching by timestamp returns the
+  // previous ticket and incorrectly reports its kitchen state to the guest.
+  const priorTicketIds=new Set(game.orders.map(o=>o.id));
   const requestId=crypto.randomUUID();
   const previousNoticeId=game.notices[0]?.id;
   useGame.getState().dispatch({type:'visitor-submit',menuId,channel:state.tableId?'table-qr':'counter',requestId});
@@ -135,8 +139,7 @@ export const useVisitor=create<VisitorState>((set,get)=>({
   const c=playerCustomer(),t=after.tables.find(t=>t.id===c?.tableId);
   // Show the actual engine-created ticket and production state in the FPV UI.
   // A successful request key alone must not be mistaken for a visible KDS order.
-  const ticket=after.orders.filter(o=>o.customerId===c?.id&&!o.parentOrderId)
-    .find(o=>o.menuId===menuId&&o.status!=='cancelled'&&o.createdAt===after.minute);
+  const ticket=after.orders.find(o=>!priorTicketIds.has(o.id)&&o.customerId===c?.id&&!o.parentOrderId&&o.menuId===menuId&&o.status!=='cancelled');
   const queueState=ticket?.status==='walking'||ticket?.status==='preparing'?'พนักงานรับคิวแล้ว':'เข้าคิว KDS แล้ว';
   set({message:ticket?`คิว ${ticket.id} · ${m.name} · ${queueState}${t?` · ${t.name}`:''}`:`รับออร์เดอร์${m.name}แล้ว · กำลังตรวจคิว KDS`});return true;
  },
