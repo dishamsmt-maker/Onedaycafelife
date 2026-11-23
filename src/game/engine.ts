@@ -211,7 +211,7 @@ function finishTask(s: GameState, e: Employee) {
   if(t.maintenance==='question'){const c=s.customers.find(c=>c.id===t.customerId);if(c){c.answeredAt=s.minute;notice(s,`${c.name} · พนักงานตรวจคิวและแจ้งความคืบหน้าแล้ว`);}}
   if (t.kind === 'cook' || t.kind === 'brew') {
     const o = s.orders.find(o => o.id === t.orderId);
-    if (o && o.status !== 'cancelled') { o.status = 'ready'; o.readyAt = s.minute; o.workerId = undefined; }
+    if (o && o.status !== 'cancelled') { o.status = 'ready'; o.readyAt = s.minute; o.workerId = undefined; if (s.customers.some(customer => customer.id === o.customerId && customer.player)) notice(s, `คิว ${o.id} · ${e.name} ทำเสร็จแล้ว · รอพนักงานเสิร์ฟ`); }
   } else if (t.kind === 'serve') {
     const c = s.customers.find(c => c.id === t.customerId);
     if(t.maintenance==='question'){}
@@ -225,6 +225,7 @@ function finishTask(s: GameState, e: Employee) {
         const closeEnough = Math.hypot(e.position[0] - destination[0], e.position[1] - destination[1]) <= .45 && segmentWalkable(e.position, destination);
         if (closeEnough) {
           o.status = 'completed'; o.completedAt = s.minute; o.workerId = undefined;
+          if (c.player) notice(s, `คิว ${o.id} · ${e.name} เสิร์ฟถึงโต๊ะแล้ว · ชำระที่ POS หลังรับอาหาร`);
           s.todayWaits.push(s.minute - o.createdAt);
         } else {
           // The customer moved after the route was planned: never mark a remote delivery complete.
@@ -305,6 +306,7 @@ function progressEmployees(s: GameState, dt: number) {
         const menu = s.menu.find(m => m.id === o.menuId)!;
         if (o.status === 'cancelled' || !consume(s, o, menu)) { if (o.status !== 'cancelled') { o.status = 'waiting'; o.workerId = undefined; } e.task = null; continue; }
         o.status = 'preparing';
+        if (s.customers.some(customer => customer.id === o.customerId && customer.player)) notice(s, `คิว ${o.id} · ${e.name} เริ่มเตรียมรายการแล้ว`);
       }
       if (t.kind === 'serve' && t.stage === 'pickup') {
         // Do not teleport food from the kitchen when the pickup path is missing.
@@ -332,7 +334,9 @@ function progressEmployees(s: GameState, dt: number) {
           o.status = 'ready'; o.workerId = undefined; e.task = null; e.available = true;
           continue;
         }
-        o.status = 'serving'; t.stage = 'deliver'; t.target = destination; t.path = route; continue;
+        o.status = 'serving'; t.stage = 'deliver'; t.target = destination; t.path = route;
+        if (c.player) notice(s, `คิว ${o.id} · ${e.name} รับอาหารและกำลังเดินไปเสิร์ฟ`);
+        continue;
       }
       t.phase = 'working';
     }
