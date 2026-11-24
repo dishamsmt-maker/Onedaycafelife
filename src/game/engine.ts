@@ -765,7 +765,15 @@ export function act(state: GameState, action: GameAction): GameState {
       // Hand the required idle staff back to the scheduler after acceptance.
       // Never interrupt an active production or delivery task.
       if (action.channel === 'table-qr') {
-        const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
+        const productionItems = m.components?.length
+          ? m.components.map(part => s.menu.find(item => item.id === part.menuId)).filter((item): item is MenuItem => !!item)
+          : [m];
+        // Mixed bundles need both kitchen and bar staff, even when the root is food.
+        const required = [...new Set([
+          activeServer(s),
+          ...(productionItems.some(item => item.kind === 'food') ? ['na'] : []),
+          ...(productionItems.some(item => item.kind === 'drink') ? ['ham', 'na', 'alee'] : []),
+        ])];
         const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled);
         for (const e of resumed) {
           // A controlled worker may retain a non-order station/rest task. Clear it
@@ -855,7 +863,15 @@ export function act(state: GameState, action: GameAction): GameState {
         // visitor-submit already does this; without parity, a ticket can remain
         // waiting/ready indefinitely when Na or the active server is controlled.
         // Never interrupt a worker with an active order task.
-        const required = m.kind === 'food' ? ['na', activeServer(s)] : ['ham', 'na', 'alee', activeServer(s)];
+        const productionItems = m.components?.length
+          ? m.components.map(part => s.menu.find(item => item.id === part.menuId)).filter((item): item is MenuItem => !!item)
+          : [m];
+        // Mixed bundles need both kitchen and bar staff, even when the root is food.
+        const required = [...new Set([
+          activeServer(s),
+          ...(productionItems.some(item => item.kind === 'food') ? ['na'] : []),
+          ...(productionItems.some(item => item.kind === 'drink') ? ['ham', 'na', 'alee'] : []),
+        ])];
         const resumed = s.employees.filter(e => required.includes(e.id) && e.controlled);
         for (const e of resumed) {
           // A controlled worker may retain a non-order station/rest task. Clear it
